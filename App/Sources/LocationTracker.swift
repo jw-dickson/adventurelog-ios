@@ -48,7 +48,14 @@ final class LocationTracker {
     }
 
     func refreshAuthorization() {
-        authorization = manager.authorizationStatus
+        let current = manager.authorizationStatus
+        if current != authorization { authorization = current }
+    }
+
+    /// Location has been allowed. Until then there is nothing to record and no geofence can exist,
+    /// so CLMonitor isn't touched.
+    var isAuthorized: Bool {
+        authorization == .authorizedWhenInUse || authorization == .authorizedAlways
     }
 
     /// Starts recording; asks for permission the first time.
@@ -126,6 +133,7 @@ final class LocationTracker {
     /// Watches exactly these places (iOS allows 20 per app; the caller sends the next few).
     func watch(_ places: [Place]) async {
         await serially { [self] in
+            guard isAuthorized || monitor != nil else { return }
             let monitor = await ensureMonitor()
             let wanted = Dictionary(places.map { ($0.rowID, $0) }, uniquingKeysWith: { first, _ in first })
             for id in watched where wanted[id] == nil {
@@ -143,6 +151,7 @@ final class LocationTracker {
     /// Stops watching everything, including places a previous launch left registered.
     func unwatchAll() async {
         await serially { [self] in
+            guard isAuthorized || monitor != nil else { return }
             let monitor = await ensureMonitor()
             for id in watched { await monitor.remove(id) }
             watched = []

@@ -3,6 +3,7 @@
 import AdventureLogKit
 import ALStore
 import BackgroundTasks
+import CoreLocation
 import Foundation
 import Network
 import Observation
@@ -122,6 +123,8 @@ final class AppModel {
     private var geofencesChecked = false
     /// Re-checks at midnight, so recording stops after the trip's last day even if the phone sits still.
     private var midnightTask: Task<Void, Never>?
+    /// The location permission the last tracking decision saw; a change (an answer to the prompt) decides again.
+    private var trackingAuthorization: CLAuthorizationStatus?
 
     /// The background refresh that keeps the reminder window rolling and the trip fresh.
     nonisolated static let refreshTaskID = "app.adventurelog.refresh"
@@ -622,6 +625,7 @@ final class AppModel {
 
     /// Records on a trip day the person agreed to, and stops otherwise. Cheap to call often.
     func updateTracking() {
+        trackingAuthorization = tracker.authorization
         guard credentials != nil, let id = trackableTripToday,
               let plan = trips[id]?.plan, tracker.authorization != .denied, tracker.authorization != .restricted
         else {
@@ -652,7 +656,7 @@ final class AppModel {
     /// Stops when the trip being recorded has no day today any more.
     private func checkTrackingDay() {
         guard let id = trackedTripID else { return }
-        if trips[id]?.plan.day(for: today) == nil || tracker.authorization == .denied { updateTracking() }
+        if trips[id]?.plan.day(for: today) == nil || tracker.authorization != trackingAuthorization { updateTracking() }
     }
 
     private func scheduleMidnightCheck() {
