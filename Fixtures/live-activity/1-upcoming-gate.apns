@@ -1,0 +1,13 @@
+{
+  "Simulator Target Bundle": "app.adventurelog.ios.dev",
+  "aps": {
+    "timestamp": 1804356000,
+    "event": "update",
+    "content-state": {
+      "phase": "upcoming",
+      "target": 1804360500,
+      "departure": 1804363200,
+      "note": "Gate 23"
+    }
+  }
+}

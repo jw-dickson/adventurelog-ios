@@ -1,0 +1,14 @@
+{
+  "Simulator Target Bundle": "app.adventurelog.ios.dev",
+  "aps": {
+    "timestamp": 1804364700,
+    "event": "end",
+    "dismissal-date": 1804364700,
+    "content-state": {
+      "phase": "boarding",
+      "target": 1804362000,
+      "departure": 1804364700,
+      "note": "Departed"
+    }
+  }
+}

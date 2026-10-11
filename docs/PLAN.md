@@ -58,6 +58,16 @@ Tracking is off until the person agrees, once per trip, from Today's offer or th
   - A stop of 10 minutes or more that matches nothing in the plan shows as an unplanned stop.
 - **The Log tab:** Today (or a day picked from Trip) shows distance driven against the plan's ground travel, how much of the plan was done, and each item with its planned and actual times. Trip lists every day so far. GPX exports the route for a day or the trip, one segment per day, with visited and unplanned stops as waypoints. The Map tab draws the day's route over the planned line.
 
+## How Stage 4 shows Live Activities
+
+Stage 4a runs on the phone alone; 4b adds the companion service in `Companion/` (Python, FastAPI), which sends pushes.
+
+- **What gets one:** a flight, from three hours before departure, and a booked tour (a place tagged booked, fixed or reserved), from an hour before it starts. When two overlap, the sooner one wins. Skipped rows get none. The choice is `LiveActivityPlanner` in AdventureLogKit.
+- **What it shows** (Design/review-1, 09): "Connection · SYD" when the flight follows another flight into the same airport, else "Flight · DEN" or "Booked tour"; the title ("EX 1501 to Hobart"); the first line of the notes; and a countdown in system timer text, so it ticks without updates. A flight counts down to boarding (45 minutes before departure), then to departure. A three-part bar fills in ochre over the wait. It always uses the dark live palette.
+- **When it starts and ends:** iOS only lets an app start a Live Activity while it's open. So it starts when AdventureLog is open, or running for tracking, inside the window. It updates, and ends at departure or at the tour's start, whenever the app runs, including background refresh. Push-to-start from the companion (4b) removes the need to open the app.
+- **Pushes:** the content state is `LiveActivityState`, with times as Unix seconds. A push can set a note ("Gate 23", "Delayed 25 min"), move the times, mark it cancelled, or end it. When the phone recalculates it keeps a pushed note, and it never lifts a cancellation. `Fixtures/live-activity/` has a payload for every state.
+- **Turning it off:** Reminders has a Live Activities switch, and iOS has its own in Settings.
+
 ## Testing without a device
 
 Every outside dependency comes through a protocol the tests replace: the network (a stub server and real fixtures), the clock (`-ALNow`), Core Location (recorded GPX replayed in tests and with `simctl location`), and push (`simctl push` payloads). Physical-device checks (background wake-ups, battery, cellular push) happen on TestFlight builds from design review 2 onward.

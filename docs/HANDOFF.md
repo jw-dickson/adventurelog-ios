@@ -264,3 +264,32 @@ Points carry the real time, so this needs a trip with a day today rather than a 
 
 ### Results
 
+---
+
+## Handoff 6 · Stage 4a, Live Activities (2026-10-11)
+
+**Branch:** `stage-4a-live-activities`. **Goal:** every Live Activity state renders, in the Simulator and on a phone.
+
+### What changed
+
+- **A widget extension** (`Widgets/`, target `AdventureLogWidgets`) draws the Live Activity's Lock Screen card and Dynamic Island. See "How Stage 4 shows Live Activities" in [PLAN.md](PLAN.md).
+- **The app** starts, updates and ends it (`App/Sources/LiveActivities.swift`). Reminders has a switch for it.
+- **Kit tests** check the Sydney connection against the mockup, boarding, the first flight, a booked tour and skipping. They also decode every push payload in `Fixtures/live-activity/`.
+
+### Before the next TestFlight build
+
+The extension needs its own bundle id, the app's id plus `.widgets`, in App Store Connect and in the signing setup outside the repo. Without it, archiving fails.
+
+### 1. Simulator
+
+1. Make the synthetic trip's EX 1501 window current: run the app with `-ALNow 2027-03-06T18:03:00Z` on a Simulator whose clock you don't change. Open the app and go to the Home Screen: the Live Activity should be on the Lock Screen, showing "Connection · SYD" and "EX 1501 to Hobart". Because the Simulator's real clock isn't 2027, the countdown reads days.
+2. In Xcode, open `Widgets/TripLiveActivity.swift` and check the previews: upcoming, boarding and cancelled. On this branch they are how the pushed states get checked: the app starts its activity without a push token, so pushes can't reach it.
+3. The payloads in `Fixtures/live-activity/` need an activity started with a push token. Stage 4b starts one that way once a companion address is set in Reminders; from then on, push each in turn with `xcrun simctl push booted app.adventurelog.ios.dev <file>` and check the Lock Screen and the Dynamic Island (iPhone 15 Pro or later). If `simctl` refuses Live Activity payloads on this Xcode, note it; the companion's sandbox push covers the same states.
+
+### 2. On a device (TestFlight)
+
+1. On the day of a real flight or booked tour in AdventureLog, open the app inside the window. The activity should appear and count down. It should end at departure without the app being opened again, provided the phone ran it in the background at least once in between.
+2. Turn the switch off in Reminders: the activity goes away.
+
+### Results
+
