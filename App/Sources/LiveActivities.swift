@@ -10,8 +10,10 @@ import Foundation
 /// next time AdventureLog is open (or tracking keeps it running) inside the window. Updates and
 /// endings also work in the background. A push from the companion service (Stage 4b) can add a
 /// gate or a delay; the phone keeps that note when it updates the times.
-@MainActor
-final class LiveActivityController {
+///
+/// Not main-actor bound: `Activity` isn't Sendable, so it's looked up and changed on the same
+/// (generic) executor rather than handed across from the main actor.
+struct LiveActivityController: Sendable {
     var isAllowed: Bool { ActivityAuthorizationInfo().areActivitiesEnabled }
 
     /// Makes the running activity match `plan`, or ends every activity when `plan` is nil.
