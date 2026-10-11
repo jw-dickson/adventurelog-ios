@@ -18,7 +18,7 @@ make test-packages
 make test-ui
 ```
 
-CI runs the same on GitHub-hosted macOS for every pull request. Self-hosted jobs (full Simulator suite, TestFlight) run only on the maintainer's repository and never on pull requests.
+CI runs the same on GitHub-hosted macOS for every pull request. The maintainer's own self-hosted jobs (nightly full Simulator suite, TestFlight) run from a separate private repository and never on pull requests.
 
 ## Commit style
 

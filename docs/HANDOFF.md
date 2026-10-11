@@ -39,31 +39,13 @@ AL_TEST_SERVER=http://127.0.0.1:8015 AL_TEST_API_KEY=al_… make test-ui
 
 Create the API key in AdventureLog's settings (API keys). Don't use your real trips for UI tests; `seed.py` creates a new collection each run.
 
-### 3. Register the self-hosted runner
+### 3–5. Self-hosted runner, repository settings, signing
 
-Runners on a personal account belong to one repository, so add a second instance:
-
-1. GitHub → `adventurelog-ios` → Settings → Actions → Runners → New self-hosted runner → macOS, ARM64.
-2. Install into its own folder with the labels `self-hosted,macOS,ARM64`.
-3. Install it as a **LaunchAgent** so it shares the logged-in GUI session the signing keychain needs.
-4. `brew install xcodegen` if the runner's shell doesn't already see it.
-
-### 4. Repository settings
-
-- Actions → General → Fork pull request workflows: **require approval for all outside collaborators**.
-- Environments → new `testflight`, required reviewer: you.
-- Secrets: `CI_SIGNING_KEYCHAIN_PASSWORD`, `ASC_API_KEY_ID`, `ASC_API_ISSUER_ID`, `ASC_API_KEY_P8`, `SIGN_XCCONFIG` (a **path** on the runner, see 5), `AL_TEST_API_KEY` (required by `simulator`).
-- Variables: `AL_TEST_SERVER` (the seeded test server; required by `simulator`, which fails preflight without it and without `AL_TEST_API_KEY`. The GitHub-hosted `ci` lane doesn't use either.)
-
-### 5. App Store Connect and signing
-
-1. Register a bundle id under your team, e.g. `com.example.adventurelog` (your choice; it is not committed).
-2. Create the app record. **The App Store name "AdventureLog" is already taken by an unrelated app**, so name the record something like "AdventureLog Trips"; the home-screen name stays "AdventureLog" (`CFBundleDisplayName`).
-3. On the runner, keep the signing xcconfig outside the repo (`chmod 600`) with your `DEVELOPMENT_TEAM` and `AL_BUNDLE_ID`, and set the `SIGN_XCCONFIG` secret to its **absolute** path. Don't use `~`: the workflow quotes the value, so `~` is never expanded and the file check fails.
+Done, and kept out of this public repository on purpose. The maintainer's private repo runs a self-hosted Mac that checks out this repo: a nightly full Simulator suite (including the live-server test) and a manual TestFlight workflow. This repo keeps only the GitHub-hosted `ci` workflow, which runs on every pull request. One repository setting stays here: Actions → General → Fork pull request workflows: require approval for all outside collaborators.
 
 ### 6. Pull request
 
-Open `stage-0-foundations` → `main`. **Done when:** `ci` is green (it already is); after merging, `simulator` (self-hosted) is green on `main`. Leave `testflight` for design review 2 unless you want to prove signing early (manual dispatch).
+Open `stage-0-foundations` → `main`. **Done when:** `ci` is green and the PR is merged. The first TestFlight build was uploaded early to prove signing (manual dispatch from the private repo).
 
 ### Send back
 
@@ -71,7 +53,7 @@ Append under "Results" below: compile fixes made (file and one line each), test 
 
 ### Results
 
-**Mac session, 2026-10-10 (in progress: steps 1–3 done, 4–6 partly done)**
+**Mac session, 2026-10-10 to 2026-10-11 (complete)**
 
 Step 1 (Xcode 27.0, iOS 27.0 simulator):
 - `make test-packages`: AdventureLogKit 44, ALStore 2, ALDesign 3, all pass.
@@ -96,9 +78,7 @@ Surprises:
 - No offline indicator is visible in the outline when the server is down; it just shows the saved copy.
 - A Simulator build plus UI tests needs about 3 GB; the disk filled once at ~4 GB free. UI tests take 1.5–2.5 min. A screenshot right after `simctl launch` catches the launch screen; wait ~8 s.
 
-Step 3 (runner): registered and online with labels `self-hosted,macOS,ARM64`, in its own folder with its own LaunchAgent. Made by copying another runner's binaries without `_work`/credentials; delete the copied `.runner_migrated` or `config.sh` refuses with "already configured". Its PATH includes `/opt/homebrew/bin` (xcodegen is found).
+Steps 3–5: done. Self-hosted CI and TestFlight signing live in a private maintainer repo (see above). The first TestFlight build uploaded successfully on 2026-10-11.
 
-Step 4 (repo settings): fork-PR approval is now `all_external_contributors`; environment `testflight` exists with the repo owner as required reviewer. Secrets are not set yet (pending the signing inputs).
-
-Step 5: the signing xcconfig (mode 600, outside the repo) is written with the team id and bundle id. The App Store Connect bundle id and the "AdventureLog Trips" app record are still to be created by hand.
+Open items from this handoff: the outline's time column wraps long 12-hour times in the Stage 0 view (tracked in a GitHub issue), and there is no offline indicator when the server is unreachable.
 - The Simulator keeps the Keychain session and saved trips between runs (only `-ALResetState YES` is in-memory). A test that expects the sign-in screen after a signed-in run needs `xcrun simctl uninstall <udid> app.adventurelog.ios.dev` and `xcrun simctl keychain <udid> reset` first.
