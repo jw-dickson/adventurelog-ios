@@ -59,7 +59,8 @@ final class LogUITests: XCTestCase {
         if !offer.waitForExistence(timeout: 3) { app.swipeUp() }
         XCTAssertTrue(offer.waitForExistence(timeout: 5))
         // Agreeing would ask for location permission, so decline here; the Log keeps the switch.
-        app.buttons["tracking.offer.off"].tap()
+        // The card's identifier covers its buttons too, so tap by label (as the reminder offer's test does).
+        app.buttons["No thanks"].tap()
         XCTAssertTrue(offer.waitForNonExistence(timeout: 5))
 
         app.tabBars.buttons["Log"].tap()

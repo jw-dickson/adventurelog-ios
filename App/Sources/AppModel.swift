@@ -71,6 +71,8 @@ final class AppModel {
     private var newestFetchShown: [String: Int] = [:]
     /// The client whose trip-list refresh is in flight; a new session's client can start its own.
     private var refreshingClient: AdventureLogClient?
+    /// The server answered for the trip list this session, so an empty list really is empty.
+    private var tripListFromServer = false
     /// Writes to disk run one after another through this chain, so sign-out can wait for every
     /// write queued before it and then delete. Actors alone don't promise that order.
     private var pendingWrites: Task<Void, Never>?
@@ -322,6 +324,7 @@ final class AppModel {
         syncProblem = nil
         ownedTrips = []
         sharedTrips = []
+        tripListFromServer = false
         trips = [:]
         savedTrips = [:]
         tripRevisions = [:]
@@ -388,6 +391,7 @@ final class AppModel {
             guard isCurrent(client) else { return }
             ownedTrips = o
             sharedTrips = s
+            tripListFromServer = true
             tripListSavedAt = .now
             lastError = nil
             let store = snapshots
@@ -571,7 +575,9 @@ final class AppModel {
         // pending for it, so a cold offline launch never wipes reminders that could still fire.
         let sections = sections()
         let needed = (sections.happeningNow + sections.upcoming + sections.shared.filter(\.isTrip)).map(\.id)
-        let complete = !listed.isEmpty && needed.allSatisfy { trips[$0] != nil }
+        // An empty list counts only when the server sent it: after deleting the last trip its
+        // reminders go, but a launch with nothing loaded yet keeps them.
+        let complete = (tripListFromServer || !listed.isEmpty) && needed.allSatisfy { trips[$0] != nil }
         await reminderScheduler.replace(with: Array(all.prefix(ReminderPlanner.limit)), removeStale: complete)
     }
 
