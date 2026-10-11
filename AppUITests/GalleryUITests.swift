@@ -54,9 +54,10 @@ final class GalleryUITests: XCTestCase {
 
         app.terminate()
         let signIn = XCUIApplication()
-        signIn.launchArguments = ["-ALResetState", "YES", "-ALServerURL", "adventurelog.example", "-ALAPIKey", "al_example_key"] + arguments
+        signIn.launchArguments = ["-ALResetState", "YES", "-ALServerURL", "adventurelog.example"] + arguments
         signIn.launch()
         XCTAssertTrue(signIn.textFields["signin.server"].waitForExistence(timeout: 10))
+        XCTAssertTrue(signIn.secureTextFields["signin.password"].exists)
         keep(signIn, "01-sign-in-\(variant)")
     }
 
