@@ -259,6 +259,7 @@ final class AppModel {
         try await images.removeAll()
         try await deviceState.removeAll()
         try await tracks.removeAll()
+        try? FileManager.default.removeItem(at: Self.gpxFolder)
         deviceStateLoaded = true
         let credentials = ServerCredentials(serverURL: url, apiKey: key, username: user.username,
                                             displayName: user.displayName, apiKeyID: apiKeyID)
@@ -293,6 +294,7 @@ final class AppModel {
         await tracker.unwatchAll() // runs after any geofence change already under way
         await drainWrites()
         try? await tracks.removeAll()
+        try? FileManager.default.removeItem(at: Self.gpxFolder)
         try? await snapshots.removeAll()
         try? await images.removeAll()
         try? await deviceState.removeAll()
@@ -738,12 +740,19 @@ final class AppModel {
         let text = GPX.document(name: plan.collection.name, segments: logs.map(\.points).filter { !$0.isEmpty }, waypoints: waypoints)
         let name = days.count == 1 ? "\(plan.collection.name) \(days[0].description).gpx" : "\(plan.collection.name).gpx"
         let safe = String(name.unicodeScalars.map { CharacterSet(charactersIn: "/:\\").contains($0) ? "-" : Character($0) })
-        let folder = FileManager.default.temporaryDirectory.appending(path: "GPX")
+        let folder = Self.gpxFolder
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let url = folder.appending(path: safe)
+        #if os(iOS)
+        try Data(text.utf8).write(to: url, options: [.atomic, .completeFileProtection])
+        #else
         try Data(text.utf8).write(to: url, options: .atomic)
+        #endif
         return url
     }
+
+    /// Where shared GPX files are written; emptied with the rest of the account's data.
+    static var gpxFolder: URL { FileManager.default.temporaryDirectory.appending(path: "GPX") }
 
     // MARK: Sync
 
