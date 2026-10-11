@@ -7,6 +7,18 @@ import SwiftUI
 import UIKit
 import UserNotifications
 
+/// What a pending reminder says, to tell whether it needs replacing.
+struct ReminderContent: Equatable, Sendable {
+    let title: String
+    let body: String
+}
+
+extension ReminderContent {
+    init(_ reminder: Reminder) {
+        self.init(title: reminder.title, body: reminder.body)
+    }
+}
+
 /// Keeps the phone's pending notifications in step with `ReminderPlanner`: adds the new ones,
 /// removes the ones that no longer apply, and leaves everything that isn't ours alone.
 ///
@@ -29,35 +41,76 @@ final class ReminderScheduler {
         (try? await center.requestAuthorization(options: [.alert, .sound, .badge])) ?? false
     }
 
+    /// Operations run one at a time, in order, so a sign-out's cleanup can't interleave with a
+    /// replacement that started before it.
+    private var tail: Task<Void, Never>?
+    /// Bumped by `removeAll`; a replacement that started under an older value adds nothing.
+    private var generation = 0
+
     /// Makes the pending reminders exactly `reminders`.
-    func replace(with reminders: [Reminder]) async {
-        let pending = await pendingIDs()
-        let wanted = Set(reminders.map(\.id))
-        let stale = pending.filter { !wanted.contains($0) }
-        if !stale.isEmpty { center.removePendingNotificationRequests(withIdentifiers: stale) }
-        let existing = Set(pending)
-        for reminder in reminders where !existing.contains(reminder.id) {
-            center.add(Self.request(for: reminder)) { _ in }
+    /// - Parameter removeStale: `false` adds and updates only, for when some trips' plans aren't
+    ///   loaded yet and their pending reminders must survive.
+    func replace(with reminders: [Reminder], removeStale: Bool = true) async {
+        let started = generation
+        await serially { [self] in
+            guard generation == started else { return }
+            let pending = await pendingReminderContent()
+            guard generation == started else { return }
+            if removeStale {
+                let wanted = Set(reminders.map(\.id))
+                let stale = pending.keys.filter { !wanted.contains($0) }
+                if !stale.isEmpty { center.removePendingNotificationRequests(withIdentifiers: stale) }
+            }
+            for reminder in reminders {
+                // Same id and same words: leave it. A changed title or reference replaces it.
+                if let current = pending[reminder.id], current == ReminderContent(reminder) { continue }
+                guard generation == started else { return }
+                await add(Self.request(for: reminder))
+            }
         }
     }
 
     /// Removes every pending and delivered reminder of ours, e.g. on sign-out.
     func removeAll() async {
-        let pending = await pendingIDs()
-        center.removePendingNotificationRequests(withIdentifiers: pending)
-        let delivered: [String] = await withCheckedContinuation { continuation in
-            center.getDeliveredNotifications { notifications in
-                continuation.resume(returning: notifications.map(\.request.identifier).filter { $0.hasPrefix(ReminderPlanner.prefix) })
+        generation += 1
+        await serially { [self] in
+            let pending = await pendingReminderContent()
+            center.removePendingNotificationRequests(withIdentifiers: Array(pending.keys))
+            let delivered: [String] = await withCheckedContinuation { continuation in
+                center.getDeliveredNotifications { notifications in
+                    continuation.resume(returning: notifications.map(\.request.identifier).filter { $0.hasPrefix(ReminderPlanner.prefix) })
+                }
             }
+            center.removeDeliveredNotifications(withIdentifiers: delivered)
         }
-        center.removeDeliveredNotifications(withIdentifiers: delivered)
     }
 
-    private func pendingIDs() async -> [String] {
+    private func serially(_ operation: @escaping @MainActor () async -> Void) async {
+        let previous = tail
+        let task = Task { @MainActor in
+            await previous?.value
+            await operation()
+        }
+        tail = task
+        await task.value
+    }
+
+    private func pendingReminderContent() async -> [String: ReminderContent] {
         await withCheckedContinuation { continuation in
             center.getPendingNotificationRequests { requests in
-                continuation.resume(returning: requests.map(\.identifier).filter { $0.hasPrefix(ReminderPlanner.prefix) })
+                var result: [String: ReminderContent] = [:]
+                for request in requests where request.identifier.hasPrefix(ReminderPlanner.prefix) {
+                    result[request.identifier] = ReminderContent(title: request.content.title, body: request.content.body)
+                }
+                continuation.resume(returning: result)
             }
+        }
+    }
+
+    /// Adding with an id that's already pending replaces that request.
+    private func add(_ request: UNNotificationRequest) async {
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            center.add(request) { _ in continuation.resume() }
         }
     }
 

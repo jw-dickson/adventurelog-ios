@@ -20,20 +20,25 @@ struct ReminderTests {
         return String(format: "%02d:%02d", clock.hour, clock.minute)
     }
 
+    /// A local time on 8 Mar as the app shows it; the platform decides "9:00" or "09:00".
+    func shown(_ clock: String) -> String {
+        TripTime.shortTime(at("2027-03-08T\(clock):00+11:00"), in: hobart, locale: gb)
+    }
+
     /// Mon 8 Mar from 07:00 in Tasmania: the drive day.
     @Test func theDriveDaysRemindersFallAtTheRightLocalTimes() throws {
         let reminders = ReminderPlanner.reminders(for: try plan(), now: at("2027-03-07T20:00:00Z"), locale: gb)
         let summary = reminders.map { "\(local($0.fireDate)) \($0.kind.rawValue) \($0.title)" }
         #expect(summary == [
-            "08:45 headsUp Car hire (Hobart → Hobart) at 09:00",
-            "10:30 leaveBy Leave by 10:30 for Drive Hobart → Freycinet",
-            "10:45 headsUp Drive Hobart → Freycinet at 11:00",
-            "14:00 headsUp Bay Holiday Park at 15:00",          // booked: an hour ahead
-            "15:50 leaveBy Leave by 15:50 for Wineglass Bay Lookout", // its heads-up would be 5 min later: merged
-            "18:15 leaveBy Leave by 18:15 for Sunset cruise",
+            "08:45 headsUp Car hire (Hobart → Hobart) at \(shown("09:00"))",
+            "10:30 leaveBy Leave by \(shown("10:30")) for Drive Hobart → Freycinet",
+            "10:45 headsUp Drive Hobart → Freycinet at \(shown("11:00"))",
+            "14:00 headsUp Bay Holiday Park at \(shown("15:00"))",          // booked: an hour ahead
+            "15:50 leaveBy Leave by \(shown("15:50")) for Wineglass Bay Lookout", // its heads-up would be 5 min later: merged
+            "18:15 leaveBy Leave by \(shown("18:15")) for Sunset cruise",
         ])
         #expect(reminders.first { $0.title.contains("Bay Holiday Park") }?.body == "Starts in 1 h · BHP-0042")
-        #expect(reminders.first { $0.title.contains("Sunset cruise") }?.body == "About 10 min away · starts 18:30")
+        #expect(reminders.first { $0.title.contains("Sunset cruise") }?.body == "About 10 min away · starts \(shown("18:30"))")
         #expect(Set(reminders.map(\.id)).count == reminders.count)
     }
 

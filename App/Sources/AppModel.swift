@@ -298,9 +298,25 @@ final class AppModel {
             tripListSavedAt = saved.savedAt
         }
         if selectedTripID == nil { selectedTripID = sections().current?.id }
+        await restoreSavedTrips()
         startMonitoringNetwork()
         sendSoon()
         await refreshTrips()
+    }
+
+    /// Shows the saved copies of the trips kept offline, before (and whether or not) the server answers.
+    private func restoreSavedTrips() async {
+        let started = session
+        let sections = sections()
+        for summary in sections.happeningNow + sections.upcoming + sections.shared.filter({ $0.isTrip })
+        where savedTrips[summary.id] == nil {
+            guard let saved = await snapshots.trip(id: summary.id) else { continue }
+            guard session == started, credentials != nil else { return }
+            if savedTrips[summary.id] == nil {
+                savedTrips[summary.id] = saved
+                show(summary.id)
+            }
+        }
     }
 
     /// Results that arrive after a sign-out or a new sign-in are dropped.
@@ -326,6 +342,8 @@ final class AppModel {
             let store = snapshots
             queueWrite { _ = try? await store.saveTripList(.init(owned: o, shared: s, savedAt: .now)) }
             if selectedTripID == nil { selectedTripID = sections().current?.id }
+            // A trip that left the list stops reminding even if nothing else reloads.
+            scheduleReminderUpdate()
         } catch {
             if isCurrent(client) { lastError = Self.describe(error) }
             return
@@ -489,12 +507,19 @@ final class AppModel {
     func updateReminders() async {
         guard remindersEnabled, credentials != nil else { return }
         let now = Date.now
+        // Only trips still in the list: one deleted or no longer shared stops reminding.
+        let listed = Set((ownedTrips + sharedTrips).map(\.id))
         var all: [Reminder] = []
-        for (id, trip) in trips {
+        for (id, trip) in trips where listed.contains(id) {
             all += ReminderPlanner.reminders(for: trip.plan, now: now, skipped: skipped[id] ?? [], settings: reminderSettings)
         }
         all.sort { ($0.fireDate, $0.id) < ($1.fireDate, $1.id) }
-        await reminderScheduler.replace(with: Array(all.prefix(ReminderPlanner.limit)))
+        // A current trip whose plan isn't loaded (no list yet, or no saved copy) keeps whatever is
+        // pending for it, so a cold offline launch never wipes reminders that could still fire.
+        let sections = sections()
+        let needed = (sections.happeningNow + sections.upcoming + sections.shared.filter(\.isTrip)).map(\.id)
+        let complete = !listed.isEmpty && needed.allSatisfy { trips[$0] != nil }
+        await reminderScheduler.replace(with: Array(all.prefix(ReminderPlanner.limit)), removeStale: complete)
     }
 
     /// The background refresh: fetch what changed, send waiting edits, roll the reminder window on.

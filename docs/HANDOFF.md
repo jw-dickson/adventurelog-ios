@@ -222,7 +222,7 @@ Append under "Results":
 
 1. Turn reminders on. In AdventureLog, add a timed place today, an hour from now, after another place with a position. Pull to refresh.
    - A heads-up should arrive 15 minutes before it starts.
-   - A leave-by should arrive at the time Today shows.
+   - A leave-by should arrive at the time in its own text ("Leave by …"). That time comes from `ReminderPlanner` (straight-line estimate plus a buffer), so it can be a few minutes earlier than the leave-by on Today, which uses Apple Maps' drive time and no buffer.
 2. Change the phone's time zone in Settings. The pending reminders should still fire at the same moments.
 3. Leave the app in the background overnight, then open Settings › General › Background App Refresh and confirm AdventureLog is on. The next day's reminders should arrive without opening the app.
 
