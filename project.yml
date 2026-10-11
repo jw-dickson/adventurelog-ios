@@ -54,6 +54,11 @@ targets:
           UIApplicationSupportsMultipleScenes: false
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
+        # Background refresh keeps the reminder window rolling and the trip fresh (Stage 3).
+        UIBackgroundModes:
+          - fetch
+        BGTaskSchedulerPermittedIdentifiers:
+          - app.adventurelog.refresh
         NSLocalNetworkUsageDescription: AdventureLog connects to your self-hosted AdventureLog server when it's on your local network.
         NSAppTransportSecurity:
           # Self-hosted servers on a home network or a dev Mac (http://192.168.x.x, localhost).

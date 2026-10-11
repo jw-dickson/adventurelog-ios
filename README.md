@@ -2,7 +2,7 @@
 
 A native iOS app for [AdventureLog](https://github.com/seanmorley15/AdventureLog), the self-hosted travel tracker and trip planner. It talks to your own AdventureLog server and is built to carry a trip on the road: offline first, times shown in each place's own time zone, and (in later stages) reminders, route logging and Live Activities.
 
-> **Status: Stage 2 — Today, editing and sync.** Sign in with your AdventureLog account or your server's single sign-on and carry your trips offline: Today's next stop with a leave-by time, each day's timeline, item details, notes, checklists and a map. Tick checklist items, edit notes, and reorder or move items between days, with or without a signal. Changes sync when your server can be reached, including on trips shared with you. See [the build plan](docs/PLAN.md).
+> **Status: Stage 3 — reminders (tracking next).** Leave-by and heads-up reminders, worked out on the phone. Stage 2: Sign in with your AdventureLog account or your server's single sign-on and carry your trips offline: Today's next stop with a leave-by time, each day's timeline, item details, notes, checklists and a map. Tick checklist items, edit notes, and reorder or move items between days, with or without a signal. Changes sync when your server can be reached, including on trips shared with you. See [the build plan](docs/PLAN.md).
 
 ## Requirements
 
