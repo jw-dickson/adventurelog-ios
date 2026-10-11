@@ -283,8 +283,8 @@ The extension needs its own bundle id, the app's id plus `.widgets`, in App Stor
 ### 1. Simulator
 
 1. Make the synthetic trip's EX 1501 window current: run the app with `-ALNow 2027-03-06T18:03:00Z` on a Simulator whose clock you don't change. Open the app and go to the Home Screen: the Live Activity should be on the Lock Screen, showing "Connection · SYD" and "EX 1501 to Hobart". Because the Simulator's real clock isn't 2027, the countdown reads days.
-2. Push each payload in `Fixtures/live-activity/` in turn with `xcrun simctl push booted app.adventurelog.ios.dev <file>`, checking the Lock Screen and the Dynamic Island (iPhone 15 Pro or later) after each one. If `simctl` refuses Live Activity payloads on this Xcode, note it; the companion's sandbox push in 4b covers the same states.
-3. In Xcode, open `Widgets/TripLiveActivity.swift` and check the previews: upcoming, boarding and cancelled.
+2. In Xcode, open `Widgets/TripLiveActivity.swift` and check the previews: upcoming, boarding and cancelled. On this branch they are how the pushed states get checked: the app starts its activity without a push token, so pushes can't reach it.
+3. The payloads in `Fixtures/live-activity/` need an activity started with a push token. Stage 4b starts one that way once a companion address is set in Reminders; from then on, push each in turn with `xcrun simctl push booted app.adventurelog.ios.dev <file>` and check the Lock Screen and the Dynamic Island (iPhone 15 Pro or later). If `simctl` refuses Live Activity payloads on this Xcode, note it; the companion's sandbox push covers the same states.
 
 ### 2. On a device (TestFlight)
 

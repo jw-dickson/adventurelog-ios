@@ -15,7 +15,10 @@ tests decode every file here, so a payload can't drift from the app.
 | `4-cancelled.apns` | Cancelled, with the rebooking |
 | `5-end.apns` | Ends the activity after departure |
 
-To try one, start the activity in the Simulator first (see Handoff 6 in `docs/HANDOFF.md`), then:
+A push only reaches an activity that was started with a push token. The app asks for one once a
+companion address is set in Reminders (Stage 4b); without it, the activity takes updates from the
+app alone and these files are a reference. To try one, set a companion address (it needn't be
+reachable), start the activity in the Simulator (see Handoff 6 in `docs/HANDOFF.md`), then:
 
 ```bash
 xcrun simctl push booted app.adventurelog.ios.dev Fixtures/live-activity/2-delayed.apns
