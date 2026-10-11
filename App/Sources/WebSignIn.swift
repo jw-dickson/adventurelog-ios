@@ -12,16 +12,23 @@ import WebKit
 /// It runs in an in-app web view rather than Safari because the app needs the session the server
 /// sets at the end, and Safari's cookies are out of its reach. The web view keeps nothing: its
 /// cookies live only in memory and go with the sheet.
-struct WebSignInSheet: View {
-    let provider: SocialProvider
+/// Where a web sign-in starts and which server's session it is waiting for.
+struct WebSignInTarget: Identifiable, Hashable {
+    let title: String
+    let start: URL
     let server: URL
+    var id: String { start.absoluteString }
+}
+
+struct WebSignInSheet: View {
+    let target: WebSignInTarget
     let onSignedIn: (String) -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var isLoading = true
 
     var body: some View {
         NavigationStack {
-            WebSignInView(start: provider.startURL(on: server), server: server, isLoading: $isLoading) { token in
+            WebSignInView(start: target.start, server: target.server, isLoading: $isLoading) { token in
                 dismiss()
                 onSignedIn(token)
             }
@@ -29,7 +36,7 @@ struct WebSignInSheet: View {
             .overlay {
                 if isLoading { ProgressView().controlSize(.large) }
             }
-            .navigationTitle(provider.name)
+            .navigationTitle(target.title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }

@@ -20,24 +20,40 @@ final class SignInUITests: XCTestCase {
         return app
     }
 
-    func testStartsAtSignInWithAPassword() {
+    private func fill(_ app: XCUIApplication, username: String = "alex", password: String = "secret") {
+        let field = app.textFields["signin.username"]
+        XCTAssertTrue(field.waitForExistence(timeout: 10))
+        field.tap()
+        field.typeText(username)
+        let secret = app.secureTextFields["signin.password"]
+        secret.tap()
+        secret.typeText(password)
+    }
+
+    func testStartsAtSignInWithAPasswordOrSingleSignOn() {
         let app = launch()
         XCTAssertTrue(app.textFields["signin.server"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.textFields["signin.username"].exists)
         XCTAssertTrue(app.secureTextFields["signin.password"].exists)
-        XCTAssertFalse(app.secureTextFields["signin.apikey"].exists, "API keys are the fallback, not the default")
+        XCTAssertTrue(app.buttons["signin.sso"].exists, "Single sign-on is always on offer")
+        XCTAssertFalse(app.secureTextFields["signin.apikey"].exists, "There is no way to paste an API key")
+        XCTAssertFalse(app.buttons["signin.useKey"].exists)
         XCTAssertFalse(app.buttons["signin.connect"].isEnabled, "Sign in stays disabled until every field is filled")
     }
 
-    func testSwitchesBetweenAPasswordAndAnAPIKey() {
+    /// Issue #9: with no providers listed (or a sign-on proxy hiding them), single sign-on opens the
+    /// server's own pages in the web sheet.
+    func testSingleSignOnOpensTheServersPages() {
         let app = launch(["-ALServerURL", "https://example.com"])
-        let useKey = app.buttons["signin.useKey"]
-        XCTAssertTrue(useKey.waitForExistence(timeout: 10))
-        useKey.tap()
-        XCTAssertTrue(app.secureTextFields["signin.apikey"].waitForExistence(timeout: 5))
-        XCTAssertFalse(app.secureTextFields["signin.password"].exists)
-        app.buttons["signin.usePassword"].tap()
-        XCTAssertTrue(app.secureTextFields["signin.password"].waitForExistence(timeout: 5))
+        let sso = app.buttons["signin.sso"]
+        XCTAssertTrue(sso.waitForExistence(timeout: 10))
+        let enabled = XCTNSPredicateExpectation(predicate: NSPredicate(format: "enabled == true"), object: sso)
+        XCTAssertEqual(XCTWaiter.wait(for: [enabled], timeout: 5), .completed)
+        sso.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["signin.web"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.descendants(matching: .any).matching(identifier: "signin.error").firstMatch.exists)
+        app.buttons["Cancel"].tap()
+        XCTAssertTrue(app.textFields["signin.server"].waitForExistence(timeout: 5))
     }
 
     func testPasswordSignInNeedsBothFields() {
@@ -55,48 +71,33 @@ final class SignInUITests: XCTestCase {
     }
 
     func testBadAddressShowsAnError() {
-        let app = launch(["-ALServerURL", "ftp://nope", "-ALAPIKey", "al_x"])
-        let connect = app.buttons["signin.connect"]
-        XCTAssertTrue(connect.waitForExistence(timeout: 10))
-        connect.tap()
+        let app = launch(["-ALServerURL", "ftp://nope"])
+        fill(app)
+        app.buttons["signin.connect"].tap()
         XCTAssertTrue(app.descendants(matching: .any).matching(identifier: "signin.error").firstMatch.waitForExistence(timeout: 10))
     }
 
-    func testConnectRequiresBothFields() {
+    func testWhitespaceOnlyServerKeepsSignInDisabled() {
+        let app = launch(["-ALServerURL", "   "])
+        fill(app)
+        XCTAssertFalse(app.buttons["signin.connect"].isEnabled)
+    }
+
+    func testWhitespaceOnlyUsernameKeepsSignInDisabled() {
         let app = launch(["-ALServerURL", "https://example.com"])
-        let connect = app.buttons["signin.connect"]
-        XCTAssertTrue(connect.waitForExistence(timeout: 10))
-        app.buttons["signin.useKey"].tap()
-        XCTAssertFalse(connect.isEnabled, "A server address alone is insufficient")
-        let key = app.secureTextFields["signin.apikey"]
-        key.tap()
-        key.typeText("al_test")
-        XCTAssertTrue(connect.isEnabled, "Filling the key enables Connect without starting a request")
-    }
-
-    func testWhitespaceOnlyServerKeepsConnectDisabled() {
-        let app = launch(["-ALServerURL", "   ", "-ALAPIKey", "al_test"])
-        let connect = app.buttons["signin.connect"]
-        XCTAssertTrue(connect.waitForExistence(timeout: 10))
-        XCTAssertFalse(connect.isEnabled)
-    }
-
-    func testWhitespaceOnlyKeyKeepsConnectDisabled() {
-        let app = launch(["-ALServerURL", "https://example.com", "-ALAPIKey", "   "])
-        let connect = app.buttons["signin.connect"]
-        XCTAssertTrue(connect.waitForExistence(timeout: 10))
-        XCTAssertFalse(connect.isEnabled)
+        fill(app, username: "   ")
+        XCTAssertFalse(app.buttons["signin.connect"].isEnabled)
     }
 
     func testFailedSignInKeepsFormAvailableForRetry() {
-        let app = launch(["-ALServerURL", "ftp://invalid", "-ALAPIKey", "al_test"])
+        let app = launch(["-ALServerURL", "ftp://invalid"])
+        fill(app)
         let connect = app.buttons["signin.connect"]
-        XCTAssertTrue(connect.waitForExistence(timeout: 10))
         connect.tap()
         let error = app.descendants(matching: .any).matching(identifier: "signin.error").firstMatch
         XCTAssertTrue(error.waitForExistence(timeout: 10))
         XCTAssertTrue(app.textFields["signin.server"].exists)
-        XCTAssertTrue(app.secureTextFields["signin.apikey"].exists)
+        XCTAssertTrue(app.secureTextFields["signin.password"].exists)
         let retryEnabled = XCTNSPredicateExpectation(predicate: NSPredicate(format: "enabled == true"), object: connect)
         XCTAssertEqual(XCTWaiter.wait(for: [retryEnabled], timeout: 5), .completed)
         connect.tap()
@@ -131,8 +132,8 @@ final class SignInUITests: XCTestCase {
               let key = env["AL_TEST_API_KEY"], !key.isEmpty else {
             throw XCTSkip("Set AL_TEST_SERVER and AL_TEST_API_KEY to run against a live AdventureLog.")
         }
+        // The key goes in through the launch-argument test seam; the app itself has no key field.
         let app = launch(["-ALServerURL", server, "-ALAPIKey", key])
-        app.buttons["signin.connect"].tap()
         // The app opens on Today; the trip list is on the Trip tab.
         let tripTab = app.tabBars.buttons["Trip"]
         XCTAssertTrue(tripTab.waitForExistence(timeout: 20))

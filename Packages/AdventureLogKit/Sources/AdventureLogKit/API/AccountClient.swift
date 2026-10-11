@@ -52,11 +52,15 @@ public struct CreatedAPIKey: Codable, Sendable, Hashable {
 public enum AccountError: Error, Sendable, Equatable, LocalizedError {
     case rejected(String)
     case unexpected(String)
+    /// A single sign-on proxy in front of the server answered instead of AdventureLog: it sends
+    /// requests without a session or key to its own login page. Only the web sheet can get past it.
+    case singleSignOn
 
     public var errorDescription: String? {
         switch self {
         case .rejected(let message): return message
         case .unexpected(let message): return "Unexpected response from the server. \(message)"
+        case .singleSignOn: return "This server signs in through single sign-on, so a password doesn't work here. Use “Sign in with single sign-on”."
         }
     }
 }
@@ -166,6 +170,7 @@ public struct AccountClient: Sendable {
         do {
             let (data, response) = try await session.data(for: request)
             guard let http = response as? HTTPURLResponse else { throw APIError.transport(code: -1, description: "No HTTP response.") }
+            if Self.isSignOnPage(http, data: data, for: request) { throw AccountError.singleSignOn }
             return (data, http.statusCode)
         } catch let error as URLError {
             throw APIError.transport(code: error.errorCode, description: error.localizedDescription)
@@ -177,6 +182,14 @@ public struct AccountClient: Sendable {
         let (data, status) = try await exchange(request)
         guard (200..<300).contains(status) else { throw Self.error(from: data, status: status) }
         return data
+    }
+
+    /// Redirected away from the address asked for, to something that isn't JSON: a sign-on
+    /// proxy's login page. (A plain web page with no redirect is just a wrong address.)
+    static func isSignOnPage(_ response: HTTPURLResponse, data: Data, for request: URLRequest) -> Bool {
+        guard let landed = response.url, let asked = request.url,
+              landed.host() != asked.host() || landed.path() != asked.path() else { return false }
+        return (try? JSONSerialization.jsonObject(with: data)) == nil
     }
 
     static func json(_ data: Data) -> [String: Any]? {
