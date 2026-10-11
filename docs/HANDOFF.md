@@ -76,11 +76,11 @@ Append under "Results" below: compile fixes made (file and one line each), test 
 Step 1 (Xcode 27.0, iOS 27.0 simulator):
 - `make test-packages`: AdventureLogKit 44, ALStore 2, ALDesign 3, all pass.
 - `make run` builds and launches (`app.adventurelog.ios.dev`).
-- Screenshots: `docs/screenshots/signin-{light,dark}.png`. The trip outline screenshots were taken against the old seed and were not kept; retake them against the synthetic seed.
+- Screenshots: `docs/screenshots/signin-{light,dark}.png`, and the trip outline against the synthetic seed in `outline-{light,dark}.png`.
 
 Step 2 (disposable AdventureLog v0.13.0 in Docker, compose project `al-ios-test`, port 18015; stop with `docker compose -p al-ios-test down -v`):
 - `make test-ui` against it: 3 tests, 0 failures, including `testSignsInAndShowsTheSeededTrip`.
-- By hand (scripted through a throwaway XCUITest): the seeded trip opens and its overnight flight shows "arrives 5:00 AM +2 days". With the server container stopped, a fresh launch reopens the trip from the saved copy (`outline-offline.png`).
+- By hand (scripted through a throwaway XCUITest): the seeded trip opens and its overnight flight shows "arrives 5:00 AM +2 days". With the server container stopped, a fresh launch reopens the trip "Tasmania Road Trip 2027" from the saved copy (`docs/screenshots/outline-offline.png`). Full UI suite on the new seed: 7 tests, 0 failures.
 - The test API key lives in a mode-600 file outside the repo, not in the repo.
 - Not seen: the "Design tokens" screen (account menu); the UI test hooks don't reach it.
 
@@ -101,3 +101,4 @@ Step 3 (runner): registered and online with labels `self-hosted,macOS,ARM64`, in
 Step 4 (repo settings): fork-PR approval is now `all_external_contributors`; environment `testflight` exists with the repo owner as required reviewer. Secrets are not set yet (pending the signing inputs).
 
 Step 5: the signing xcconfig (mode 600, outside the repo) is written with the team id and bundle id. The App Store Connect bundle id and the "AdventureLog Trips" app record are still to be created by hand.
+- The Simulator keeps the Keychain session and saved trips between runs (only `-ALResetState YES` is in-memory). A test that expects the sign-in screen after a signed-in run needs `xcrun simctl uninstall <udid> app.adventurelog.ios.dev` and `xcrun simctl keychain <udid> reset` first.
