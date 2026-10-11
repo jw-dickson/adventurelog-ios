@@ -1,0 +1,7 @@
+{
+  "method": "PATCH",
+  "path": "/api/itinerary-days/136d6585-96fc-43ab-b22c-4e36248ca939/",
+  "body": {
+    "description": "Collect the rental car at 09:00, drive the Tasman Hwy (~3 h), sunset cruise in the evening."
+  }
+}

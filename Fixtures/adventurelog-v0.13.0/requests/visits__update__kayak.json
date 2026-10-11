@@ -1,0 +1,7 @@
+{
+  "method": "PATCH",
+  "path": "/api/visits/56e4b588-9ad2-4117-8a81-ddf800371d19/",
+  "body": {
+    "notes": "Booked 11:00 slot, ref KAY-1001."
+  }
+}

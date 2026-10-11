@@ -1,0 +1,14 @@
+{
+  "method": "POST",
+  "path": "/api/itineraries/reorder/",
+  "body": {
+    "items": [
+      {
+        "id": "96b0757e-149c-4fb5-a533-2f489ffef3a6",
+        "is_global": false,
+        "date": "2027-03-07",
+        "order": 5
+      }
+    ]
+  }
+}

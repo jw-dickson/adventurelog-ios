@@ -1,0 +1,14 @@
+{
+  "id": "2416e745-e1ec-4cf7-9a91-c3ac45ebafb2",
+  "user": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+  "name": "Hobart day tips",
+  "content": "## Jet-lag plan\n- Stay up until 21:00\n- Coffee on the waterfront\n- Early night\n\nFerry: [harbour ferry](https://example.com/ferry)",
+  "date": "2027-03-07",
+  "links": [
+    "https://example.com/ferry"
+  ],
+  "is_public": false,
+  "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+  "created_at": "2026-10-11T04:48:49.109451Z",
+  "updated_at": "2026-10-11T04:48:49.498098Z"
+}

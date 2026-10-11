@@ -1,0 +1,14 @@
+{
+  "status": 201,
+  "body": {
+    "id": "15205798-cba5-4020-84fe-557782fc40ee",
+    "start_date": "2027-03-07T02:00:00Z",
+    "end_date": "2027-03-07T03:30:00Z",
+    "timezone": "Australia/Hobart",
+    "notes": "Arrive after lunch; café on site.",
+    "activities": [],
+    "location": "b61b4c66-3813-4ae7-b2c5-a81553f5720b",
+    "created_at": "2026-10-11T04:48:46.248644Z",
+    "updated_at": "2026-10-11T04:48:46.248650Z"
+  }
+}

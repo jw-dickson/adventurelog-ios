@@ -1,0 +1,11 @@
+{
+  "method": "POST",
+  "path": "/api/visits/",
+  "body": {
+    "location": "547ce065-2ae7-4a14-8e3f-76f638922234",
+    "timezone": "Australia/Hobart",
+    "start_date": "2027-03-08T18:30:00+11:00",
+    "end_date": "2027-03-08T20:30:00+11:00",
+    "notes": "Bring a jacket — it gets cold on the water."
+  }
+}

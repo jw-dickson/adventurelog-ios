@@ -1,0 +1,57 @@
+{
+  "status": 201,
+  "body": {
+    "id": "9e20f3bd-847e-45fb-bb94-6921d7a64e3d",
+    "name": "Wineglass Bay Lookout",
+    "description": "Steep 1.5 km walk up from the car park. Go early or late.",
+    "rating": null,
+    "tags": [
+      "walk",
+      "photo"
+    ],
+    "location": "Freycinet National Park",
+    "is_public": false,
+    "collections": [
+      "4b2dbaf2-bdda-4b57-950f-386189c5d813"
+    ],
+    "created_at": "2026-10-11T04:48:46.901555Z",
+    "updated_at": "2026-10-11T04:48:46.914401Z",
+    "images": [],
+    "link": null,
+    "longitude": 148.29,
+    "latitude": -42.15,
+    "visits": [],
+    "is_visited": false,
+    "category": {
+      "id": "ef1499ba-48ef-4e6f-97eb-a78ec761a72a",
+      "name": "viewpoint",
+      "display_name": "Viewpoint",
+      "icon": "🔭",
+      "num_locations": 1
+    },
+    "attachments": [],
+    "user": {
+      "profile_pic": null,
+      "uuid": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+      "public_profile": true,
+      "username": "admin",
+      "first_name": "Alex",
+      "last_name": "Example",
+      "date_joined": "2026-10-11T01:01:09.939778Z",
+      "is_staff": true,
+      "disable_password": false,
+      "measurement_system": "metric",
+      "default_currency": "USD",
+      "map_style": "default",
+      "has_password": true,
+      "shared_collection_count": 0,
+      "pending_collection_invite_count": 0
+    },
+    "city": null,
+    "country": null,
+    "region": null,
+    "trails": [],
+    "price": null,
+    "price_currency": "USD"
+  }
+}

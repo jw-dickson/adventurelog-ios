@@ -1,0 +1,8 @@
+{
+  "type": [
+    "This field is required."
+  ],
+  "name": [
+    "This field may not be blank."
+  ]
+}

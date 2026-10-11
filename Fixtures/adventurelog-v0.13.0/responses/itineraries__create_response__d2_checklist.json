@@ -1,0 +1,20 @@
+{
+  "status": 201,
+  "body": {
+    "id": "30b5d0cf-206f-4756-9ef1-24a75cacce96",
+    "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+    "content_type": 16,
+    "object_id": "b1bb2988-991b-48ab-9761-0e2610620c8f",
+    "item": {
+      "id": "b1bb2988-991b-48ab-9761-0e2610620c8f",
+      "type": "checklist"
+    },
+    "date": "2027-03-08",
+    "is_global": false,
+    "order": 1,
+    "start_datetime": "2027-03-08",
+    "end_datetime": null,
+    "created_at": "2026-10-11T04:48:52.191875Z",
+    "object_name": "checklist"
+  }
+}

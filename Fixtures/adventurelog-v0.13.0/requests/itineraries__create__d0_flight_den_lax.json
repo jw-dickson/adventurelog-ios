@@ -1,0 +1,11 @@
+{
+  "method": "POST",
+  "path": "/api/itineraries/",
+  "body": {
+    "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+    "content_type": "transportation",
+    "object_id": "dc241ea6-b2d6-46d4-a60e-30f10f839af6",
+    "order": 0,
+    "date": "2027-03-05"
+  }
+}

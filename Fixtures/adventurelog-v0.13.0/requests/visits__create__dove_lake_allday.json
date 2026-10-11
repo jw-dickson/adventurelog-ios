@@ -1,0 +1,10 @@
+{
+  "method": "POST",
+  "path": "/api/visits/",
+  "body": {
+    "location": "19b7a4bb-5c0a-4a37-9970-1de9aac3a958",
+    "timezone": "Australia/Hobart",
+    "start_date": "2027-03-10T00:00:00Z",
+    "end_date": "2027-03-10T00:00:00Z"
+  }
+}

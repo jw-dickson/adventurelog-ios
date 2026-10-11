@@ -1,0 +1,12 @@
+{
+  "method": "POST",
+  "path": "/api/collections/",
+  "body": {
+    "name": "Tasmania Road Trip 2027",
+    "description": "Hobart → Freycinet → Cradle Mountain → Strahan, by car.\n\nPlanning doc: [shared notes](https://example.com/trip-plan)",
+    "start_date": "2027-03-05",
+    "end_date": "2027-03-23",
+    "is_public": false,
+    "link": "https://example.com/tasmania"
+  }
+}

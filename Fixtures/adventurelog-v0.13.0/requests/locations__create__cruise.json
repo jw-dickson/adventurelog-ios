@@ -1,0 +1,25 @@
+{
+  "method": "POST",
+  "path": "/api/locations/",
+  "body": {
+    "collections": [
+      "4b2dbaf2-bdda-4b57-950f-386189c5d813"
+    ],
+    "is_public": false,
+    "name": "Sunset cruise",
+    "location": "Coles Bay jetty",
+    "description": "Two hours around the bay. Runs when the sea is calm.",
+    "latitude": -42.121,
+    "longitude": 148.283,
+    "category": {
+      "name": "tour",
+      "display_name": "Tour",
+      "icon": "🚤"
+    },
+    "tags": [
+      "boat",
+      "evening"
+    ],
+    "rating": 5
+  }
+}

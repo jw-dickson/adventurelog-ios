@@ -1,0 +1,11 @@
+{
+  "method": "POST",
+  "path": "/api/images/",
+  "content_type": "multipart/form-data",
+  "fields": {
+    "content_type": "location",
+    "object_id": "b61b4c66-3813-4ae7-b2c5-a81553f5720b",
+    "is_primary": "true",
+    "image": "<binary PNG file, filename museum.png>"
+  }
+}

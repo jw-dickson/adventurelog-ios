@@ -1,0 +1,9 @@
+{
+  "method": "PATCH",
+  "path": "/api/transportations/7dc4a38c-f9cb-4563-a2aa-b42cdfa84469/",
+  "body": {
+    "description": "Domestic connection. Re-check bags at SYD after customs.",
+    "price": "189.00",
+    "price_currency": "AUD"
+  }
+}

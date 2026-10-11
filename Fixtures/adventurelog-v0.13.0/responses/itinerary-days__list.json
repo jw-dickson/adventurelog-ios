@@ -1,0 +1,29 @@
+[
+  {
+    "id": "b7829275-5423-4611-b3b4-53a0fbad72e3",
+    "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+    "date": "2027-03-05",
+    "name": "D0 · Travel day (DEN → LAX → SYD)",
+    "description": "Cross the date line overnight; 6 Mar does not exist for us.",
+    "created_at": "2026-10-11T04:48:43.010941Z",
+    "updated_at": "2026-10-11T04:48:43.010953Z"
+  },
+  {
+    "id": "52fec846-8ec0-4b8a-b321-7c51d57d83da",
+    "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+    "date": "2027-03-07",
+    "name": "D1 · Hobart",
+    "description": "Land early, recover, gentle city day.",
+    "created_at": "2026-10-11T04:48:43.205285Z",
+    "updated_at": "2026-10-11T04:48:43.205296Z"
+  },
+  {
+    "id": "136d6585-96fc-43ab-b22c-4e36248ca939",
+    "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+    "date": "2027-03-08",
+    "name": "D2 · Hobart → Freycinet",
+    "description": "Collect the rental car at 09:00, drive the Tasman Hwy (~3 h), sunset cruise in the evening.",
+    "created_at": "2026-10-11T04:48:43.401978Z",
+    "updated_at": "2026-10-11T04:48:43.616826Z"
+  }
+]

@@ -1,0 +1,100 @@
+# AdventureLog for iOS — XcodeGen spec. Generate the project with `make generate`.
+# The .xcodeproj is not committed; this file is the source of truth.
+name: AdventureLog
+
+options:
+  bundleIdPrefix: app.adventurelog
+  deploymentTarget:
+    iOS: "18.0"
+  createIntermediateGroups: true
+  developmentLanguage: en
+  groupSortPosition: top
+
+configFiles:
+  Debug: Config/App.xcconfig
+  Release: Config/App.xcconfig
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    DEAD_CODE_STRIPPING: YES
+
+packages:
+  AdventureLogKit:
+    path: Packages/AdventureLogKit
+  ALDesign:
+    path: Packages/ALDesign
+  ALStore:
+    path: Packages/ALStore
+
+targets:
+  AdventureLog:
+    type: application
+    platform: iOS
+    sources:
+      - path: App/Sources
+      - path: App/Resources
+    dependencies:
+      - package: AdventureLogKit
+      - package: ALDesign
+      - package: ALStore
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: AdventureLog
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        ITSAppUsesNonExemptEncryption: false
+        LSRequiresIPhoneOS: true
+        UILaunchScreen:
+          UIColorName: AccentColor
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        NSLocalNetworkUsageDescription: AdventureLog connects to your self-hosted AdventureLog server when it's on your local network.
+        NSAppTransportSecurity:
+          # Self-hosted servers on a home network or a dev Mac (http://192.168.x.x, localhost).
+          NSAllowsLocalNetworking: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(AL_BUNDLE_ID)
+        PRODUCT_NAME: AdventureLog
+        MARKETING_VERSION: 0.1.0
+        CURRENT_PROJECT_VERSION: $(AL_BUILD_NUMBER)
+        TARGETED_DEVICE_FAMILY: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: App/Info.plist
+
+  AdventureLogUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: AppUITests
+    dependencies:
+      - target: AdventureLog
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(AL_BUNDLE_ID).uitests
+        TEST_TARGET_NAME: AdventureLog
+        GENERATE_INFOPLIST_FILE: YES
+
+schemes:
+  AdventureLog:
+    build:
+      targets:
+        AdventureLog: all
+        AdventureLogUITests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      gatherCoverageData: true
+      targets:
+        - AdventureLogUITests
+    archive:
+      config: Release

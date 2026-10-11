@@ -1,0 +1,20 @@
+{
+  "method": "POST",
+  "path": "/api/lodging/",
+  "body": {
+    "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+    "is_public": false,
+    "type": "campground",
+    "name": "Bay Holiday Park",
+    "location": "1 Example Rd, Coles Bay TAS 7215",
+    "description": "Powered site, bay view.",
+    "check_in": "2027-03-08T04:00:00Z",
+    "check_out": "2027-03-08T23:00:00Z",
+    "timezone": "Australia/Hobart",
+    "reservation_number": "BHP-0042",
+    "price": "58.00",
+    "price_currency": "AUD",
+    "latitude": -42.1247,
+    "longitude": 148.2861
+  }
+}

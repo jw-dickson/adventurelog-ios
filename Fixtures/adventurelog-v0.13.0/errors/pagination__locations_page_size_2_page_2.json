@@ -1,0 +1,139 @@
+{
+  "count": 5,
+  "next": "http://127.0.0.1:8000/api/locations/?page=3&page_size=2",
+  "previous": "http://127.0.0.1:8000/api/locations/?page_size=2",
+  "results": [
+    {
+      "id": "547ce065-2ae7-4a14-8e3f-76f638922234",
+      "name": "Sunset cruise",
+      "description": "Two hours around the bay. Runs when the sea is calm.",
+      "rating": 5.0,
+      "tags": [
+        "boat",
+        "evening"
+      ],
+      "location": "Coles Bay jetty",
+      "is_public": false,
+      "collections": [
+        "4b2dbaf2-bdda-4b57-950f-386189c5d813"
+      ],
+      "created_at": "2026-10-11T04:48:47.366840Z",
+      "updated_at": "2026-10-11T04:48:47.384306Z",
+      "images": [],
+      "link": null,
+      "longitude": 148.283,
+      "latitude": -42.121,
+      "visits": [
+        {
+          "id": "36db118b-1572-4e2e-bfae-299b9905615f",
+          "start_date": "2027-03-08T07:30:00Z",
+          "end_date": "2027-03-08T09:30:00Z",
+          "timezone": "Australia/Hobart",
+          "notes": "Bring a jacket — it gets cold on the water.",
+          "activities": [],
+          "location": "547ce065-2ae7-4a14-8e3f-76f638922234",
+          "created_at": "2026-10-11T04:48:47.612046Z",
+          "updated_at": "2026-10-11T04:48:47.612053Z"
+        }
+      ],
+      "is_visited": false,
+      "category": {
+        "id": "e2014ff8-8ebe-4cdb-85ed-3434a514e6d9",
+        "name": "tour",
+        "display_name": "Tour",
+        "icon": "🚤",
+        "num_locations": 1
+      },
+      "attachments": [],
+      "user": {
+        "profile_pic": null,
+        "uuid": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+        "public_profile": true,
+        "username": "admin",
+        "first_name": "Alex",
+        "last_name": "Example",
+        "date_joined": "2026-10-11T01:01:09.939778Z",
+        "is_staff": true,
+        "disable_password": false,
+        "measurement_system": "metric",
+        "default_currency": "USD",
+        "map_style": "default",
+        "has_password": true,
+        "shared_collection_count": 0,
+        "pending_collection_invite_count": 0
+      },
+      "city": null,
+      "country": null,
+      "region": null,
+      "trails": [],
+      "price": null,
+      "price_currency": "USD"
+    },
+    {
+      "id": "9e20f3bd-847e-45fb-bb94-6921d7a64e3d",
+      "name": "Wineglass Bay Lookout",
+      "description": "Steep 1.5 km walk up from the car park. Go early or late.",
+      "rating": null,
+      "tags": [
+        "walk",
+        "photo"
+      ],
+      "location": "Freycinet National Park",
+      "is_public": false,
+      "collections": [
+        "4b2dbaf2-bdda-4b57-950f-386189c5d813"
+      ],
+      "created_at": "2026-10-11T04:48:46.901555Z",
+      "updated_at": "2026-10-11T04:48:46.914401Z",
+      "images": [],
+      "link": null,
+      "longitude": 148.29,
+      "latitude": -42.15,
+      "visits": [
+        {
+          "id": "20b581cb-ca6e-4277-a048-1260fe05bd64",
+          "start_date": "2027-03-08T05:00:00Z",
+          "end_date": "2027-03-08T05:30:00Z",
+          "timezone": "Australia/Hobart",
+          "notes": null,
+          "activities": [],
+          "location": "9e20f3bd-847e-45fb-bb94-6921d7a64e3d",
+          "created_at": "2026-10-11T04:48:47.131910Z",
+          "updated_at": "2026-10-11T04:48:47.131917Z"
+        }
+      ],
+      "is_visited": false,
+      "category": {
+        "id": "ef1499ba-48ef-4e6f-97eb-a78ec761a72a",
+        "name": "viewpoint",
+        "display_name": "Viewpoint",
+        "icon": "🔭",
+        "num_locations": 1
+      },
+      "attachments": [],
+      "user": {
+        "profile_pic": null,
+        "uuid": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+        "public_profile": true,
+        "username": "admin",
+        "first_name": "Alex",
+        "last_name": "Example",
+        "date_joined": "2026-10-11T01:01:09.939778Z",
+        "is_staff": true,
+        "disable_password": false,
+        "measurement_system": "metric",
+        "default_currency": "USD",
+        "map_style": "default",
+        "has_password": true,
+        "shared_collection_count": 0,
+        "pending_collection_invite_count": 0
+      },
+      "city": null,
+      "country": null,
+      "region": null,
+      "trails": [],
+      "price": null,
+      "price_currency": "USD"
+    }
+  ]
+}

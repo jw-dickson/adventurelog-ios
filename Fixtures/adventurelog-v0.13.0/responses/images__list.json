@@ -1,0 +1,13 @@
+[
+  {
+    "id": "6618d3e6-5680-4e08-b541-30b89a8d807f",
+    "image": "http://127.0.0.1:8000/media/images/be6ad04a-9f28-4fe5-b596-791954b715f2.webp",
+    "is_primary": true,
+    "user": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+    "immich_id": null,
+    "source": "upload",
+    "source_url": null,
+    "latitude": null,
+    "longitude": null
+  }
+]

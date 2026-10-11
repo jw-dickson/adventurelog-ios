@@ -1,0 +1,64 @@
+{
+  "base_url": "http://127.0.0.1:8000",
+  "collection_id": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+  "category_viewpoint_id": "ef1499ba-48ef-4e6f-97eb-a78ec761a72a",
+  "itinerary_day_ids": {
+    "2027-03-05": "b7829275-5423-4611-b3b4-53a0fbad72e3",
+    "2027-03-07": "52fec846-8ec0-4b8a-b321-7c51d57d83da",
+    "2027-03-08": "136d6585-96fc-43ab-b22c-4e36248ca939"
+  },
+  "transportation_ids": {
+    "flight_den_lax": "dc241ea6-b2d6-46d4-a60e-30f10f839af6",
+    "flight_lax_syd": "d8171654-cade-4dce-95d1-f6c394f04caa",
+    "flight_syd_hba": "7dc4a38c-f9cb-4563-a2aa-b42cdfa84469",
+    "taxi_airport_hotel": "2c2b725b-7b75-4cf2-96e7-0ff6753e898d",
+    "car_hire": "7df86ee7-33ff-45ee-8532-71869bd0ebea",
+    "drive_hobart_freycinet": "e5aabe2c-dd9e-4372-90b2-f05cd68fda03"
+  },
+  "lodging_ids": {
+    "hotel": "8f00d25a-1b0a-4c17-a371-f010e2b4db13",
+    "campground": "07e61ce8-042a-495a-bf1b-a12a10b6ce6e"
+  },
+  "location_ids": {
+    "museum": "b61b4c66-3813-4ae7-b2c5-a81553f5720b",
+    "kayak": "78978dcd-a7bf-4d10-9aa8-6cb373ba8544",
+    "lookout": "9e20f3bd-847e-45fb-bb94-6921d7a64e3d",
+    "cruise": "547ce065-2ae7-4a14-8e3f-76f638922234",
+    "dove_lake": "19b7a4bb-5c0a-4a37-9970-1de9aac3a958"
+  },
+  "visit_ids": {
+    "museum": "15205798-cba5-4020-84fe-557782fc40ee",
+    "kayak": "56e4b588-9ad2-4117-8a81-ddf800371d19",
+    "lookout": "20b581cb-ca6e-4277-a048-1260fe05bd64",
+    "cruise": "36db118b-1572-4e2e-bfae-299b9905615f",
+    "dove_lake_allday": "db71d4ac-9fd8-4fa9-9ed6-c38c0c5e72eb"
+  },
+  "image_id": "6618d3e6-5680-4e08-b541-30b89a8d807f",
+  "note_ids": {
+    "d1_tips": "2416e745-e1ec-4cf7-9a91-c3ac45ebafb2",
+    "trip_essentials": "aaf74e7a-9462-4f96-a7b7-a9db3ed7069c"
+  },
+  "checklist_ids": {
+    "car_pickup": "b1bb2988-991b-48ab-9761-0e2610620c8f",
+    "packing": "9c39d0c4-95bc-40cd-8bda-85c5afcfdc4d"
+  },
+  "itinerary_item_ids": {
+    "d0_flight_den_lax": "210b76f2-747e-4e71-a07c-f9c1d858dc35",
+    "d0_flight_lax_syd": "c4fa0e17-5ee3-4042-ac45-d14af9993231",
+    "d1_flight_syd_hba": "665930fb-c669-44c7-890c-945964e3be69",
+    "d1_taxi": "2bf7506e-763f-4d2f-a788-ceecd680a57b",
+    "d1_hotel": "3ba80fce-5fd6-4a81-ab61-3c146de94225",
+    "d1_museum": "fe98924d-84da-475e-8775-78456cef198a",
+    "d1_kayak": "000ed5f4-6cad-48c5-8a1e-f5b61e5d9f1a",
+    "d1_note": "96b0757e-149c-4fb5-a533-2f489ffef3a6",
+    "d2_car": "1522fa65-0716-4bdf-9b15-e944dde0e0c4",
+    "d2_checklist": "30b5d0cf-206f-4756-9ef1-24a75cacce96",
+    "d2_drive": "a57d9224-b6d9-4152-940d-b06d318aa767",
+    "d2_campground": "8918556e-f3f1-4292-9bb7-8960b1e2c90f",
+    "d2_lookout": "51d09ad6-3eeb-4835-94e6-d777247b84dc",
+    "d2_cruise": "6316c620-3683-4ef0-add4-f5a485a637de",
+    "global_note": "4440fba2-49bf-4375-a24f-6a4052f9d47e",
+    "global_checklist": "d568ac8e-de64-44b8-bb5f-913471b28e6b"
+  },
+  "guest_uuid": "2738ee4b-e999-486e-aa07-9c01d6bc0648"
+}

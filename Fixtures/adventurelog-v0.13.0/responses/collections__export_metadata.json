@@ -1,0 +1,201 @@
+{
+  "version": "v0.13.0",
+  "collection": {
+    "id": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+    "name": "Tasmania Road Trip 2027",
+    "description": "Hobart \u2192 Freycinet \u2192 Cradle Mountain \u2192 Strahan, by car.\n\nPlanning doc: [shared notes](https://example.com/trip-plan)\n\nTimezone for most of the trip: Australia/Hobart (AEDT, UTC+11).",
+    "is_public": false,
+    "link": "https://example.com/tasmania"
+  },
+  "locations": [
+    {
+      "id": "9e20f3bd-847e-45fb-bb94-6921d7a64e3d",
+      "name": "Wineglass Bay Lookout",
+      "description": "Steep 1.5 km walk up from the car park. Go early or late.",
+      "location": "Freycinet National Park",
+      "tags": [
+        "walk",
+        "photo"
+      ],
+      "rating": null,
+      "link": null,
+      "is_public": false,
+      "longitude": 148.29,
+      "latitude": -42.15,
+      "city": null,
+      "region": null,
+      "country": null,
+      "images": [],
+      "attachments": []
+    },
+    {
+      "id": "547ce065-2ae7-4a14-8e3f-76f638922234",
+      "name": "Sunset cruise",
+      "description": "Two hours around the bay. Runs when the sea is calm.",
+      "location": "Coles Bay jetty",
+      "tags": [
+        "boat",
+        "evening"
+      ],
+      "rating": 5.0,
+      "link": null,
+      "is_public": false,
+      "longitude": 148.283,
+      "latitude": -42.121,
+      "city": null,
+      "region": null,
+      "country": null,
+      "images": [],
+      "attachments": []
+    },
+    {
+      "id": "19b7a4bb-5c0a-4a37-9970-1de9aac3a958",
+      "name": "Dove Lake Circuit",
+      "description": "Unscheduled on the itinerary on purpose (appears only in collection.locations).",
+      "location": "Cradle Mountain",
+      "tags": [
+        "hike"
+      ],
+      "rating": null,
+      "link": null,
+      "is_public": false,
+      "longitude": 145.96,
+      "latitude": -41.66,
+      "city": null,
+      "region": null,
+      "country": null,
+      "images": [],
+      "attachments": []
+    },
+    {
+      "id": "78978dcd-a7bf-4d10-9aa8-6cb373ba8544",
+      "name": "Harbour kayak tour",
+      "description": "45-minute paddle along the waterfront.",
+      "location": "Brooke Street Pier, Hobart",
+      "tags": [
+        "outdoor",
+        "water",
+        "booked"
+      ],
+      "rating": 4.0,
+      "link": "https://example.com/kayak",
+      "is_public": false,
+      "longitude": 147.3343,
+      "latitude": -42.8846,
+      "city": null,
+      "region": null,
+      "country": null,
+      "images": [],
+      "attachments": []
+    },
+    {
+      "id": "b61b4c66-3813-4ae7-b2c5-a81553f5720b",
+      "name": "Tasmanian Museum and Art Gallery",
+      "description": "Free entry. Don't miss the **natural history** galleries.",
+      "location": "Dunn Place, Hobart",
+      "tags": [
+        "art",
+        "indoor",
+        "free"
+      ],
+      "rating": null,
+      "link": "https://example.com/museum",
+      "is_public": false,
+      "longitude": 147.3317,
+      "latitude": -42.8822,
+      "city": null,
+      "region": null,
+      "country": null,
+      "images": [
+        "img_0"
+      ],
+      "attachments": []
+    }
+  ],
+  "transportation": [
+    {
+      "id": "dc241ea6-b2d6-46d4-a60e-30f10f839af6",
+      "type": null,
+      "name": "Example Air EX 101 DEN \u2192 LAX",
+      "notes": null
+    },
+    {
+      "id": "d8171654-cade-4dce-95d1-f6c394f04caa",
+      "type": null,
+      "name": "Example Air EX 7 LAX \u2192 SYD",
+      "notes": null
+    },
+    {
+      "id": "7dc4a38c-f9cb-4563-a2aa-b42cdfa84469",
+      "type": null,
+      "name": "Example Air EX 1501 SYD \u2192 HBA",
+      "notes": null
+    },
+    {
+      "id": "2c2b725b-7b75-4cf2-96e7-0ff6753e898d",
+      "type": null,
+      "name": "Taxi: HBA airport \u2192 Harbourside Hotel",
+      "notes": null
+    },
+    {
+      "id": "7df86ee7-33ff-45ee-8532-71869bd0ebea",
+      "type": null,
+      "name": "Car hire (Hobart \u2192 Hobart)",
+      "notes": null
+    },
+    {
+      "id": "e5aabe2c-dd9e-4372-90b2-f05cd68fda03",
+      "type": null,
+      "name": "Drive Hobart \u2192 Freycinet",
+      "notes": null
+    }
+  ],
+  "notes": [
+    {
+      "id": "2416e745-e1ec-4cf7-9a91-c3ac45ebafb2",
+      "title": null,
+      "content": "## Jet-lag plan\n- Stay up until 21:00\n- Coffee on the waterfront\n- Early night\n\nFerry: [harbour ferry](https://example.com/ferry)"
+    },
+    {
+      "id": "aaf74e7a-9462-4f96-a7b7-a9db3ed7069c",
+      "title": null,
+      "content": "# Essentials\n1. Visa sorted \u2705\n2. Rental car bond: A$500 hold\n3. Emergency: **000**\n\nSee [park alerts](https://example.com/park-alerts)"
+    }
+  ],
+  "checklists": [
+    {
+      "id": "b1bb2988-991b-48ab-9761-0e2610620c8f",
+      "name": "Car pickup",
+      "items": []
+    },
+    {
+      "id": "9c39d0c4-95bc-40cd-8bda-85c5afcfdc4d",
+      "name": "Packing list",
+      "items": []
+    }
+  ],
+  "lodging": [
+    {
+      "id": "8f00d25a-1b0a-4c17-a371-f010e2b4db13",
+      "type": null,
+      "name": "Harbourside Hotel",
+      "notes": null
+    },
+    {
+      "id": "07e61ce8-042a-495a-bf1b-a12a10b6ce6e",
+      "type": null,
+      "name": "Bay Holiday Park",
+      "notes": null
+    }
+  ],
+  "images": [
+    {
+      "export_id": "img_0",
+      "id": "6618d3e6-5680-4e08-b541-30b89a8d807f",
+      "name": "be6ad04a-9f28-4fe5-b596-791954b715f2.webp",
+      "is_primary": true
+    }
+  ],
+  "attachments": [],
+  "primary_image_ref": null
+}

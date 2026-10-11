@@ -1,0 +1,66 @@
+name: ci
+
+# Public lane: runs for every pull request and push on GitHub-hosted macOS, with no secrets,
+# so anyone (including forks and a future upstream) gets the same checks.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+          brew list xcodegen >/dev/null 2>&1 || brew install xcodegen
+
+      # Tokens.swift is generated from Design/tokens.json; fail if someone edited one without the other.
+      - name: Design tokens are in sync
+        run: python3 scripts/gen-tokens.py --check
+
+      - name: Package tests
+        run: |
+          mkdir -p build
+          set +e
+          make test-packages 2>&1 | tee build/packages.log
+          status=${PIPESTATUS[0]}
+          python3 scripts/ci-annotate.py build/packages.log $([ $status -ne 0 ] && echo --tail)
+          exit $status
+
+      - name: Generate the project
+        run: xcodegen generate
+
+      # Simulator UI smoke tests. The live-server test skips itself here (no AL_TEST_SERVER).
+      - name: UI tests on the Simulator
+        run: |
+          DEST=$(scripts/simulator.sh destination)
+          echo "Using $DEST"
+          set +e
+          xcodebuild test -project AdventureLog.xcodeproj -scheme AdventureLog \
+            -destination "$DEST" -derivedDataPath build/DerivedData \
+            -resultBundlePath build/UITests.xcresult CODE_SIGNING_ALLOWED=NO 2>&1 | tee build/ui.log
+          status=${PIPESTATUS[0]}
+          python3 scripts/ci-annotate.py build/ui.log $([ $status -ne 0 ] && echo --tail)
+          exit $status
+
+      - name: Keep the test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-tests-xcresult
+          path: build/UITests.xcresult
+          retention-days: 7

@@ -1,0 +1,14 @@
+{
+  "method": "POST",
+  "path": "/api/notes/",
+  "body": {
+    "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+    "is_public": false,
+    "name": "Hobart day tips",
+    "date": "2027-03-07",
+    "content": "## Jet-lag plan\n- Stay up until 21:00\n- Coffee on the waterfront\n\nFerry: [harbour ferry](https://example.com/ferry)",
+    "links": [
+      "https://example.com/ferry"
+    ]
+  }
+}

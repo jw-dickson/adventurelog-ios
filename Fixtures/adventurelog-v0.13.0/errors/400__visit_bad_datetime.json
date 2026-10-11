@@ -1,0 +1,8 @@
+{
+  "start_date": [
+    "Datetime has wrong format. Use one of these formats instead: YYYY-MM-DDThh:mm[:ss[.uuuuuu]][+HH:MM|-HH:MM|Z]."
+  ],
+  "timezone": [
+    "\"Mars/Olympus\" is not a valid choice."
+  ]
+}

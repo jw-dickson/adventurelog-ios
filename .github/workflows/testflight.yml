@@ -1,0 +1,115 @@
+name: testflight
+
+# Archive, sign and upload to TestFlight from the self-hosted Mac:
+# a dedicated ci-signing keychain unlocked per run, App Store Connect API-key auth for export,
+# altool for upload. Manual only, behind the `testflight` environment (required reviewer).
+on:
+  workflow_dispatch:
+    inputs:
+      notes:
+        description: 'What to test in this build (shown in TestFlight)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: testflight
+  cancel-in-progress: false
+
+jobs:
+  testflight:
+    if: github.repository == 'jw-dickson/adventurelog-ios'
+    runs-on: [self-hosted, macOS, ARM64]
+    environment: testflight
+    timeout-minutes: 45
+    env:
+      # SIGN_XCCONFIG is a PATH on the runner to the Signing.xcconfig for this app
+      # (DEVELOPMENT_TEAM, AL_BUNDLE_ID), kept on that machine.
+      SIGN_XCCONFIG: ${{ secrets.SIGN_XCCONFIG }}
+      CI_SIGNING_KEYCHAIN_PASSWORD: ${{ secrets.CI_SIGNING_KEYCHAIN_PASSWORD }}
+      ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+      ASC_API_ISSUER_ID: ${{ secrets.ASC_API_ISSUER_ID }}
+      ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Preflight
+        run: |
+          set -e
+          xcodebuild -version
+          [ -f "$SIGN_XCCONFIG" ] || { echo "::error::SIGN_XCCONFIG does not point at a file on this runner"; exit 1; }
+          grep -q '^DEVELOPMENT_TEAM *= *[A-Z0-9]\{10\}' "$SIGN_XCCONFIG" || { echo "::error::no DEVELOPMENT_TEAM in $SIGN_XCCONFIG"; exit 1; }
+          grep -q '^AL_BUNDLE_ID' "$SIGN_XCCONFIG" || { echo "::error::no AL_BUNDLE_ID in $SIGN_XCCONFIG"; exit 1; }
+          command -v xcodegen >/dev/null || { echo "::error::install XcodeGen on the runner"; exit 1; }
+
+      # Unlock the dedicated keychain in THIS process lineage and open its key
+      # to codesign, keeping login.keychain-db (WWDR intermediate, Apple root) in the search list.
+      - name: Unlock the CI signing keychain
+        run: |
+          KC="$HOME/Library/Keychains/ci-signing.keychain-db"
+          security unlock-keychain -p "$CI_SIGNING_KEYCHAIN_PASSWORD" "$KC"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -s -k "$CI_SIGNING_KEYCHAIN_PASSWORD" "$KC" >/dev/null
+          security list-keychains -d user -s "$KC" login.keychain-db
+
+      - name: App Store Connect key
+        run: |
+          mkdir -p "$HOME/private_keys"
+          printf '%s\n' "$ASC_API_KEY_P8" > "$HOME/private_keys/AuthKey_${ASC_API_KEY_ID}.p8"
+          chmod 600 "$HOME/private_keys/AuthKey_${ASC_API_KEY_ID}.p8"
+
+      - name: Generate the project with this runner's signing
+        run: |
+          cp "$SIGN_XCCONFIG" Config/Signing.xcconfig
+          python3 scripts/gen-tokens.py --check
+          xcodegen generate --quiet
+
+      - name: Archive
+        run: |
+          ARCHIVE="$RUNNER_TEMP/AdventureLog.xcarchive"
+          xcodebuild archive -project AdventureLog.xcodeproj -scheme AdventureLog -configuration Release \
+            -destination 'generic/platform=iOS' -archivePath "$ARCHIVE" \
+            AL_BUILD_NUMBER="$GITHUB_RUN_NUMBER" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$HOME/private_keys/AuthKey_${ASC_API_KEY_ID}.p8" \
+            -authenticationKeyID "$ASC_API_KEY_ID" -authenticationKeyIssuerID "$ASC_API_ISSUER_ID"
+          # Trust the artefact, not the exit code.
+          [ -d "$ARCHIVE/Products/Applications/AdventureLog.app" ] \
+            || { echo "::error::archive produced no AdventureLog.app"; exit 1; }
+
+      - name: Export a signed .ipa
+        run: |
+          TEAM=$(sed -n 's/^DEVELOPMENT_TEAM *= *\([A-Z0-9]*\).*/\1/p' Config/Signing.xcconfig | head -1)
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>teamID</key><string>${TEAM}</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>uploadSymbols</key><true/>
+          </dict></plist>
+          PLIST
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/AdventureLog.xcarchive" \
+            -exportPath "$RUNNER_TEMP/export" -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$HOME/private_keys/AuthKey_${ASC_API_KEY_ID}.p8" \
+            -authenticationKeyID "$ASC_API_KEY_ID" -authenticationKeyIssuerID "$ASC_API_ISSUER_ID"
+          find "$RUNNER_TEMP/export" -name '*.ipa' | grep -q . || { echo "::error::export produced no .ipa"; exit 1; }
+
+      # altool returns non-zero and prints Apple's real response on rejection (for example a
+      # build number it has already seen), so its exit code is meaningful here.
+      - name: Upload to App Store Connect
+        env:
+          NOTES: ${{ inputs.notes }}
+        run: |
+          IPA=$(find "$RUNNER_TEMP/export" -name '*.ipa' | head -1)
+          xcrun altool --upload-app -f "$IPA" -t ios \
+            --apiKey "$ASC_API_KEY_ID" --apiIssuer "$ASC_API_ISSUER_ID"
+          echo "Uploaded build $GITHUB_RUN_NUMBER. $NOTES" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Clean up
+        if: always()
+        run: rm -f Config/Signing.xcconfig "$HOME/private_keys/AuthKey_${ASC_API_KEY_ID}.p8"

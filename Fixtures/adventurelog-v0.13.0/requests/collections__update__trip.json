@@ -1,0 +1,7 @@
+{
+  "method": "PATCH",
+  "path": "/api/collections/4b2dbaf2-bdda-4b57-950f-386189c5d813/",
+  "body": {
+    "description": "Hobart → Freycinet → Cradle Mountain → Strahan, by car.\n\nPlanning doc: [shared notes](https://example.com/trip-plan)\n\nTimezone for most of the trip: Australia/Hobart (AEDT, UTC+11)."
+  }
+}
