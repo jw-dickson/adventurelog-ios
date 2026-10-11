@@ -12,7 +12,7 @@ help:
 	@echo "make generate       regenerate Tokens.swift and AdventureLog.xcodeproj"
 	@echo "make test           package tests, then Simulator UI tests"
 	@echo "make test-packages  Swift package tests on macOS (fast, no Simulator)"
-	@echo "make test-ui        UI tests on the newest iPhone simulator"
+	@echo "make test-ui        UI tests on the newest iPhone simulator (the gallery has its own target)"
 	@echo "                    end to end: AL_TEST_SERVER=http://127.0.0.1:8000 AL_TEST_API_KEY=al_… make test-ui"
 	@echo "make gallery        screenshots of every screen (light, dark, XXL) into build/gallery"
 	@echo "make run            build, install and launch in the Simulator"
@@ -36,7 +36,8 @@ test-packages:
 
 test-ui: generate
 	TEST_RUNNER_AL_TEST_SERVER="$(AL_TEST_SERVER)" TEST_RUNNER_AL_TEST_API_KEY="$(AL_TEST_API_KEY)" \
-	  xcodebuild test $(XCB_SIM) -resultBundlePath build/UITests-$$(date +%Y%m%d-%H%M%S).xcresult
+	  xcodebuild test $(XCB_SIM) -skip-testing:AdventureLogUITests/GalleryUITests \
+	  -resultBundlePath build/UITests-$$(date +%Y%m%d-%H%M%S).xcresult
 
 gallery: generate
 	rm -rf build/Gallery.xcresult build/gallery

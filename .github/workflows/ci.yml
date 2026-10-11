@@ -1,12 +1,23 @@
 name: ci
 
-# Public lane: runs for every pull request and push on GitHub-hosted macOS, with no secrets,
-# so anyone (including forks and a future upstream) gets the same checks.
+# Public lane: GitHub-hosted macOS, with no secrets, so anyone (including forks and a future
+# upstream) gets the same checks.
+#
+# - Package tests run on every pull request push and on main.
+# - Simulator UI tests run on pull requests that touch more than docs, on two Simulators at once.
+#   A push to main skips them: the pull request already ran them on that code.
+# - The screenshot gallery (light, dark, XXL) runs only when asked: Actions → ci → Run workflow,
+#   with "Capture the screenshot gallery" ticked, or `make gallery` on a Mac.
 on:
   pull_request:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      gallery:
+        description: Capture the screenshot gallery (light, dark, XXL)
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -16,9 +27,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test:
+  packages:
     runs-on: macos-15
-    timeout-minutes: 45
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
 
@@ -26,7 +37,6 @@ jobs:
         run: |
           xcodebuild -version
           swift --version
-          brew list xcodegen >/dev/null 2>&1 || brew install xcodegen
 
       # Tokens.swift is generated from Design/tokens.json; fail if someone edited one without the other.
       - name: Design tokens are in sync
@@ -41,27 +51,109 @@ jobs:
           python3 scripts/ci-annotate.py build/packages.log $([ $status -ne 0 ] && echo --tail)
           exit $status
 
-      - name: Generate the project
-        run: xcodegen generate
+  # Decides whether the app needs the Simulator: not for a pull request that only changes docs.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      app: ${{ steps.diff.outputs.app }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - id: diff
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ "$EVENT" != "pull_request" ]; then echo "app=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          changed=$(git diff --name-only "$BASE...$HEAD")
+          echo "$changed"
+          if echo "$changed" | grep -qvE '^(docs/|Design/)|\.md$|^LICENSE$'; then
+            echo "app=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Docs only: skipping the Simulator."
+            echo "app=false" >> "$GITHUB_OUTPUT"
+          fi
 
-      # Simulator UI smoke tests. The live-server test skips itself here (no AL_TEST_SERVER).
-      - name: UI tests on the Simulator
+  ui:
+    needs: changes
+    if: needs.changes.outputs.app == 'true' && github.event_name != 'push'
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Generate the project
+        run: |
+          brew list xcodegen >/dev/null 2>&1 || brew install xcodegen
+          xcodegen generate
+
+      - name: Build for testing
         run: |
           DEST=$(scripts/simulator.sh destination)
+          echo "DEST=$DEST" >> "$GITHUB_ENV"
           echo "Using $DEST"
+          mkdir -p build
           set +e
-          xcodebuild test -project AdventureLog.xcodeproj -scheme AdventureLog \
+          xcodebuild build-for-testing -project AdventureLog.xcodeproj -scheme AdventureLog \
+            -destination "$DEST" -derivedDataPath build/DerivedData CODE_SIGNING_ALLOWED=NO 2>&1 | tee build/build.log
+          status=${PIPESTATUS[0]}
+          python3 scripts/ci-annotate.py build/build.log $([ $status -ne 0 ] && echo --tail)
+          exit $status
+
+      # The live-server tests skip themselves here (no AL_TEST_SERVER). The gallery has its own job.
+      - name: UI tests on the Simulator
+        run: |
+          set +e
+          xcodebuild test-without-building -project AdventureLog.xcodeproj -scheme AdventureLog \
             -destination "$DEST" -derivedDataPath build/DerivedData \
-            -resultBundlePath build/UITests.xcresult CODE_SIGNING_ALLOWED=NO 2>&1 | tee build/ui.log
+            -skip-testing:AdventureLogUITests/GalleryUITests \
+            -parallel-testing-enabled YES -parallel-testing-worker-count 2 \
+            -resultBundlePath build/UITests.xcresult 2>&1 | tee build/ui.log
           status=${PIPESTATUS[0]}
           python3 scripts/ci-annotate.py build/ui.log $([ $status -ne 0 ] && echo --tail)
           exit $status
 
-      # Always kept: the gallery test's light, dark and XXL screenshots live in here.
       - name: Keep the test results
-        if: always()
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: ui-tests-xcresult
           path: build/UITests.xcresult
           retention-days: 14
+
+  gallery:
+    if: github.event_name == 'workflow_dispatch' && inputs.gallery
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Generate the project
+        run: |
+          brew list xcodegen >/dev/null 2>&1 || brew install xcodegen
+          xcodegen generate
+
+      - name: Screenshot gallery
+        run: |
+          DEST=$(scripts/simulator.sh destination)
+          echo "Using $DEST"
+          mkdir -p build
+          set +e
+          xcodebuild test -project AdventureLog.xcodeproj -scheme AdventureLog \
+            -destination "$DEST" -derivedDataPath build/DerivedData \
+            -only-testing:AdventureLogUITests/GalleryUITests \
+            -resultBundlePath build/Gallery.xcresult CODE_SIGNING_ALLOWED=NO 2>&1 | tee build/gallery.log
+          status=${PIPESTATUS[0]}
+          python3 scripts/ci-annotate.py build/gallery.log $([ $status -ne 0 ] && echo --tail)
+          exit $status
+
+      # The light, dark and XXL screenshots live in here; `make gallery` exports them on a Mac.
+      - name: Keep the screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gallery-xcresult
+          path: build/Gallery.xcresult
+          retention-days: 30
