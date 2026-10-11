@@ -146,10 +146,35 @@ final class AppModel {
 
     // MARK: Sign in and out
 
-    /// Validates the address and key against the server, then stores them.
+    /// Signs in with an API key the person pasted. Validates it against the server, then stores it.
     func signIn(server: String, apiKey: String) async throws {
         guard let url = AdventureLogClient.normalizedServerURL(server) else { throw APIError.badServerURL }
-        let key = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        try await establish(url: url, apiKey: apiKey.trimmingCharacters(in: .whitespacesAndNewlines), apiKeyID: nil)
+    }
+
+    /// Finishes a password or provider sign-in: makes an API key for this phone with the session,
+    /// then ends the session. The key, not the session, is what the app keeps, because a session
+    /// expires after a couple of weeks without contact and a trip can be offline longer than that.
+    func signIn(url: URL, sessionToken: String) async throws {
+        let account = AccountClient(baseURL: url)
+        let key = try await account.createAPIKey(named: Self.deviceKeyName(), sessionToken: sessionToken)
+        await account.endSession(sessionToken)
+        do {
+            try await establish(url: url, apiKey: key.key, apiKeyID: key.id)
+        } catch {
+            // Don't leave an unused key behind on the server.
+            try? await AdventureLogClient(baseURL: url, apiKey: key.key).deleteAPIKey(id: key.id)
+            throw error
+        }
+    }
+
+    /// "AdventureLog iOS · 11 Oct 2026", so the key is easy to recognise under Settings › API keys.
+    static func deviceKeyName(now: Date = .now) -> String {
+        "AdventureLog iOS · " + now.formatted(.dateTime.day().month(.abbreviated).year())
+    }
+
+    /// Checks the key against the server, clears anything a previous session left, and signs in.
+    private func establish(url: URL, apiKey key: String, apiKeyID: String?) async throws {
         let client = AdventureLogClient(baseURL: url, apiKey: key)
         let user = try await client.currentUser()
         // Clear anything a previous session left behind, so one account never sees another's trips.
@@ -159,7 +184,8 @@ final class AppModel {
         try await images.removeAll()
         try await deviceState.removeAll()
         deviceStateLoaded = true
-        let credentials = ServerCredentials(serverURL: url, apiKey: key, username: user.username, displayName: user.displayName)
+        let credentials = ServerCredentials(serverURL: url, apiKey: key, username: user.username,
+                                            displayName: user.displayName, apiKeyID: apiKeyID)
         try credentialStore.save(credentials)
         self.client = client
         phase = .signedIn(credentials)
@@ -177,10 +203,16 @@ final class AppModel {
             signOutError = error.localizedDescription
             return
         }
+        // A key the app made at sign-in is revoked; one the person pasted stays theirs.
+        let revoke = credentials?.apiKeyID.flatMap { id in client.map { (client: $0, id: id) } }
         resetSession()
         client = nil
         lastError = nil
         phase = .signedOut
+        if let revoke {
+            // Best effort: offline, the key stays until it's revoked in AdventureLog's settings.
+            Task.detached { try? await revoke.client.deleteAPIKey(id: revoke.id) }
+        }
         await drainWrites()
         try? await snapshots.removeAll()
         try? await images.removeAll()

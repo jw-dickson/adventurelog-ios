@@ -181,3 +181,26 @@ Append under "Results":
 - the Today screenshots.
 
 ### Results
+
+---
+
+## Handoff 3 · Sign in with an account (2026-10-11)
+
+**Branch:** `native-sign-in` (on top of Stage 2). **Goal:** sign in without pasting an API key.
+
+### What changed
+
+- **The sign-in screen** asks for the server, then a username (or email) and password, with a code step when two-factor is on. It also shows a "Continue with …" button for each provider the server offers, such as Authentik.
+- **Provider sign-in** runs the server's own pages in an in-app web view, which keeps nothing once it closes. When the server's session appears, the app takes it.
+- **The key:** either way, the app then makes an API key named "AdventureLog iOS · <date>" with that session, ends the session, and keeps the key. Signing out revokes it.
+- **"Use an API key instead"** keeps the old way.
+- Endpoints and findings are in the fixtures README §2.
+
+### Check on the Mac
+
+1. On the disposable test server, set a password for the seed admin. Then run `AL_TEST_SERVER=… AL_TEST_USERNAME=admin AL_TEST_PASSWORD=… make test-ui`. `testSignsInWithAPassword` should pass, and the server's API keys page should list "AdventureLog iOS · <date>".
+2. Turn on TOTP for that user in the web UI and sign in again. The app should ask for the code.
+3. Sign out. The key disappears from the server's list.
+4. Provider sign-in can only be tried against a server with a provider configured. Note what happens at the end of the flow: whether the sheet closes by itself and the app signs in.
+
+### Results

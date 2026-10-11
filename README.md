@@ -18,7 +18,7 @@ make test-packages  # fast logic tests on macOS against real AdventureLog fixtur
 make run            # build and launch in the newest iPhone simulator
 ```
 
-Then enter your server address (the one you open AdventureLog at in a browser) and an API key.
+Then enter your server address (the one you open AdventureLog at in a browser) and sign in with your AdventureLog username and password, or with your server's single sign-on (Authentik or another OpenID Connect provider, GitHub). The app makes its own API key for the phone, so it keeps working offline; signing out revokes it. Pasting an API key you made yourself still works.
 
 To run the end-to-end UI test against a live server seeded with the sample trip:
 

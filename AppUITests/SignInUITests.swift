@@ -20,11 +20,38 @@ final class SignInUITests: XCTestCase {
         return app
     }
 
-    func testStartsAtSignIn() {
+    func testStartsAtSignInWithAPassword() {
         let app = launch()
         XCTAssertTrue(app.textFields["signin.server"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.secureTextFields["signin.apikey"].exists)
-        XCTAssertFalse(app.buttons["signin.connect"].isEnabled, "Connect stays disabled until both fields are filled")
+        XCTAssertTrue(app.textFields["signin.username"].exists)
+        XCTAssertTrue(app.secureTextFields["signin.password"].exists)
+        XCTAssertFalse(app.secureTextFields["signin.apikey"].exists, "API keys are the fallback, not the default")
+        XCTAssertFalse(app.buttons["signin.connect"].isEnabled, "Sign in stays disabled until every field is filled")
+    }
+
+    func testSwitchesBetweenAPasswordAndAnAPIKey() {
+        let app = launch(["-ALServerURL", "https://example.com"])
+        let useKey = app.buttons["signin.useKey"]
+        XCTAssertTrue(useKey.waitForExistence(timeout: 10))
+        useKey.tap()
+        XCTAssertTrue(app.secureTextFields["signin.apikey"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.secureTextFields["signin.password"].exists)
+        app.buttons["signin.usePassword"].tap()
+        XCTAssertTrue(app.secureTextFields["signin.password"].waitForExistence(timeout: 5))
+    }
+
+    func testPasswordSignInNeedsBothFields() {
+        let app = launch(["-ALServerURL", "https://example.com"])
+        let connect = app.buttons["signin.connect"]
+        XCTAssertTrue(connect.waitForExistence(timeout: 10))
+        let username = app.textFields["signin.username"]
+        username.tap()
+        username.typeText("alex")
+        XCTAssertFalse(connect.isEnabled, "A username alone is insufficient")
+        let password = app.secureTextFields["signin.password"]
+        password.tap()
+        password.typeText("secret")
+        XCTAssertTrue(connect.isEnabled)
     }
 
     func testBadAddressShowsAnError() {
@@ -39,6 +66,7 @@ final class SignInUITests: XCTestCase {
         let app = launch(["-ALServerURL", "https://example.com"])
         let connect = app.buttons["signin.connect"]
         XCTAssertTrue(connect.waitForExistence(timeout: 10))
+        app.buttons["signin.useKey"].tap()
         XCTAssertFalse(connect.isEnabled, "A server address alone is insufficient")
         let key = app.secureTextFields["signin.apikey"]
         key.tap()
@@ -73,6 +101,28 @@ final class SignInUITests: XCTestCase {
         XCTAssertEqual(XCTWaiter.wait(for: [retryEnabled], timeout: 5), .completed)
         connect.tap()
         XCTAssertTrue(error.waitForExistence(timeout: 10))
+    }
+
+    /// With `AL_TEST_USERNAME` and `AL_TEST_PASSWORD` for an account on the test server (never a
+    /// real one): signs in with the password, so the app makes its own key.
+    func testSignsInWithAPassword() throws {
+        let env = ProcessInfo.processInfo.environment
+        guard let server = env["AL_TEST_SERVER"], !server.isEmpty,
+              let username = env["AL_TEST_USERNAME"], !username.isEmpty,
+              let password = env["AL_TEST_PASSWORD"], !password.isEmpty else {
+            throw XCTSkip("Set AL_TEST_SERVER, AL_TEST_USERNAME and AL_TEST_PASSWORD to sign in with a password.")
+        }
+        let app = launch(["-ALServerURL", server])
+        let field = app.textFields["signin.username"]
+        XCTAssertTrue(field.waitForExistence(timeout: 10))
+        field.tap()
+        field.typeText(username)
+        let secret = app.secureTextFields["signin.password"]
+        secret.tap()
+        secret.typeText(password)
+        app.buttons["signin.connect"].tap()
+        let tripTab = app.tabBars.buttons["Trip"]
+        XCTAssertTrue(tripTab.waitForExistence(timeout: 20), "Signed in")
     }
 
     func testSignsInAndShowsTheSeededTrip() throws {

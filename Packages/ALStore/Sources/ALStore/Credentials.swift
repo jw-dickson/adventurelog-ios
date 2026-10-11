@@ -10,12 +10,16 @@ public struct ServerCredentials: Codable, Sendable, Hashable {
     /// Remembered so the app can greet the user and show the account while offline.
     public var username: String?
     public var displayName: String?
+    /// The id of the key, when the app made it at sign-in, so signing out can revoke it.
+    /// `nil` for a key the person pasted in, which stays theirs to manage.
+    public var apiKeyID: String?
 
-    public init(serverURL: URL, apiKey: String, username: String? = nil, displayName: String? = nil) {
+    public init(serverURL: URL, apiKey: String, username: String? = nil, displayName: String? = nil, apiKeyID: String? = nil) {
         self.serverURL = serverURL
         self.apiKey = apiKey
         self.username = username
         self.displayName = displayName
+        self.apiKeyID = apiKeyID
     }
 }
 
