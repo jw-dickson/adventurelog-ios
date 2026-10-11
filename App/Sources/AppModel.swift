@@ -49,6 +49,9 @@ final class AppModel {
     /// Snapshot writes run one after another through this chain, so sign-out can wait for every
     /// write queued before it and then delete. Actors alone don't promise that order.
     private var snapshotWrites: Task<Void, Never>?
+    /// Bumped on every sign-in and sign-out. A saved-copy read that started in an earlier session
+    /// is dropped, so it can't put the previous account's trips back on screen.
+    private var session = 0
     private let pinnedNow: Date?
 
     init(credentialStore: any CredentialStore, snapshots: TripSnapshotStore, images: ImageStore, now: Date? = nil) {
@@ -120,6 +123,12 @@ final class AppModel {
         let client = AdventureLogClient(baseURL: url, apiKey: key)
         let user = try await client.currentUser()
         // Clear anything a previous session left behind, so one account never sees another's trips.
+        session += 1
+        ownedTrips = []
+        sharedTrips = []
+        trips = [:]
+        selectedTripID = nil
+        tripListSavedAt = nil
         await drainSnapshotWrites()
         try await snapshots.removeAll()
         try await images.removeAll()
@@ -141,6 +150,7 @@ final class AppModel {
             signOutError = error.localizedDescription
             return
         }
+        session += 1
         client = nil
         refreshingClient = nil
         isRefreshing = false
@@ -164,7 +174,9 @@ final class AppModel {
 
     /// Shows the saved list immediately, then refreshes from the server when reachable.
     func loadTrips() async {
-        if ownedTrips.isEmpty, sharedTrips.isEmpty, let saved = await snapshots.tripList() {
+        let started = session
+        if ownedTrips.isEmpty, sharedTrips.isEmpty, let saved = await snapshots.tripList(),
+           session == started, credentials != nil {
             ownedTrips = saved.owned
             sharedTrips = saved.shared
             tripListSavedAt = saved.savedAt
@@ -222,8 +234,12 @@ final class AppModel {
 
     /// The saved copy first, then the server's. Saves what comes back and fetches its photos.
     func loadTrip(id: String) async {
+        let started = session
         if trips[id] == nil, let saved = await snapshots.trip(id: id) {
-            trips[id] = LoadedTrip(plan: TripPlan(saved.value), savedAt: saved.savedAt)
+            guard session == started, credentials != nil else { return }
+            if trips[id] == nil {
+                trips[id] = LoadedTrip(plan: TripPlan(saved.value), savedAt: saved.savedAt)
+            }
         }
         guard let client else { return }
         do {
