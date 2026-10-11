@@ -12,10 +12,27 @@ public actor DeviceStateStore {
         public var outbox: Outbox
         /// Itinerary row ids skipped on Today, by trip id. Never sent to the server.
         public var skipped: [String: Set<String>]
+        /// Trips whose route the person agreed to log, and trips they said no to.
+        public var trackingAllowed: Set<String>
+        public var trackingDeclined: Set<String>
 
-        public init(outbox: Outbox = Outbox(), skipped: [String: Set<String>] = [:]) {
+        public init(outbox: Outbox = Outbox(), skipped: [String: Set<String>] = [:],
+                    trackingAllowed: Set<String> = [], trackingDeclined: Set<String> = []) {
             self.outbox = outbox
             self.skipped = skipped
+            self.trackingAllowed = trackingAllowed
+            self.trackingDeclined = trackingDeclined
+        }
+
+        private enum CodingKeys: String, CodingKey { case outbox, skipped, trackingAllowed, trackingDeclined }
+
+        /// Fields added later decode as empty, so an update never loses unsent edits.
+        public init(from decoder: any Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            outbox = try container.decodeIfPresent(Outbox.self, forKey: .outbox) ?? Outbox()
+            skipped = try container.decodeIfPresent([String: Set<String>].self, forKey: .skipped) ?? [:]
+            trackingAllowed = try container.decodeIfPresent(Set<String>.self, forKey: .trackingAllowed) ?? []
+            trackingDeclined = try container.decodeIfPresent(Set<String>.self, forKey: .trackingDeclined) ?? []
         }
     }
 

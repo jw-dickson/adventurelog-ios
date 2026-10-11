@@ -2,7 +2,7 @@
 
 import XCTest
 
-/// Screenshots of every Stage 1 and Stage 2 screen in light, dark and the largest accessibility text size,
+/// Screenshots of every Stage 1–3 screen in light, dark and the largest accessibility text size,
 /// kept in the test results for design review 2 (they sit beside Design/review-1).
 ///
 /// These check that each screen renders and holds its key content at every size; the pictures are
@@ -22,7 +22,7 @@ final class GalleryUITests: XCTestCase {
     }
 
     private func capture(variant: String, _ arguments: [String]) throws {
-        let app = try OfflineBrowseUITests.launchOffline(arguments)
+        let app = try OfflineBrowseUITests.launchOffline(arguments, track: true)
 
         XCTAssertTrue(app.staticTexts["today.title"].waitForExistence(timeout: 15))
         XCTAssertTrue(app.staticTexts["today.next.title"].waitForExistence(timeout: 5))
@@ -51,6 +51,10 @@ final class GalleryUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["trip.map"].waitForExistence(timeout: 10))
         sleep(2) // let map tiles draw
         keep(app, "05-map-\(variant)")
+
+        app.tabBars.buttons["Log"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["log.done"].waitForExistence(timeout: 10))
+        keep(app, "07-log-\(variant)")
 
         app.terminate()
         let signIn = XCUIApplication()

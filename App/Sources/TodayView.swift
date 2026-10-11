@@ -108,6 +108,7 @@ private struct TodayContent: View {
                 }
                 ReminderOffer()
                     .padding(.top, ALSpace.space2)
+                TrackingOffer(tripID: tripID)
                 if let message = model.lastError {
                     OfflineBanner(message: message)
                 }

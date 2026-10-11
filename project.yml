@@ -57,8 +57,11 @@ targets:
         # Background refresh keeps the reminder window rolling and the trip fresh (Stage 3).
         UIBackgroundModes:
           - fetch
+          - location
         BGTaskSchedulerPermittedIdentifiers:
           - app.adventurelog.refresh
+        NSLocationWhenInUseUsageDescription: On trip days you agreed to, AdventureLog records your route and the stops you make, so the Log can show your day against the plan. It stays on this phone.
+        NSLocationAlwaysAndWhenInUseUsageDescription: On trip days you agreed to, AdventureLog records your route and notices when you reach a planned stop, even with the app closed. It stays on this phone.
         NSLocalNetworkUsageDescription: AdventureLog connects to your self-hosted AdventureLog server when it's on your local network.
         NSAppTransportSecurity:
           # Self-hosted servers on a home network or a dev Mac (http://192.168.x.x, localhost).
