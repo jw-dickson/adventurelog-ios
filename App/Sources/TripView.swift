@@ -13,7 +13,8 @@ struct ItemRoute: Hashable {
 }
 
 /// One trip, a day at a time (Design/review-1, 03): a Days / Whole trip / Not on a day switch, a
-/// strip of date tiles, and the selected day's timeline.
+/// strip of date tiles, and the selected day's timeline. Rows can be reordered and moved to other
+/// days; the change shows at once and syncs when the server can be reached.
 struct TripView: View {
     enum Scope: String, CaseIterable, Identifiable {
         case days = "Days"
@@ -26,6 +27,15 @@ struct TripView: View {
     @Environment(AppModel.self) private var model
     @State private var scope = Scope.days
     @State private var selectedDate: CalendarDate?
+    @State private var reordering: ReorderTarget?
+    @State private var moving: TripPlan.Entry?
+
+    /// The day (or the trip-wide list) being reordered.
+    struct ReorderTarget: Identifiable {
+        let date: CalendarDate?
+        let title: String
+        var id: String { date?.description ?? "trip" }
+    }
 
     var body: some View {
         Group {
@@ -44,6 +54,20 @@ struct TripView: View {
         .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(for: ItemRoute.self) { route in
             ItemDetailView(route: route)
+        }
+        .toolbar {
+            if let plan = model.trip(tripID)?.plan, let target = reorderTarget(in: plan) {
+                ToolbarItem(placement: .primaryAction) {
+                    Button("Reorder", systemImage: "arrow.up.arrow.down") { reordering = target }
+                        .accessibilityIdentifier("trip.reorder")
+                }
+            }
+        }
+        .sheet(item: $reordering) { target in
+            ReorderSheet(tripID: tripID, date: target.date, title: target.title)
+        }
+        .sheet(item: $moving) { entry in
+            MoveToDaySheet(tripID: tripID, entry: entry)
         }
         .task(id: tripID) {
             model.selectedTripID = tripID
@@ -69,11 +93,12 @@ struct TripView: View {
                     } else {
                         let day = currentDay(in: plan)
                         DayStrip(days: plan.days, selected: day.date, today: model.today) { selectedDate = $0 }
-                        DayView(plan: plan, day: day, tripID: tripID, now: model.now)
+                        DayView(plan: plan, day: day, tripID: tripID, now: model.now, moving: $moving)
                     }
                 case .wholeTrip:
                     EntryList(plan: plan, entries: plan.tripWide, tripID: tripID, now: model.now,
-                              empty: "Nothing for the whole trip. Notes and checklists that aren't tied to a day go here.")
+                              empty: "Nothing for the whole trip. Notes and checklists that aren't tied to a day go here.",
+                              moving: $moving)
                 case .unscheduled:
                     UnscheduledList(plan: plan, tripID: tripID, now: model.now)
                 }
@@ -81,17 +106,44 @@ struct TripView: View {
                 if let message = model.lastError {
                     OfflineBanner(message: message)
                 }
+                SyncStatusLine(tripID: tripID)
+                    .padding(.top, ALSpace.space2)
+                if !plan.collection.currentUserIsOwner, let owner = plan.collection.owner {
+                    Text("Shared by \(owner.displayName). Your changes go to their trip.")
+                        .font(ALFont.footnote)
+                        .foregroundStyle(ALColor.inkMuted)
+                        .frame(maxWidth: .infinity)
+                        .multilineTextAlignment(.center)
+                }
                 Text("Saved on this phone \(savedAt.formatted(.relative(presentation: .named)))")
                     .font(ALFont.footnote)
                     .foregroundStyle(ALColor.inkMuted)
                     .frame(maxWidth: .infinity)
-                    .padding(.top, ALSpace.space2)
+                    .padding(.top, ALSpace.space1)
             }
             .padding(.horizontal, ALSpace.space4)
             .padding(.bottom, ALSpace.space6)
         }
-        .refreshable { await model.loadTrip(id: tripID) }
+        .refreshable {
+            model.syncNow()
+            await model.loadTrip(id: tripID)
+        }
         .accessibilityIdentifier("trip.view")
+    }
+
+    /// What the Reorder button reorders in the current scope, if anything.
+    private func reorderTarget(in plan: TripPlan) -> ReorderTarget? {
+        switch scope {
+        case .days:
+            guard !plan.days.isEmpty else { return nil }
+            let day = currentDay(in: plan)
+            guard day.entries.count > 1 else { return nil }
+            return ReorderTarget(date: day.date, title: day.name ?? "Day \(day.number)")
+        case .wholeTrip:
+            return plan.tripWide.count > 1 ? ReorderTarget(date: nil, title: "Whole trip") : nil
+        case .unscheduled:
+            return nil
+        }
     }
 
     /// The chosen day, else today when the trip is on, else the first day.
@@ -150,6 +202,7 @@ private struct DayView: View {
     let day: TripPlan.Day
     let tripID: String
     let now: Date
+    @Binding var moving: TripPlan.Entry?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
@@ -168,7 +221,7 @@ private struct DayView: View {
                     .padding(.top, ALSpace.space1)
             }
         }
-        EntryList(plan: plan, entries: day.entries, tripID: tripID, now: now, empty: "Nothing planned for this day.")
+        EntryList(plan: plan, entries: day.entries, tripID: tripID, now: now, empty: "Nothing planned for this day.", moving: $moving)
     }
 
     private var meta: String {
@@ -186,6 +239,7 @@ private struct EntryList: View {
     let tripID: String
     let now: Date
     let empty: String
+    @Binding var moving: TripPlan.Entry?
 
     var body: some View {
         if entries.isEmpty {
@@ -203,6 +257,9 @@ private struct EntryList: View {
                                     isFirst: index == 0, isLast: index == entries.count - 1)
                     }
                     .buttonStyle(.plain)
+                    .contextMenu {
+                        Button("Move to another day…", systemImage: "calendar") { moving = entry }
+                    }
                 }
             }
         }

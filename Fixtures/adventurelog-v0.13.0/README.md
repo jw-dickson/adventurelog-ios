@@ -88,6 +88,8 @@ Backend paths are relative to `backend/server/` in an AdventureLog checkout at t
   - `date` must fall inside the collection's start/end range, otherwise 400 (`errors/400__itinerary_date_outside_collection.json`).
   - Optional `update_item_date: true` also moves the underlying object's dates to that day (it can create or modify a Visit for locations; see `itinerary_view.py`). The seed does not use it.
 - **Reorder, or move between days:**
+  - Moving a row from trip-wide back to a day needs `is_global: false` sent explicitly. The server only clears `date` when `is_global` is true, and only sets `date` when the row is not global.
+  - Every id in the request must exist, or the whole request fails with `400 {"items": "One or more items not found."}`.
   `POST /api/itineraries/reorder/ {"items":[{"id","date","order"}, ...]}` returns 200 with the updated rows (a bare array).
   - To move to global: `{"id","is_global":true,"date":null,"order"}`. To move back: `{"id","is_global":false,"date":"YYYY-MM-DD","order"}`.
   - The web app sends **every row of every day plus every global row** each time (`saveReorderedItems`). Sending only the changed rows also works if the result keeps orders unique (see `requests/itineraries__reorder__d1_restore.json`).
@@ -157,8 +159,10 @@ Backend paths are relative to `backend/server/` in an AdventureLog checkout at t
 - **Checklist** (`responses/checklists__detail.json`):
   - Each entry in `items[]` is `{id, user, name, is_checked, checklist, created_at, updated_at}`.
   - `items` is **required on create**, even if empty (`errors/400__checklist_missing_items.json`).
-  - **Quirk:** a PATCH that includes `items` **replaces the whole set**. Items you leave out are deleted, and items without an `id` are created.
-  - **Quirk:** item ids can change. The ids in the create response (`checklists__create_response__car_pickup.json`) were all different after the first PATCH, even though that PATCH sent those ids back. Probable cause: `ChecklistItemSerializer` does not declare `id` as writable, so the ids are dropped and every item is recreated (`serializers.py` `ChecklistSerializer.update`). After that PATCH, the ids in the response and in later GETs matched. Always use the ids from the latest response.
+  - **Quirk:** every PATCH **replaces the whole set of items**. Items you leave out are deleted, and items without an `id` are created.
+  - **⚠ Quirk:** a PATCH that leaves `items` out altogether (for example `{"name": "…"}` alone) **deletes every item**. `ChecklistSerializer.update` pops `checklistitem_set` with a default of `[]`, then rebuilds the list from it. Checked against the test server on 2026-10-11, as the owner and as a collaborator: the response came back with `items: []`. Always send the full list.
+  - **Quirk:** item ids change on **every** PATCH. `ChecklistItemSerializer` does not declare `id` as writable, so ids sent back are dropped and every item is recreated with a new id and new timestamps (`serializers.py` `ChecklistSerializer.update`). Ids match between a PATCH response and later GETs until the next PATCH. Never keep an item id across a save: the app finds items by name and position instead (`TripEdit.CheckItem`).
+  - `GET /api/checklists/{id}/` and `GET /api/notes/{id}/` work for a collaborator on a shared trip (200), even though the list endpoints leave shared items out.
 - **Collection list** (`responses/collections__list.json`, the "UltraSlim" serializer):
   - Fields: `id, user(uuid), name, description, is_public, start_date, end_date, is_archived, link, created_at, updated_at, location_images[], location_count, shared_with[], collaborators[], status, days_until_start, primary_image`.
   - `status` is `folder|upcoming|in_progress|completed`, computed from the server's local date.
@@ -187,6 +191,7 @@ Backend paths are relative to `backend/server/` in an AdventureLog checkout at t
   - **must re-send `collection` when PATCHing** a transportation, lodging, note or checklist. If `collection` is missing from the body, the view treats it as None, reads that as "remove from collection", and returns 403 `{"detail":"You cannot remove the collection as you are not the owner."}`. With `collection` included, the PATCH returns 200 (`views/note_view.py` and the other views' `partial_update`; `errors/403__shared_user_patch_note_without_collection.json`, `responses/notes__update_as_shared_user_with_collection.json`). For the owner, a PATCH without `collection` is harmless. Safest: always include `collection`.
   - **cannot** PATCH the collection itself. That returns **404**, because the update queryset is owner-only (`errors/404__shared_user_patch_collection.json`).
   - Shared trips appear in `GET /api/collections/shared/`, **not** in `GET /api/collections/`, which lists only owned, non-archived trips.
+- Collaborators can reorder a shared trip's itinerary: `POST /api/itineraries/reorder/` returns 200 for them (`adventures/utils/itinerary.py` allows the owner or anyone in `shared_with`).
 - **Sharing needs the target user to have `public_profile=true`**, otherwise `share/{uuid}/` returns 404 (`collection_view.py` `share`). User uuids come from `GET /auth/users/`, which lists public users only.
 
 ## 9. Other server quirks

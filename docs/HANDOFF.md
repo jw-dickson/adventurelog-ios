@@ -102,3 +102,82 @@ Step 4 (repo settings): fork-PR approval is now `all_external_contributors`; env
 
 Step 5: the signing xcconfig (mode 600, outside the repo) is written with the team id and bundle id. The App Store Connect bundle id and the "AdventureLog Trips" app record are still to be created by hand.
 - The Simulator keeps the Keychain session and saved trips between runs (only `-ALResetState YES` is in-memory). A test that expects the sign-in screen after a signed-in run needs `xcrun simctl uninstall <udid> app.adventurelog.ios.dev` and `xcrun simctl keychain <udid> reset` first.
+
+---
+
+## Handoff 2 · Stage 2 → Mac session (2026-10-11)
+
+**Branch:** `stage-2-today-sync`. **Goal:** Stage 2's exit checks on a real Simulator against the disposable test server: offline edits reach the server on reconnect, and two Simulators on one trip converge.
+
+### What changed
+
+- **Today tab** (first tab, Design/review-1 02 and 10). It shows the day header, a Next card with the leave-by time and Navigate / Notes / Skip, then Later today and Earlier. The leave-by time counts from the previous stop. It uses Apple Maps' drive time when it can, and a straight-line estimate offline and in UI tests. Skip stays on the phone.
+- **Edits:**
+  - checklist items tick on tap in item detail;
+  - notes have Edit;
+  - the Trip tab has Reorder (a drag list for the day or the trip-wide list);
+  - each row has "Move to another day…".
+- **Sync:**
+  - edits show at once and go through the outbox (`AdventureLogKit/Sync`), stored on the phone in `ALStore/DeviceStateStore`;
+  - "N changes waiting to sync" and "N changes need a look" appear under the trip;
+  - conflicting note edits ask which version to keep;
+  - signing out with unsent changes asks first.
+- **How it works:** see "How Stage 2 syncs" in [PLAN.md](PLAN.md).
+- **New server finding:** a checklist PATCH without `items` deletes every item. It's in the fixtures README §7. The app always sends the whole list.
+
+The cloud session can't compile Swift. Hosted CI is the first compile.
+
+### 1. Tests
+
+```bash
+git fetch && git checkout stage-2-today-sync
+make test-packages     # new: SyncTests (fake server with AdventureLog's quirks, two-phone convergence), TodayPlanTests, DeviceStateStoreTests
+make test-ui           # new: OfflineEditingUITests; the gallery now includes 02-today
+```
+
+### 2. Offline edits reach the server on reconnect
+
+Use the disposable test server with the synthetic seed. Never use a real account.
+
+1. Sign in on one Simulator, open "Tasmania Road Trip 2027", then stop the server container.
+2. Make these edits:
+   - tick "Check the spare tyre" in Car pickup;
+   - edit "Trip essentials";
+   - move "Sunset cruise" to 7 Mar.
+3. Check the trip shows "3 changes waiting to sync".
+4. Start the server again. Within a few seconds the line should clear, and the web UI should show all three changes.
+
+**Done when:** all three changes are on the server and Car pickup still has 5 items.
+
+### 3. Two Simulators converge
+
+Boot a second Simulator signed in as the seed's guest user, with the guest key from `seed.py`'s environment. That user is a collaborator on the trip.
+
+1. With both offline (server stopped), make different edits on each:
+   - each ticks a different Car pickup item;
+   - each moves a different row;
+   - both edit "Hobart day tips".
+2. Start the server and bring each app to the front in turn.
+
+**Done when:**
+- both show the same trip after a pull to refresh;
+- both ticks and both moves are kept;
+- the second phone to sync is asked to keep its version or theirs for "Hobart day tips", and after choosing, both phones show the chosen text.
+
+### 4. Writes through the frontend port
+
+Handoff 1 found that the AIO container's frontend answers `/api/...` with a `308` to the URL without the slash. GETs worked through it. Repeat step 2 against the frontend port and note whether PATCH and POST survive the redirect with the API key. If they don't, record the status codes. The client may need to hold on to the method and headers.
+
+### 5. Gallery
+
+Run `make gallery` and put `02-today-{light,dark,xxl}` beside `Design/review-1/02-today.png` and `10-today-dark.png` for design review 2.
+
+### Send back
+
+Append under "Results":
+- compile fixes, one line each;
+- test counts;
+- steps 2–4: done or not, with anything that surprised you;
+- the Today screenshots.
+
+### Results

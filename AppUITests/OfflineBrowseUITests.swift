@@ -36,6 +36,7 @@ final class OfflineBrowseUITests: XCTestCase {
 
     func testBrowsesTheSavedTripWithNoServer() throws {
         let app = try Self.launchOffline()
+        app.tabBars.buttons["Trip"].tap()
 
         // The trip happening now opens by itself, on today.
         let title = app.staticTexts["day.title"]
@@ -76,6 +77,7 @@ final class OfflineBrowseUITests: XCTestCase {
 
     func testTripListGroupsTheTripAsHappeningNow() throws {
         let app = try Self.launchOffline()
+        app.tabBars.buttons["Trip"].tap()
         XCTAssertTrue(app.staticTexts["day.title"].waitForExistence(timeout: 15))
         app.navigationBars.buttons.element(boundBy: 0).tap()
         XCTAssertTrue(element(app, containing: "Happening now").waitForExistence(timeout: 5))
