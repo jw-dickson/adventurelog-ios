@@ -78,6 +78,14 @@ struct LiveActivityTests {
         #expect(again == state)
     }
 
+    /// What a push-to-start push carries as `attributes.info` (the companion builds it in Python).
+    @Test func infoDecodesFromPushAttributes() throws {
+        let json = #"{"tripID":"t","rowID":"r","kind":"flight","eyebrow":"Connection · SYD","title":"EX 1501 to Hobart","zoneIdentifier":"Australia/Sydney","windowStart":1804352400}"#
+        let info = try JSONDecoder().decode(LiveActivityInfo.self, from: Data(json.utf8))
+        #expect(info.windowStart == at("2027-03-06T17:00:00Z") && info.detail == nil)
+        #expect(try JSONDecoder().decode(LiveActivityInfo.self, from: JSONEncoder().encode(info)) == info)
+    }
+
     @Test func airportNamesBecomeCities() {
         #expect(LiveActivityPlanner.city("Hobart Airport (HBA)") == "Hobart")
         #expect(LiveActivityPlanner.city("Los Angeles International Airport (LAX)") == "Los Angeles")

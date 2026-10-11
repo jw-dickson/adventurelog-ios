@@ -39,6 +39,38 @@ public struct LiveActivityInfo: Codable, Sendable, Hashable {
     }
 
     public var zone: TimeZone { TimeZone(identifier: zoneIdentifier) ?? .gmt }
+
+    private enum CodingKeys: String, CodingKey {
+        case tripID, rowID, kind, eyebrow, title, detail, reference, zoneIdentifier, windowStart
+    }
+
+    // A push-to-start push carries these attributes, decoded by ActivityKit's plain JSONDecoder,
+    // so `windowStart` is Unix seconds here too rather than the default seconds since 2001.
+    public init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        tripID = try c.decode(String.self, forKey: .tripID)
+        rowID = try c.decode(String.self, forKey: .rowID)
+        kind = try c.decode(Kind.self, forKey: .kind)
+        eyebrow = try c.decode(String.self, forKey: .eyebrow)
+        title = try c.decode(String.self, forKey: .title)
+        detail = try c.decodeIfPresent(String.self, forKey: .detail)
+        reference = try c.decodeIfPresent(String.self, forKey: .reference)
+        zoneIdentifier = try c.decode(String.self, forKey: .zoneIdentifier)
+        windowStart = Date(timeIntervalSince1970: try c.decode(Double.self, forKey: .windowStart))
+    }
+
+    public func encode(to encoder: any Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(tripID, forKey: .tripID)
+        try c.encode(rowID, forKey: .rowID)
+        try c.encode(kind, forKey: .kind)
+        try c.encode(eyebrow, forKey: .eyebrow)
+        try c.encode(title, forKey: .title)
+        try c.encodeIfPresent(detail, forKey: .detail)
+        try c.encodeIfPresent(reference, forKey: .reference)
+        try c.encode(zoneIdentifier, forKey: .zoneIdentifier)
+        try c.encode(windowStart.timeIntervalSince1970, forKey: .windowStart)
+    }
 }
 
 /// What a Live Activity shows now. Changes over its life, from the phone or from a push.
