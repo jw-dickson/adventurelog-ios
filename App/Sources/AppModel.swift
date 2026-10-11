@@ -613,9 +613,13 @@ final class AppModel {
         let current = trips.filter { listed.contains($0.key) }
             .compactMap { LiveActivityPlanner.current(for: $0.value.plan, now: now, skipped: skipped[$0.key] ?? []) }
             .min { $0.end < $1.end }
-        await liveActivities.show(current, onToken: companion == nil ? nil : { [weak self] token, tripID, rowID in
-            await self?.receivedActivityToken(token, tripID: tripID, rowID: rowID)
-        })
+        var onToken: LiveActivityController.TokenHandler?
+        if companion != nil {
+            onToken = { [weak self] token, tripID, rowID in
+                await self?.receivedActivityToken(token, tripID: tripID, rowID: rowID)
+            }
+        }
+        await liveActivities.show(current, onToken: onToken)
     }
 
     // MARK: Companion service
