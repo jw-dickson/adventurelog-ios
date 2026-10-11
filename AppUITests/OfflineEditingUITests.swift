@@ -71,7 +71,8 @@ final class OfflineEditingUITests: XCTestCase {
         // Today has an Account button too; use the one on the screen in front.
         let account = app.navigationBars["Trips"].buttons["Account"]
         XCTAssertTrue(account.waitForExistence(timeout: 5))
-        account.tap()
+        // A toolbar menu can't be "scrolled to visible", so tap where it is.
+        account.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
         app.buttons["Sign out"].tap()
         XCTAssertTrue(element(app, containing: "1 change hasn't synced").waitForExistence(timeout: 5))
     }
