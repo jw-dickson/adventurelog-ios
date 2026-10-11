@@ -226,6 +226,8 @@ Append under "Results":
 2. Tap it. The proxy's sign-on and then AdventureLog's should run in the sheet. When they finish, the sheet closes and the app opens on Today. AdventureLog's API keys page should list "AdventureLog iOS · <date>".
 3. Sign out and back in once more, to check that the second sign-in also completes.
 
+### Results
+
 ---
 
 ## Handoff 5 · Stage 3b, tracking (2026-10-11)
