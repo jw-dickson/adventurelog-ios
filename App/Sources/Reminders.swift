@@ -38,7 +38,11 @@ final class ReminderScheduler {
 
     /// Asks once; afterwards the answer lives in Settings.
     func requestPermission() async -> Bool {
-        (try? await center.requestAuthorization(options: [.alert, .sound, .badge])) ?? false
+        await withCheckedContinuation { continuation in
+            center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
+                continuation.resume(returning: granted)
+            }
+        }
     }
 
     /// Operations run one at a time, in order, so a sign-out's cleanup can't interleave with a
