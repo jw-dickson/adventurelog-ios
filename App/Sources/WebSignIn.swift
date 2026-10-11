@@ -100,11 +100,22 @@ private struct WebSignInView: UIViewRepresentable {
         }
 
         private func lookForSession(in webView: WKWebView) {
+            let host = parent.server.host()?.lowercased() ?? ""
             webView.configuration.websiteDataStore.httpCookieStore.getAllCookies { [weak self] cookies in
-                let tokens = cookies.filter { $0.name == "sessionid" }.map(\.value)
+                // Only AdventureLog's own session cookie: one a browser would send to the server
+                // anyway, never a provider's cookie that happens to share the name.
+                let tokens = cookies.filter { $0.name == "sessionid" && Self.domain($0.domain, matches: host) }.map(\.value)
                 guard let self else { return }
                 Task { @MainActor in await self.check(tokens) }
             }
+        }
+
+        /// RFC 6265 domain matching. AdventureLog sets its cookie on the parent domain
+        /// (`.example.com` for `trips.example.com`), so an exact host match would miss it.
+        nonisolated static func domain(_ cookieDomain: String, matches host: String) -> Bool {
+            let domain = cookieDomain.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "."))
+            guard !domain.isEmpty, !host.isEmpty else { return false }
+            return host == domain || host.hasSuffix("." + domain)
         }
 
         private func check(_ tokens: [String]) async {
