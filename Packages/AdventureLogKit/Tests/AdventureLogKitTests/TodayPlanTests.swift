@@ -52,6 +52,7 @@ struct TodayPlanTests {
         let today = try #require(TodayPlan(plan: try plan(), today: d2, now: now, skipped: [drive.rowID]))
         #expect(today.next?.summary.title == "Bay Holiday Park")
         #expect(today.earlier.contains { $0.id == drive.id && $0.status == .skipped })
+        #expect(today.doneCount == base.doneCount, "a skipped place isn't counted as done")
     }
 
     @Test func aDayOutsideTheTripHasNoToday() throws {

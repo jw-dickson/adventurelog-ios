@@ -233,10 +233,17 @@ private struct NextCard: View {
         .alCard(padding: ALSpace.space4)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("today.next")
-        .task(id: next.id) { await route() }
+        // Skipping an earlier stop changes where you leave from, so the route is redone.
+        .task(id: RouteKey(item: next.id, from: origin, to: next.summary.coordinate)) { await route() }
     }
 
     private var origin: ItemSummary.Coordinate? { LeaveBy.origin(before: next, in: today) }
+
+    private struct RouteKey: Hashable {
+        let item: String
+        let from: ItemSummary.Coordinate?
+        let to: ItemSummary.Coordinate?
+    }
 
     /// "Leave by 18:15 · ~10 min drive", or `nil` when there is nowhere to leave from or no start time.
     private var leaveLine: Text? {

@@ -39,7 +39,7 @@ public struct TodayPlan: Sendable {
     public let later: [Entry]
     /// Rows that are done, skipped or already under way.
     public let earlier: [Entry]
-    /// Places, legs and stays that are over, skipped or under way, out of all of them.
+    /// Places, legs and stays that are over or under way, out of all of them.
     public let doneCount: Int
     public let countable: Int
     /// Ground travel planned today, in whole kilometres; `nil` when there is none.
@@ -71,7 +71,8 @@ public struct TodayPlan: Sendable {
 
         let places = entries.filter { Self.isPlace($0.summary.kind) }
         self.countable = places.count
-        self.doneCount = places.filter { behind.contains($0.status) }.count
+        // Over, or under way (the car is picked up, the stay checked in). Skipped places don't count.
+        self.doneCount = places.filter { $0.status == .done || $0.status == .ongoing }.count
         self.bookedCount = entries.filter(\.summary.isBooked).count
         self.hasOvernight = entries.contains { $0.summary.kind == .lodging }
 
