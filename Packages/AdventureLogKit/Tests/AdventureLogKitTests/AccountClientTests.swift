@@ -171,6 +171,20 @@ struct AccountClientTests {
         #expect(await proxied.isSignedIn(sessionToken: "nope") == false)
     }
 
+    /// A proxy that sends the login page back on the same path, only adding a query.
+    @Test func aRedirectThatOnlyAddsAQueryIsStillTheProxy() {
+        let asked = URLRequest(url: URL(string: "https://adventurelog.example/auth/social-providers/")!)
+        let page = Data("<!doctype html><title>Sign in</title>".utf8)
+        let sameWithQuery = HTTPURLResponse(url: URL(string: "https://adventurelog.example/auth/social-providers/?login=1")!,
+                                            statusCode: 200, httpVersion: nil, headerFields: nil)!
+        #expect(AccountClient.isSignOnPage(sameWithQuery, data: page, for: asked))
+        // No redirect at all: a wrong address, not a proxy.
+        let same = HTTPURLResponse(url: asked.url!, statusCode: 404, httpVersion: nil, headerFields: nil)!
+        #expect(AccountClient.isSignOnPage(same, data: page, for: asked) == false)
+        // Redirected but answered with JSON (a trailing-slash redirect): AdventureLog, not a proxy.
+        #expect(AccountClient.isSignOnPage(sameWithQuery, data: Data("[]".utf8), for: asked) == false)
+    }
+
     @Test func oldServersSayWhy() {
         let error = AccountClient.error(from: Data(#"{"detail":"Not found."}"#.utf8), status: 404)
         #expect(error.localizedDescription.contains("0.13"))

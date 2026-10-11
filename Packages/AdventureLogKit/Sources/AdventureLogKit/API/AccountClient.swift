@@ -187,9 +187,18 @@ public struct AccountClient: Sendable {
     /// Redirected away from the address asked for, to something that isn't JSON: a sign-on
     /// proxy's login page. (A plain web page with no redirect is just a wrong address.)
     static func isSignOnPage(_ response: HTTPURLResponse, data: Data, for request: URLRequest) -> Bool {
-        guard let landed = response.url, let asked = request.url,
-              landed.host() != asked.host() || landed.path() != asked.path() else { return false }
+        guard let landed = response.url, let asked = request.url, !sameAddress(landed, asked) else { return false }
         return (try? JSONSerialization.jsonObject(with: data)) == nil
+    }
+
+    /// Scheme, host, port, path and query all equal (the fragment never reaches the server).
+    private static func sameAddress(_ a: URL, _ b: URL) -> Bool {
+        let parts = { (url: URL) -> URLComponents? in
+            var components = URLComponents(url: url, resolvingAgainstBaseURL: true)
+            components?.fragment = nil
+            return components
+        }
+        return parts(a) == parts(b)
     }
 
     static func json(_ data: Data) -> [String: Any]? {

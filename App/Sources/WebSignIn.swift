@@ -85,6 +85,27 @@ private struct WebSignInView: UIViewRepresentable {
             parent.isLoading = true
         }
 
+        // Credentials are typed in this sheet, so every page and redirect must be HTTPS. The one
+        // exception is the server's own address when the person typed it as http (a test server
+        // or one on the home network): a downgrade anywhere else on the way is refused.
+        func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction) async -> WKNavigationActionPolicy {
+            Self.allows(navigationAction.request.url, server: parent.server) ? .allow : .cancel
+        }
+
+        func webView(_ webView: WKWebView, decidePolicyFor navigationResponse: WKNavigationResponse) async -> WKNavigationResponsePolicy {
+            Self.allows(navigationResponse.response.url, server: parent.server) ? .allow : .cancel
+        }
+
+        nonisolated static func allows(_ url: URL?, server: URL) -> Bool {
+            guard let url, let scheme = url.scheme?.lowercased() else { return false }
+            switch scheme {
+            case "https", "about": return true
+            case "http":
+                return server.scheme?.lowercased() == "http" && url.host()?.lowercased() == server.host()?.lowercased()
+            default: return false
+            }
+        }
+
         func webView(_ webView: WKWebView, didReceiveServerRedirectForProvisionalNavigation navigation: WKNavigation!) {
             lookForSession(in: webView)
         }
