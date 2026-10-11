@@ -4,7 +4,8 @@ name: ci
 # upstream) gets the same checks.
 #
 # - Package tests run on every pull request push and on main.
-# - Simulator UI tests run on pull requests that touch more than docs, on two Simulators at once.
+# - Simulator UI tests run on pull requests that touch more than docs, on one Simulator (the
+#   hosted runners are too small for two: cloned Simulators made each test take minutes).
 #   A push to main skips them: the pull request already ran them on that code.
 # - The screenshot gallery (light, dark, XXL) runs only when asked: Actions → ci → Run workflow,
 #   with "Capture the screenshot gallery" ticked, or `make gallery` on a Mac.
@@ -110,8 +111,7 @@ jobs:
           set +e
           xcodebuild test-without-building -project AdventureLog.xcodeproj -scheme AdventureLog \
             -destination "$DEST" -derivedDataPath build/DerivedData \
-            -skip-testing:AdventureLogUITests/GalleryUITests \
-            -parallel-testing-enabled YES -parallel-testing-worker-count 2 \
+            -skip-testing:AdventureLogUITests/GalleryUITests -parallel-testing-enabled NO \
             -resultBundlePath build/UITests.xcresult 2>&1 | tee build/ui.log
           status=${PIPESTATUS[0]}
           python3 scripts/ci-annotate.py build/ui.log $([ $status -ne 0 ] && echo --tail)
