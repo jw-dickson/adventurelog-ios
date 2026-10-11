@@ -5,44 +5,37 @@ import ALDesign
 import SwiftUI
 
 /// Sign in to an AdventureLog server the way its web app does: a username and password (with a
-/// two-factor code when that's on), or any provider the server offers, such as Authentik. An
-/// API key still works, under "Use an API key instead".
+/// two-factor code when that's on), or single sign-on in a web sheet: a provider the server lists,
+/// such as Authentik, or the server's own pages when a sign-on proxy sits in front of it.
 ///
-/// Either way the app ends up holding an API key for this phone (see `AppModel.signIn(url:sessionToken:)`).
+/// Either way the app ends up holding an API key it made for this phone (see
+/// `AppModel.signIn(url:sessionToken:)`); there is no field for pasting one.
 struct SignInView: View {
-    enum Mode { case password, apiKey }
-
     @Environment(AppModel.self) private var model
     @State private var server = LaunchOptions.current.serverURL ?? ""
-    @State private var mode: Mode = LaunchOptions.current.apiKey == nil ? .password : .apiKey
     @State private var login = ""
     @State private var password = ""
-    @State private var apiKey = LaunchOptions.current.apiKey ?? ""
     @State private var code = ""
     /// A password sign-in waiting for its two-factor code.
     @State private var pendingToken: String?
     @State private var providers: [SocialProvider] = []
-    @State private var webProvider: SocialProvider?
+    /// A sign-on proxy answers for the server, so only the web sheet can sign in (issue #9).
+    @State private var behindSignOn = false
+    @State private var web: WebSignInTarget?
     @State private var isConnecting = false
     @State private var errorMessage: String?
-    @State private var showingKeyHelp = false
     @FocusState private var focus: Field?
 
-    private enum Field { case server, login, password, code, key }
+    private enum Field { case server, login, password, code }
 
     private var serverURL: URL? { AdventureLogClient.normalizedServerURL(server) }
-    /// The server only allows provider sign-in.
-    private var providersOnly: Bool { providers.contains { $0.usageRequired == true } }
+    /// Only single sign-on works: the server requires a provider, or a proxy is in front of it.
+    private var signOnOnly: Bool { behindSignOn || providers.contains { $0.usageRequired == true } }
 
     private var canConnect: Bool {
         guard !server.trimmingCharacters(in: .whitespaces).isEmpty, !isConnecting else { return false }
-        switch mode {
-        case .apiKey:
-            return !apiKey.trimmingCharacters(in: .whitespaces).isEmpty
-        case .password:
-            if pendingToken != nil { return !code.trimmingCharacters(in: .whitespaces).isEmpty }
-            return !login.trimmingCharacters(in: .whitespaces).isEmpty && !password.isEmpty && !providersOnly
-        }
+        if pendingToken != nil { return !code.trimmingCharacters(in: .whitespaces).isEmpty }
+        return !login.trimmingCharacters(in: .whitespaces).isEmpty && !password.isEmpty && !signOnOnly
     }
 
     var body: some View {
@@ -71,14 +64,11 @@ struct SignInView: View {
                             .autocorrectionDisabled()
                             .submitLabel(.next)
                             .focused($focus, equals: .server)
-                            .onSubmit { focus = mode == .apiKey ? .key : .login }
+                            .onSubmit { focus = signOnOnly ? nil : .login }
                             .accessibilityIdentifier("signin.server")
                     }
 
-                    switch mode {
-                    case .password: passwordFields
-                    case .apiKey: keyField
-                    }
+                    passwordFields
 
                     if let errorMessage {
                         Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
@@ -87,7 +77,7 @@ struct SignInView: View {
                             .accessibilityIdentifier("signin.error")
                     }
 
-                    if mode == .apiKey || !providersOnly {
+                    if !signOnOnly {
                         Button(action: connect) {
                             ZStack {
                                 Text(connectTitle).opacity(isConnecting ? 0 : 1)
@@ -102,21 +92,9 @@ struct SignInView: View {
                         .accessibilityIdentifier("signin.connect")
                     }
 
-                    if mode == .password, !providers.isEmpty, pendingToken == nil {
-                        providerButtons
+                    if pendingToken == nil {
+                        signOnButtons
                     }
-
-                    Button(mode == .password ? "Use an API key instead" : "Sign in with your account instead") {
-                        withAnimation {
-                            mode = mode == .password ? .apiKey : .password
-                            errorMessage = nil
-                            pendingToken = nil
-                        }
-                    }
-                    .font(ALFont.subheadline)
-                    .foregroundStyle(ALColor.primaryText)
-                    .frame(maxWidth: .infinity)
-                    .accessibilityIdentifier(mode == .password ? "signin.useKey" : "signin.usePassword")
                 }
                 .padding(.top, ALSpace.space3)
 
@@ -133,26 +111,15 @@ struct SignInView: View {
         .scrollDismissesKeyboard(.interactively)
         .background(ALColor.surface100)
         .task(id: serverURL) { await loadProviders() }
-        .sheet(item: $webProvider) { provider in
-            if let url = serverURL {
-                WebSignInSheet(provider: provider, server: url) { token in
-                    finish(url: url, sessionToken: token)
-                }
+        .task { await signInWithTestKey() }
+        .sheet(item: $web) { target in
+            WebSignInSheet(target: target) { token in
+                finish(url: target.server, sessionToken: token)
             }
-        }
-        .alert("API keys", isPresented: $showingKeyHelp) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text("An API key lets this app use your AdventureLog account without your password. You can revoke it in AdventureLog at any time, and it is stored only in this phone's keychain.")
         }
     }
 
-    private var connectTitle: String {
-        switch mode {
-        case .apiKey: return "Connect"
-        case .password: return pendingToken == nil ? "Sign in" : "Verify"
-        }
-    }
+    private var connectTitle: String { pendingToken == nil ? "Sign in" : "Verify" }
 
     @ViewBuilder private var passwordFields: some View {
         if pendingToken != nil {
@@ -173,10 +140,13 @@ struct SignInView: View {
                     .font(ALFont.footnote)
                     .foregroundStyle(ALColor.inkMuted)
             }
-        } else if providersOnly {
-            Text("This server signs in through \(ListFormatter.localizedString(byJoining: providers.map(\.name))).")
+        } else if signOnOnly {
+            Text(providers.isEmpty
+                 ? "This server signs in through single sign-on."
+                 : "This server signs in through \(ListFormatter.localizedString(byJoining: providers.map(\.name))).")
                 .font(ALFont.subheadline)
                 .foregroundStyle(ALColor.inkMuted)
+                .accessibilityIdentifier("signin.signOnOnly")
         } else {
             field("Username or email") {
                 TextField("Username or email", text: $login, prompt: Text("Username or email"))
@@ -201,32 +171,11 @@ struct SignInView: View {
         }
     }
 
-    @ViewBuilder private var keyField: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            field("API key") {
-                SecureField("API key", text: $apiKey, prompt: Text("al_…"))
-                    .font(.system(.subheadline, design: .monospaced, weight: .medium))
-                    .textContentType(.password)
-                    .submitLabel(.go)
-                    .focused($focus, equals: .key)
-                    .onSubmit { connect() }
-                    .accessibilityIdentifier("signin.apikey")
-            }
-            HStack(alignment: .firstTextBaseline) {
-                Text("Create a key in AdventureLog under Settings › API keys, then paste it here.")
-                    .font(ALFont.footnote)
-                    .foregroundStyle(ALColor.inkMuted)
-                Spacer(minLength: 0)
-                Button("What's this?") { showingKeyHelp = true }
-                    .font(ALFont.footnote)
-                    .foregroundStyle(ALColor.primaryText)
-            }
-        }
-    }
-
-    private var providerButtons: some View {
+    /// A button per provider the server lists. When it lists none (or a sign-on proxy hides the
+    /// list), one button opens the server's own pages, where its sign-on takes over like in a browser.
+    private var signOnButtons: some View {
         VStack(spacing: ALSpace.space2) {
-            if !providersOnly {
+            if !signOnOnly {
                 HStack {
                     Rectangle().fill(ALColor.hairline).frame(height: 1)
                     Text("or").font(ALFont.footnote).foregroundStyle(ALColor.inkMuted)
@@ -234,15 +183,29 @@ struct SignInView: View {
                 }
                 .accessibilityHidden(true)
             }
+            if providers.isEmpty {
+                Button {
+                    guard let url = serverURL else { return }
+                    errorMessage = nil
+                    web = WebSignInTarget(title: "Single sign-on", start: url, server: url)
+                } label: {
+                    Label("Sign in with single sign-on", systemImage: "person.badge.key")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(ALButtonStyle(signOnOnly ? .primary : .secondary))
+                .disabled(isConnecting || serverURL == nil)
+                .accessibilityIdentifier("signin.sso")
+            }
             ForEach(providers) { provider in
                 Button {
+                    guard let url = serverURL else { return }
                     errorMessage = nil
-                    webProvider = provider
+                    web = WebSignInTarget(title: provider.name, start: provider.startURL(on: url), server: url)
                 } label: {
                     Label("Continue with \(provider.name)", systemImage: "person.badge.key")
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(ALButtonStyle(providersOnly ? .primary : .secondary))
+                .buttonStyle(ALButtonStyle(signOnOnly ? .primary : .secondary))
                 .disabled(isConnecting || serverURL == nil)
                 .accessibilityIdentifier("signin.provider.\(provider.name)")
             }
@@ -266,15 +229,40 @@ struct SignInView: View {
     // MARK: Actions
 
     /// Asks the server which providers it offers, a moment after the address stops changing.
+    /// A sign-on proxy's login page or any other failure means "none listed", never an error:
+    /// the single sign-on button is there either way.
     private func loadProviders() async {
         providers = []
+        behindSignOn = false
         pendingToken = nil
         guard let url = serverURL else { return }
         try? await Task.sleep(for: .milliseconds(600))
         guard !Task.isCancelled else { return }
-        let found = (try? await AccountClient(baseURL: url).socialProviders()) ?? []
+        var found: [SocialProvider] = []
+        var proxied = false
+        do {
+            found = try await AccountClient(baseURL: url).socialProviders()
+        } catch AccountError.singleSignOn {
+            proxied = true
+        } catch {}
         guard !Task.isCancelled else { return }
-        withAnimation { providers = found }
+        withAnimation {
+            providers = found
+            behindSignOn = proxied
+        }
+    }
+
+    /// Test seam: `-ALServerURL` with `-ALAPIKey` signs straight in with that key (UI tests against
+    /// a disposable server). There is no way to paste a key in the app itself.
+    private func signInWithTestKey() async {
+        guard let key = LaunchOptions.current.apiKey, let server = LaunchOptions.current.serverURL else { return }
+        isConnecting = true
+        defer { isConnecting = false }
+        do {
+            try await model.signIn(server: server, apiKey: key)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 
     /// Signs in with what's filled in; shows the server's message when it says no.
@@ -286,27 +274,25 @@ struct SignInView: View {
         Task {
             defer { isConnecting = false }
             do {
-                switch mode {
-                case .apiKey:
-                    try await model.signIn(server: server, apiKey: apiKey)
-                case .password:
-                    guard let url = serverURL else { throw APIError.badServerURL }
-                    let account = AccountClient(baseURL: url)
-                    if let token = pendingToken {
-                        let signedIn = try await account.submitCode(code, sessionToken: token)
-                        try await model.signIn(url: url, sessionToken: signedIn)
-                    } else {
-                        let method = (try? await account.config())?.authenticationMethod ?? "username_email"
-                        switch try await account.logIn(login, password: password, method: method) {
-                        case .signedIn(let token):
-                            try await model.signIn(url: url, sessionToken: token)
-                        case .needsCode(let token):
-                            withAnimation { pendingToken = token }
-                            code = ""
-                            focus = .code
-                        }
+                guard let url = serverURL else { throw APIError.badServerURL }
+                let account = AccountClient(baseURL: url)
+                if let token = pendingToken {
+                    let signedIn = try await account.submitCode(code, sessionToken: token)
+                    try await model.signIn(url: url, sessionToken: signedIn)
+                } else {
+                    let method = (try? await account.config())?.authenticationMethod ?? "username_email"
+                    switch try await account.logIn(login, password: password, method: method) {
+                    case .signedIn(let token):
+                        try await model.signIn(url: url, sessionToken: token)
+                    case .needsCode(let token):
+                        withAnimation { pendingToken = token }
+                        code = ""
+                        focus = .code
                     }
                 }
+            } catch AccountError.singleSignOn {
+                withAnimation { behindSignOn = true }
+                errorMessage = AccountError.singleSignOn.localizedDescription
             } catch {
                 errorMessage = error.localizedDescription
             }

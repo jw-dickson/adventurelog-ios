@@ -9,7 +9,7 @@ The app is built in stages. Each ends in something that runs in the Simulator an
 | **1 · Read-only offline client** | Sign-in, trip list (owned and shared), day timeline, item detail, trip-wide notes and checklists, map with pins, offline pack | Browse a seeded trip with the network off; snapshot tests light, dark and Dynamic Type XXL |
 | **2 · Today, editing, sync** | Today tab, checklist ticks, note edits, reorder and move between days, outbox with retry, conflicts, shared-trip rules | Offline edits reach the server on reconnect; two Simulators on one trip converge |
 | **Design review 2** ✅ | Simulator snapshot gallery beside the mockups ([`Design/review-2`](../Design/review-2/README.md)) | Signed off 11 Oct 2026; first TestFlight build |
-| **3 · Reminders and tracking** | Leave-by and heads-up reminders, rolling geofence window, background tracking, stop detection, plan-vs-actual write-back, GPX capture | A replayed drive fires the right reminders in the trip's zone and detects the planned stops |
+| **3 · Reminders and tracking** *(3a reminders, 3b tracking)* | Leave-by and heads-up reminders, rolling geofence window, background tracking, stop detection, plan-vs-actual write-back, GPX capture | A replayed drive fires the right reminders in the trip's zone and detects the planned stops |
 | **4 · Companion service and Live Activities** *(optional module)* | Self-hosted companion: device registration, APNs, track ingest, fixed/flexible flags; Live Activities for connections and booked tours | `simctl push` payloads render every state; a server push reaches a TestFlight build |
 | **5 · Replan assistant** *(optional module)* | Proposes a revised day around booked items; the user accepts, edits or dismisses | Golden scenarios produce valid proposals; a UI test accepts one end to end |
 | **Design review 3, freeze** | Full-app review | Fixes only after this point |
@@ -27,6 +27,21 @@ Edits are kept on the phone first and sent when the server can be reached: a tic
 - **In order, with retry.** Edits go one at a time, in the order they were made. A send that fails because the server can't be reached waits 5 s, then 10, 20… up to 5 minutes. It goes again as soon as the network comes back, the app comes to the front, or the person pulls to refresh. An edit whose item was deleted elsewhere is dropped with a notice; if it was note text, the text can be copied. The server refusing an edit is listed for a retry or discard.
 - **Shared trips.** Every PATCH carries the trip's `collection`, which AdventureLog requires from collaborators. Collaborators can tick, edit notes and reorder like the owner. Changing the trip itself (name, dates, sharing) stays with the owner and isn't in the app.
 - **Converging.** After sending, the app fetches the trip again. It also refreshes the open trip every two minutes while it's on screen, and when the app comes to the front, so a second phone's changes show up.
+
+## How Stage 3 reminds
+
+Reminders are worked out on the phone from the trip's plan (`AdventureLogKit/Trip/Reminders.swift`), so they arrive with no signal. Each one is a local notification at a UTC instant, so it fires at the right moment in whatever zone the phone is in, and its text shows times in the item's own zone.
+
+- **Leave by:** for a timed place, stay or leg, counted from the previous stop that day.
+  - Travel time is the straight-line estimate Today uses: 1.3× the distance at 50 km/h, rounded up to 5 minutes.
+  - On top of that comes a buffer: 5 minutes, 10 for booked items, 90 at the airport for flights.
+  - There's no leave-by when the previous stop is within 300 m.
+- **Heads-up:** before something starts. The default is 15 minutes, an hour for booked items and three hours for flights; all three can be changed. A heads-up within 10 minutes of the leave-by is dropped.
+- **A rolling window:** only the next 48 hours, at most 60 reminders across every saved trip, because iOS keeps 64 pending per app.
+  - The window is recalculated whenever a trip changes, a row is skipped or the app comes to the front.
+  - A background refresh every few hours does the same and fetches the trip again.
+  - Each reminder's id includes its time, so a moved reminder replaces the old one.
+- **Turning them on:** reminders are off until the person turns them on, from Today's offer or the account menu, which asks for notification permission. The settings stay on the phone.
 
 ## Testing without a device
 
