@@ -267,8 +267,15 @@ private struct NextCard: View {
         request.source = MKMapItem(placemark: MKPlacemark(coordinate: CLLocationCoordinate2D(latitude: origin.latitude, longitude: origin.longitude)))
         request.destination = MKMapItem(placemark: MKPlacemark(coordinate: CLLocationCoordinate2D(latitude: destination.latitude, longitude: destination.longitude)))
         request.transportType = .automobile
-        guard let eta = try? await MKDirections(request: request).calculateETA(), !Task.isCancelled else { return }
-        routedMinutes = max(1, Int((eta.expectedTravelTime / 60).rounded(.up)))
+        // The completion-handler form, so only the travel time (Sendable) crosses back.
+        let directions = MKDirections(request: request)
+        let seconds: TimeInterval? = await withCheckedContinuation { continuation in
+            directions.calculateETA { response, _ in
+                continuation.resume(returning: response?.expectedTravelTime)
+            }
+        }
+        guard let seconds, !Task.isCancelled else { return }
+        routedMinutes = max(1, Int((seconds / 60).rounded(.up)))
     }
 }
 
