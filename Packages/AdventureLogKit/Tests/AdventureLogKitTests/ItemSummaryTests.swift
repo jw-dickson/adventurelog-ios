@@ -49,7 +49,7 @@ struct ItemSummaryTests {
         let drive = try summary("e5aabe2c", on: "2027-03-08")
         #expect(drive.startText(locale: gb) == "11:00")
         #expect(drive.secondaryTimeText(locale: gb) == "14:30")
-        #expect(drive.detail == "3 h 30 min · 115 km")
+        #expect(drive.detail == "Hobart → Coles Bay · 3 h 30 min · 115 km")
     }
 
     @Test func taggedPlaceIsBooked() throws {
