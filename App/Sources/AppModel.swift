@@ -692,7 +692,9 @@ final class AppModel {
     }
 
     private func recorded(_ event: PlaceEvent) {
-        guard credentials != nil, let id = trackedTripID else { return }
+        // Like points: only events on the trip's days are kept.
+        guard credentials != nil, let id = trackedTripID, let plan = trips[id]?.plan,
+              plan.day(for: CalendarDate(event.time, in: plan.timeZone)) != nil else { return }
         if placeEvents[id] != nil { placeEvents[id]?.append(event) }
         let store = tracks
         queueWrite { try? await store.append(event, tripID: id) }
