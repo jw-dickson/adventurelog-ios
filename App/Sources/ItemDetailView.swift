@@ -297,7 +297,7 @@ private struct ItemDetailContent: View {
     }
 
     /// Apple Maps directions to the item's coordinate, or its address.
-    static func directionsURL(for summary: ItemSummary) -> URL? {
+    nonisolated static func directionsURL(for summary: ItemSummary) -> URL? {
         var components = URLComponents(string: "https://maps.apple.com/")
         if let point = summary.kind == .transportation ? (summary.coordinate ?? summary.destination) : summary.coordinate {
             components?.queryItems = [
