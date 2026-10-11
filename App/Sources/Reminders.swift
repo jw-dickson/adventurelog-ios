@@ -23,14 +23,15 @@ extension ReminderContent {
 /// removes the ones that no longer apply, and leaves everything that isn't ours alone.
 ///
 /// Uses the completion-handler forms of the notification APIs so only identifiers and statuses
-/// (Sendable values) cross between actors.
+/// (Sendable values) cross between actors. The handlers are `@Sendable`: iOS calls them on a
+/// background queue, and a handler left main-actor isolated would trap there.
 @MainActor
 final class ReminderScheduler {
     private let center = UNUserNotificationCenter.current()
 
     func status() async -> UNAuthorizationStatus {
         await withCheckedContinuation { continuation in
-            center.getNotificationSettings { settings in
+            center.getNotificationSettings { @Sendable settings in
                 continuation.resume(returning: settings.authorizationStatus)
             }
         }
@@ -39,7 +40,7 @@ final class ReminderScheduler {
     /// Asks once; afterwards the answer lives in Settings.
     func requestPermission() async -> Bool {
         await withCheckedContinuation { continuation in
-            center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
+            center.requestAuthorization(options: [.alert, .sound, .badge]) { @Sendable granted, _ in
                 continuation.resume(returning: granted)
             }
         }
@@ -81,7 +82,7 @@ final class ReminderScheduler {
             let pending = await pendingReminderContent()
             center.removePendingNotificationRequests(withIdentifiers: Array(pending.keys))
             let delivered: [String] = await withCheckedContinuation { continuation in
-                center.getDeliveredNotifications { notifications in
+                center.getDeliveredNotifications { @Sendable notifications in
                     continuation.resume(returning: notifications.map(\.request.identifier).filter { $0.hasPrefix(ReminderPlanner.prefix) })
                 }
             }
@@ -101,7 +102,7 @@ final class ReminderScheduler {
 
     private func pendingReminderContent() async -> [String: ReminderContent] {
         await withCheckedContinuation { continuation in
-            center.getPendingNotificationRequests { requests in
+            center.getPendingNotificationRequests { @Sendable requests in
                 var result: [String: ReminderContent] = [:]
                 for request in requests where request.identifier.hasPrefix(ReminderPlanner.prefix) {
                     result[request.identifier] = ReminderContent(title: request.content.title, body: request.content.body)
@@ -114,7 +115,7 @@ final class ReminderScheduler {
     /// Adding with an id that's already pending replaces that request.
     private func add(_ request: UNNotificationRequest) async {
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-            center.add(request) { _ in continuation.resume() }
+            center.add(request) { @Sendable _ in continuation.resume() }
         }
     }
 
