@@ -6,7 +6,8 @@ import MapKit
 import SwiftUI
 
 /// The Map tab (Design/review-1, 05): the selected trip's places as pins, filtered to one day or
-/// all days, with that day's planned order as a dashed line. The tracked route joins it in Stage 3.
+/// all days, with that day's planned order as a dashed line and, once recorded, the route
+/// actually driven as a solid one, with stops that weren't in the plan as dots.
 struct TripMapTab: View {
     @Environment(AppModel.self) private var model
 
@@ -93,10 +94,28 @@ struct TripMapView: View {
 
     var body: some View {
         let pins = MapPin.pins(in: plan, day: day)
+        let log = day.flatMap { model.dayLog(tripID: tripID, date: $0) }
+        let route = (log?.points ?? []).map { CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude) }
+        let unplanned = (log?.rows ?? []).filter { $0.status == .unplanned }
         Map(position: $position, selection: $selection) {
             if day != nil, pins.count > 1 {
                 MapPolyline(coordinates: pins.map(\.location))
                     .stroke(ALColor.routePlanned, style: StrokeStyle(lineWidth: 3, lineCap: .round, dash: [6, 6]))
+            }
+            if route.count > 1 {
+                MapPolyline(coordinates: route)
+                    .stroke(ALColor.routeActual, style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round))
+            }
+            ForEach(unplanned) { row in
+                if let point = row.coordinate {
+                    Annotation(row.detail, coordinate: CLLocationCoordinate2D(latitude: point.latitude, longitude: point.longitude)) {
+                        Circle()
+                            .fill(ALColor.routeActual)
+                            .stroke(ALColor.surface100, lineWidth: 2)
+                            .frame(width: 12, height: 12)
+                            .accessibilityLabel(row.detail)
+                    }
+                }
             }
             ForEach(pins) { pin in
                 Marker(pin.title, systemImage: pin.symbol, coordinate: pin.location)
@@ -116,7 +135,7 @@ struct TripMapView: View {
             }
         }
         .overlay {
-            if pins.isEmpty {
+            if pins.isEmpty, route.isEmpty {
                 ContentUnavailableView("Nothing to map", systemImage: "mappin.slash",
                                        description: Text("Items on this day have no location."))
                     .background(.regularMaterial, in: RoundedRectangle(cornerRadius: ALRadius.box))
@@ -127,6 +146,7 @@ struct TripMapView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.visible, for: .navigationBar)
         .accessibilityIdentifier("trip.map")
+        .task(id: tripID) { await model.loadTrack(tripID: tripID) }
         .onAppear {
             // Start on today when the trip is on, else the whole trip.
             if !dayChosen { day = plan.day(for: model.today)?.date }

@@ -19,11 +19,13 @@ final class OfflineBrowseUITests: XCTestCase {
     }
 
     /// Launches offline on Mon 8 Mar 2027, 18:00 in Tasmania.
-    static func launchOffline(_ extra: [String] = []) throws -> XCUIApplication {
+    /// - Parameter track: also seed a recorded route for the day (``SyntheticTrack``).
+    static func launchOffline(_ extra: [String] = [], track: Bool = false) throws -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["-ALResetState", "YES", "-ALOfflineSeed", "YES", "-ALNow", "2027-03-08T07:00:00Z"] + extra
         app.launchEnvironment["AL_SEED_LIST"] = try fixture("collections__all")
         app.launchEnvironment["AL_SEED_TRIP"] = try fixture("collections__detail")
+        if track { app.launchEnvironment["AL_SEED_TRACK"] = SyntheticTrack.jsonLines }
         // The phone is in the trip's zone, whatever zone the Mac running the Simulator is in.
         app.launchEnvironment["TZ"] = "Australia/Hobart"
         app.launch()

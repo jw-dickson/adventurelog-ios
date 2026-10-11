@@ -3,6 +3,7 @@
 import AdventureLogKit
 import ALStore
 import BackgroundTasks
+import CoreLocation
 import Foundation
 import Network
 import Observation
@@ -70,6 +71,8 @@ final class AppModel {
     private var newestFetchShown: [String: Int] = [:]
     /// The client whose trip-list refresh is in flight; a new session's client can start its own.
     private var refreshingClient: AdventureLogClient?
+    /// The server answered for the trip list this session, so an empty list really is empty.
+    private var tripListFromServer = false
     /// Writes to disk run one after another through this chain, so sign-out can wait for every
     /// write queued before it and then delete. Actors alone don't promise that order.
     private var pendingWrites: Task<Void, Never>?
@@ -106,12 +109,33 @@ final class AppModel {
         static let reminderOfferDismissed = "al.reminderOfferDismissed"
     }
 
+    // Tracking: only on the days of a trip the person agreed to; the log never leaves the phone.
+    let tracks: TrackStore
+    let tracker = LocationTracker()
+    /// Trips whose route the person agreed to log, and trips they said no to.
+    private(set) var trackingAllowed: Set<String> = []
+    private(set) var trackingDeclined: Set<String> = []
+    /// The trip being recorded right now.
+    private(set) var trackedTripID: String?
+    /// Recorded points and geofence events, by trip, once read from disk.
+    private(set) var trackPoints: [String: [TrackPoint]] = [:]
+    private(set) var placeEvents: [String: [PlaceEvent]] = [:]
+    private var watchTask: Task<Void, Never>?
+    /// Geofences outlive the app; the first pass after launch clears any it isn't using.
+    private var geofencesChecked = false
+    /// Re-checks at midnight, so recording stops after the trip's last day even if the phone sits still.
+    private var midnightTask: Task<Void, Never>?
+    /// The location permission the last tracking decision saw; a change (an answer to the prompt) decides again.
+    private var trackingAuthorization: CLAuthorizationStatus?
+
     /// The background refresh that keeps the reminder window rolling and the trip fresh.
     nonisolated static let refreshTaskID = "app.adventurelog.refresh"
 
     init(credentialStore: any CredentialStore, snapshots: TripSnapshotStore, images: ImageStore,
-         deviceState: DeviceStateStore, defaults: UserDefaults = .standard, now: Date? = nil) {
+         deviceState: DeviceStateStore, tracks: TrackStore = TrackStore(), defaults: UserDefaults = .standard,
+         now: Date? = nil) {
         self.credentialStore = credentialStore
+        self.tracks = tracks
         self.snapshots = snapshots
         self.images = images
         self.deviceState = deviceState
@@ -127,6 +151,9 @@ final class AppModel {
         } else {
             phase = .signedOut
         }
+        tracker.onPoints = { [weak self] points in self?.recorded(points) }
+        tracker.onEvent = { [weak self] event in self?.recorded(event) }
+        tracker.onTick = { [weak self] in self?.checkTrackingDay() }
     }
 
     /// Real storage, or throwaway storage when UI tests ask for a clean start.
@@ -143,8 +170,13 @@ final class AppModel {
         }
         // A defaults suite of its own, so one test's reminder choices don't leak into the next.
         let defaults = UserDefaults(suiteName: "uitest-\(UUID().uuidString)") ?? .standard
+        let tracks = TrackStore(directory: directory.appending(path: "Tracks"))
+        if options.offlineSeed, let data = options.seedTrack, let tripID = options.seedTripID {
+            Self.seedTrack(data, tripID: tripID, directory: directory.appending(path: "Tracks"))
+        }
         return AppModel(credentialStore: credentials, snapshots: snapshots, images: ImageStore(directory: directory.appending(path: "Images")),
-                        deviceState: DeviceStateStore(directory: directory.appending(path: "Device")), defaults: defaults, now: options.now)
+                        deviceState: DeviceStateStore(directory: directory.appending(path: "Device")), tracks: tracks,
+                        defaults: defaults, now: options.now)
     }
 
     /// Writes the seed trips the way a previous session would have, and signs in to a server that
@@ -165,6 +197,13 @@ final class AppModel {
         }
         let offline = ServerCredentials(serverURL: URL(string: "http://127.0.0.1:9")!, apiKey: "al_offline", username: "offline", displayName: "Offline test")
         try? credentials.save(offline)
+    }
+
+    /// Writes a recorded route the way the tracker would have (JSON lines of `TrackPoint`).
+    private static func seedTrack(_ data: Data, tripID: String, directory: URL) {
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let safe = String(tripID.unicodeScalars.filter { CharacterSet.alphanumerics.contains($0) || $0 == "-" })
+        try? data.write(to: directory.appending(path: "track-\(safe).jsonl"))
     }
 
     var credentials: ServerCredentials? {
@@ -219,6 +258,8 @@ final class AppModel {
         try await snapshots.removeAll()
         try await images.removeAll()
         try await deviceState.removeAll()
+        try await tracks.removeAll()
+        try? FileManager.default.removeItem(at: Self.gpxFolder)
         deviceStateLoaded = true
         let credentials = ServerCredentials(serverURL: url, apiKey: key, username: user.username,
                                             displayName: user.displayName, apiKeyID: apiKeyID)
@@ -250,7 +291,10 @@ final class AppModel {
             Task.detached { try? await revoke.client.deleteAPIKey(id: revoke.id) }
         }
         await reminderScheduler.removeAll()
+        await tracker.unwatchAll() // runs after any geofence change already under way
         await drainWrites()
+        try? await tracks.removeAll()
+        try? FileManager.default.removeItem(at: Self.gpxFolder)
         try? await snapshots.removeAll()
         try? await images.removeAll()
         try? await deviceState.removeAll()
@@ -263,6 +307,17 @@ final class AppModel {
         sendTask = nil
         reminderTask?.cancel()
         reminderTask = nil
+        watchTask?.cancel()
+        watchTask = nil
+        midnightTask?.cancel()
+        midnightTask = nil
+        // Stop first: points already buffered belong to the old session and are dropped.
+        trackedTripID = nil
+        tracker.stop()
+        trackingAllowed = []
+        trackingDeclined = []
+        trackPoints = [:]
+        placeEvents = [:]
         retryTask?.cancel()
         retryTask = nil
         refreshingClient = nil
@@ -271,6 +326,7 @@ final class AppModel {
         syncProblem = nil
         ownedTrips = []
         sharedTrips = []
+        tripListFromServer = false
         trips = [:]
         savedTrips = [:]
         tripRevisions = [:]
@@ -337,6 +393,7 @@ final class AppModel {
             guard isCurrent(client) else { return }
             ownedTrips = o
             sharedTrips = s
+            tripListFromServer = true
             tripListSavedAt = .now
             lastError = nil
             let store = snapshots
@@ -422,6 +479,7 @@ final class AppModel {
         let detail = saved.value.applying(outbox.visibleEdits(for: id))
         trips[id] = LoadedTrip(plan: TripPlan(detail), savedAt: saved.savedAt)
         scheduleReminderUpdate()
+        updateTracking()
     }
 
     // MARK: Editing
@@ -463,6 +521,7 @@ final class AppModel {
         skipped[tripID] = rows.isEmpty ? nil : rows
         saveDeviceState()
         scheduleReminderUpdate()
+        if tripID == trackedTripID { updateTracking() }
     }
 
     // MARK: Reminders
@@ -518,7 +577,9 @@ final class AppModel {
         // pending for it, so a cold offline launch never wipes reminders that could still fire.
         let sections = sections()
         let needed = (sections.happeningNow + sections.upcoming + sections.shared.filter(\.isTrip)).map(\.id)
-        let complete = !listed.isEmpty && needed.allSatisfy { trips[$0] != nil }
+        // An empty list counts only when the server sent it: after deleting the last trip its
+        // reminders go, but a launch with nothing loaded yet keeps them.
+        let complete = (tripListFromServer || !listed.isEmpty) && needed.allSatisfy { trips[$0] != nil }
         await reminderScheduler.replace(with: Array(all.prefix(ReminderPlanner.limit)), removeStale: complete)
     }
 
@@ -536,6 +597,164 @@ final class AppModel {
         request.earliestBeginDate = Date(timeIntervalSinceNow: 3 * 3600)
         try? BGTaskScheduler.shared.submit(request)
     }
+
+    // MARK: Tracking (this phone only)
+
+    /// The agreed-to trip with a day today, preferring the one on screen.
+    var trackableTripToday: String? {
+        let listed = Set((ownedTrips + sharedTrips).map(\.id))
+        let candidates = trips.filter {
+            listed.contains($0.key) && trackingAllowed.contains($0.key) && $0.value.plan.day(for: today) != nil
+        }.map(\.key)
+        if let selected = selectedTripID, candidates.contains(selected) { return selected }
+        if let current = sections().current?.id, candidates.contains(current) { return current }
+        return candidates.sorted().first
+    }
+
+    /// Whether Today should ask about logging this trip's route.
+    func shouldOfferTracking(_ tripID: String) -> Bool {
+        credentials != nil && deviceStateLoaded && !trackingAllowed.contains(tripID) && !trackingDeclined.contains(tripID)
+            && trips[tripID]?.plan.day(for: today) != nil
+    }
+
+    /// The answer to Today's offer, or the switch on the Log tab.
+    func setTracking(_ on: Bool, tripID: String) {
+        guard credentials != nil else { return }
+        if on {
+            trackingAllowed.insert(tripID)
+            trackingDeclined.remove(tripID)
+        } else {
+            trackingAllowed.remove(tripID)
+            trackingDeclined.insert(tripID)
+        }
+        saveDeviceState()
+        updateTracking()
+    }
+
+    /// Records on a trip day the person agreed to, and stops otherwise. Cheap to call often.
+    func updateTracking() {
+        trackingAuthorization = tracker.authorization
+        guard credentials != nil, let id = trackableTripToday,
+              let plan = trips[id]?.plan, tracker.authorization != .denied, tracker.authorization != .restricted
+        else {
+            if trackedTripID != nil || tracker.isRunning || !geofencesChecked {
+                geofencesChecked = true
+                tracker.flush()
+                trackedTripID = nil
+                tracker.stop()
+                midnightTask?.cancel()
+                midnightTask = nil
+                watchTask = Task { [tracker] in await tracker.unwatchAll() }
+            }
+            return
+        }
+        geofencesChecked = true
+        scheduleMidnightCheck()
+        if trackedTripID != id {
+            tracker.flush()
+            trackedTripID = id
+        }
+        tracker.start()
+        let places = TripLog.placesToWatch(on: today, plan: plan, skipped: skipped[id] ?? [], now: now).map {
+            LocationTracker.Place(rowID: $0.rowID, latitude: $0.coordinate.latitude, longitude: $0.coordinate.longitude, radius: $0.radius)
+        }
+        watchTask = Task { [tracker] in await tracker.watch(places) }
+    }
+
+    /// Stops when the trip being recorded has no day today any more.
+    private func checkTrackingDay() {
+        guard let id = trackedTripID else { return }
+        if trips[id]?.plan.day(for: today) == nil || tracker.authorization != trackingAuthorization { updateTracking() }
+    }
+
+    private func scheduleMidnightCheck() {
+        guard midnightTask == nil else { return }
+        let zone = TimeZone.autoupdatingCurrent
+        let midnight = CalendarDate(Date.now, in: zone).adding(days: 1).startOfDay(in: zone)
+        midnightTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(max(midnight.timeIntervalSinceNow, 1) + 5))
+            guard !Task.isCancelled, let self else { return }
+            self.midnightTask = nil
+            self.updateTracking()
+        }
+    }
+
+    private func recorded(_ points: [TrackPoint]) {
+        guard credentials != nil, let id = trackedTripID, !points.isEmpty, let plan = trips[id]?.plan else { return }
+        // Only points on the trip's days are kept: a batch handed over just after midnight on the
+        // last day keeps its points from before midnight and drops the rest.
+        let points = points.filter { plan.day(for: CalendarDate($0.time, in: plan.timeZone)) != nil }
+        defer { checkTrackingDay() }
+        guard !points.isEmpty else { return }
+        if trackPoints[id] != nil { trackPoints[id]?.append(contentsOf: points) }
+        let store = tracks
+        queueWrite { try? await store.append(points, tripID: id) }
+    }
+
+    private func recorded(_ event: PlaceEvent) {
+        // Like points: only events on the trip's days are kept.
+        guard credentials != nil, let id = trackedTripID, let plan = trips[id]?.plan,
+              plan.day(for: CalendarDate(event.time, in: plan.timeZone)) != nil else { return }
+        if placeEvents[id] != nil { placeEvents[id]?.append(event) }
+        let store = tracks
+        queueWrite { try? await store.append(event, tripID: id) }
+    }
+
+    /// Reads a trip's recorded route from disk, once a session.
+    ///
+    /// The cache starts empty at once, so points recorded from here on collect in it; the read is
+    /// queued behind the writes already waiting, so it sees exactly the points recorded before.
+    func loadTrack(tripID: String) async {
+        guard trackPoints[tripID] == nil else { return }
+        let started = session
+        trackPoints[tripID] = []
+        placeEvents[tripID] = []
+        let store = tracks
+        let (points, events) = await withCheckedContinuation { (continuation: CheckedContinuation<([TrackPoint], [PlaceEvent]), Never>) in
+            queueWrite {
+                let points = await store.points(tripID: tripID)
+                let events = await store.events(tripID: tripID)
+                continuation.resume(returning: (points, events))
+            }
+        }
+        guard session == started, credentials != nil else { return }
+        trackPoints[tripID] = points + (trackPoints[tripID] ?? [])
+        placeEvents[tripID] = events + (placeEvents[tripID] ?? [])
+    }
+
+    /// What happened on one day of a trip, against its plan.
+    func dayLog(tripID: String, date: CalendarDate) -> DayLog? {
+        guard let plan = trips[tripID]?.plan else { return nil }
+        var points = trackPoints[tripID] ?? []
+        if tripID == trackedTripID { points += tracker.buffered }
+        return TripLog.day(date, plan: plan, points: points, events: placeEvents[tripID] ?? [],
+                           skipped: skipped[tripID] ?? [], now: now)
+    }
+
+    /// The trip's route as a GPX file, one segment per day, with unplanned stops as waypoints.
+    func gpxFile(tripID: String, days: [CalendarDate]) throws -> URL {
+        guard let plan = trips[tripID]?.plan else { throw CocoaError(.fileNoSuchFile) }
+        let logs = days.compactMap { dayLog(tripID: tripID, date: $0) }
+        let waypoints = logs.flatMap(\.rows).compactMap { row -> GPX.Waypoint? in
+            guard let point = row.coordinate, row.actualStart != nil else { return nil }
+            return GPX.Waypoint(name: row.title, latitude: point.latitude, longitude: point.longitude, time: row.actualStart)
+        }
+        let text = GPX.document(name: plan.collection.name, segments: logs.map(\.points).filter { !$0.isEmpty }, waypoints: waypoints)
+        let name = days.count == 1 ? "\(plan.collection.name) \(days[0].description).gpx" : "\(plan.collection.name).gpx"
+        let safe = String(name.unicodeScalars.map { CharacterSet(charactersIn: "/:\\").contains($0) ? "-" : Character($0) })
+        let folder = Self.gpxFolder
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let url = folder.appending(path: safe)
+        #if os(iOS)
+        try Data(text.utf8).write(to: url, options: [.atomic, .completeFileProtection])
+        #else
+        try Data(text.utf8).write(to: url, options: .atomic)
+        #endif
+        return url
+    }
+
+    /// Where shared GPX files are written; emptied with the rest of the account's data.
+    static var gpxFolder: URL { FileManager.default.temporaryDirectory.appending(path: "GPX") }
 
     // MARK: Sync
 
@@ -689,6 +908,8 @@ final class AppModel {
             await refreshReminderPermission()
             await updateReminders()
         }
+        tracker.refreshAuthorization()
+        updateTracking()
     }
 
     // MARK: Device state
@@ -702,11 +923,14 @@ final class AppModel {
         deviceStateLoaded = true
         outbox = state.outbox
         skipped = state.skipped
+        trackingAllowed = state.trackingAllowed
+        trackingDeclined = state.trackingDeclined
         for id in savedTrips.keys { show(id) }
     }
 
     private func saveDeviceState() {
-        let state = DeviceStateStore.State(outbox: outbox, skipped: skipped)
+        let state = DeviceStateStore.State(outbox: outbox, skipped: skipped,
+                                           trackingAllowed: trackingAllowed, trackingDeclined: trackingDeclined)
         let store = deviceState
         queueWrite { try? await store.save(state) }
     }

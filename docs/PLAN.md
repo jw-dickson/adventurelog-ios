@@ -9,7 +9,7 @@ The app is built in stages. Each ends in something that runs in the Simulator an
 | **1 · Read-only offline client** | Sign-in, trip list (owned and shared), day timeline, item detail, trip-wide notes and checklists, map with pins, offline pack | Browse a seeded trip with the network off; snapshot tests light, dark and Dynamic Type XXL |
 | **2 · Today, editing, sync** | Today tab, checklist ticks, note edits, reorder and move between days, outbox with retry, conflicts, shared-trip rules | Offline edits reach the server on reconnect; two Simulators on one trip converge |
 | **Design review 2** ✅ | Simulator snapshot gallery beside the mockups ([`Design/review-2`](../Design/review-2/README.md)) | Signed off 11 Oct 2026; first TestFlight build |
-| **3 · Reminders and tracking** *(3a reminders, 3b tracking)* | Leave-by and heads-up reminders, rolling geofence window, background tracking, stop detection, plan-vs-actual write-back, GPX capture | A replayed drive fires the right reminders in the trip's zone and detects the planned stops |
+| **3 · Reminders and tracking** *(3a reminders, 3b tracking)* | Leave-by and heads-up reminders, rolling geofence window, background tracking, stop detection, plan vs actual on the phone (server write-back decided later), GPX capture, the Log tab | A replayed drive fires the right reminders in the trip's zone and detects the planned stops |
 | **4 · Companion service and Live Activities** *(optional module)* | Self-hosted companion: device registration, APNs, track ingest, fixed/flexible flags; Live Activities for connections and booked tours | `simctl push` payloads render every state; a server push reaches a TestFlight build |
 | **5 · Replan assistant** *(optional module)* | Proposes a revised day around booked items; the user accepts, edits or dismisses | Golden scenarios produce valid proposals; a UI test accepts one end to end |
 | **Design review 3, freeze** | Full-app review | Fixes only after this point |
@@ -42,6 +42,21 @@ Reminders are worked out on the phone from the trip's plan (`AdventureLogKit/Tri
   - A background refresh every few hours does the same and fetches the trip again.
   - Each reminder's id includes its time, so a moved reminder replaces the old one.
 - **Turning them on:** reminders are off until the person turns them on, from Today's offer or the account menu, which asks for notification permission. The settings stay on the phone.
+
+## How Stage 3 tracks
+
+Tracking is off until the person agrees, once per trip, from Today's offer or the switch on the Log tab. After that it runs only on that trip's days. Everything it records stays on the phone: it is never sent to the server, it is excluded from backups and it is deleted on sign-out.
+
+- **Recording** (`App/Sources/LocationTracker.swift`): iOS's live location updates with a background activity session, so "While Using" permission is enough and iOS shows the location indicator while it runs. A point is kept when the phone has moved 25 m or a minute has passed, and points less accurate than 100 m are dropped. Points are written in batches to an append-only file per trip (`ALStore/TrackStore`).
+- **Geofences:** the day's places and stays still to come, at most 15 of iOS's 20, each with a 150 m circle (250 m for a stay). Journeys aren't watched, because their ends are other places. Arriving and leaving are recorded as events; the list is recalculated when the trip changes or a row is skipped.
+- **Stopping:** recording stops when the trip has no day today (the first point after midnight on the last day stops it), when the person turns it off, or when location permission is refused.
+- **Stops** (`AdventureLogKit/Tracking/Track.swift`): a stop is at least 5 minutes within 80 m. A gap with no points at walking pace or slower, like a parked car the phone stopped reporting from, still counts as staying.
+- **Plan vs what happened** (`AdventureLogKit/Tracking/TripLog.swift`):
+  - A geofence event is the most direct evidence. Otherwise a place or stay is visited by the nearest stop in time within its circle.
+  - A journey is done when the phone left a stop near its start and later stopped near its end; its time is the time on the road.
+  - More than 10 minutes after the planned start is late. An hour after the start with no visit is missed. Skipped rows show as skipped.
+  - A stop of 10 minutes or more that matches nothing in the plan shows as an unplanned stop.
+- **The Log tab:** Today (or a day picked from Trip) shows distance driven against the plan's ground travel, how much of the plan was done, and each item with its planned and actual times. Trip lists every day so far. GPX exports the route for a day or the trip, one segment per day, with visited and unplanned stops as waypoints. The Map tab draws the day's route over the planned line.
 
 ## Testing without a device
 

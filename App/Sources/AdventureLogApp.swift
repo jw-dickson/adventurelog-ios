@@ -40,9 +40,9 @@ struct RootView: View {
     }
 }
 
-/// The signed-in app: Today, Trip and Map. Log arrives in Stage 3.
+/// The signed-in app: Today, Trip, Map and Log.
 struct MainView: View {
-    enum AppTab: Hashable { case today, trip, map }
+    enum AppTab: Hashable { case today, trip, map, log }
 
     @Environment(AppModel.self) private var model
     @Environment(\.scenePhase) private var scenePhase
@@ -59,6 +59,9 @@ struct MainView: View {
             }
             Tab("Map", systemImage: "mappin.and.ellipse", value: AppTab.map) {
                 TripMapTab()
+            }
+            Tab("Log", systemImage: "point.topleft.down.to.point.bottomright.curvepath", value: AppTab.log) {
+                LogView()
             }
         }
         .task { await model.loadTrips() }
