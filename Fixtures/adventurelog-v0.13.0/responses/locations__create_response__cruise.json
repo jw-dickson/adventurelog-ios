@@ -1,0 +1,57 @@
+{
+  "status": 201,
+  "body": {
+    "id": "547ce065-2ae7-4a14-8e3f-76f638922234",
+    "name": "Sunset cruise",
+    "description": "Two hours around the bay. Runs when the sea is calm.",
+    "rating": 5.0,
+    "tags": [
+      "boat",
+      "evening"
+    ],
+    "location": "Coles Bay jetty",
+    "is_public": false,
+    "collections": [
+      "4b2dbaf2-bdda-4b57-950f-386189c5d813"
+    ],
+    "created_at": "2026-10-11T04:48:47.366840Z",
+    "updated_at": "2026-10-11T04:48:47.384306Z",
+    "images": [],
+    "link": null,
+    "longitude": 148.283,
+    "latitude": -42.121,
+    "visits": [],
+    "is_visited": false,
+    "category": {
+      "id": "e2014ff8-8ebe-4cdb-85ed-3434a514e6d9",
+      "name": "tour",
+      "display_name": "Tour",
+      "icon": "🚤",
+      "num_locations": 1
+    },
+    "attachments": [],
+    "user": {
+      "profile_pic": null,
+      "uuid": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+      "public_profile": true,
+      "username": "admin",
+      "first_name": "Alex",
+      "last_name": "Example",
+      "date_joined": "2026-10-11T01:01:09.939778Z",
+      "is_staff": true,
+      "disable_password": false,
+      "measurement_system": "metric",
+      "default_currency": "USD",
+      "map_style": "default",
+      "has_password": true,
+      "shared_collection_count": 0,
+      "pending_collection_invite_count": 0
+    },
+    "city": null,
+    "country": null,
+    "region": null,
+    "trails": [],
+    "price": null,
+    "price_currency": "USD"
+  }
+}

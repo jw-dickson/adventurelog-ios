@@ -1,0 +1,24 @@
+{
+  "method": "POST",
+  "path": "/api/locations/",
+  "body": {
+    "collections": [
+      "4b2dbaf2-bdda-4b57-950f-386189c5d813"
+    ],
+    "is_public": false,
+    "name": "Wineglass Bay Lookout",
+    "location": "Freycinet National Park",
+    "description": "Steep 1.5 km walk up from the car park. Go early or late.",
+    "latitude": -42.15,
+    "longitude": 148.29,
+    "category": {
+      "name": "viewpoint",
+      "display_name": "Viewpoint",
+      "icon": "🔭"
+    },
+    "tags": [
+      "walk",
+      "photo"
+    ]
+  }
+}

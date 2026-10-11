@@ -1,0 +1,23 @@
+{
+  "method": "POST",
+  "path": "/api/transportations/",
+  "body": {
+    "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+    "is_public": false,
+    "type": "plane",
+    "name": "Example Air EX 1501 SYD → HBA",
+    "flight_number": "EX1501",
+    "from_location": "Sydney Airport (SYD)",
+    "to_location": "Hobart Airport (HBA)",
+    "start_code": "SYD",
+    "end_code": "HBA",
+    "date": "2027-03-06T20:00:00Z",
+    "end_date": "2027-03-06T21:50:00Z",
+    "start_timezone": "Australia/Sydney",
+    "end_timezone": "Australia/Hobart",
+    "origin_latitude": -33.9399,
+    "origin_longitude": 151.1753,
+    "destination_latitude": -42.8361,
+    "destination_longitude": 147.5103
+  }
+}

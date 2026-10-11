@@ -1,0 +1,14 @@
+{
+  "status": 201,
+  "body": {
+    "id": "20b581cb-ca6e-4277-a048-1260fe05bd64",
+    "start_date": "2027-03-08T05:00:00Z",
+    "end_date": "2027-03-08T05:30:00Z",
+    "timezone": "Australia/Hobart",
+    "notes": null,
+    "activities": [],
+    "location": "9e20f3bd-847e-45fb-bb94-6921d7a64e3d",
+    "created_at": "2026-10-11T04:48:47.131910Z",
+    "updated_at": "2026-10-11T04:48:47.131917Z"
+  }
+}

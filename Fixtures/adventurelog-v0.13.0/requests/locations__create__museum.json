@@ -1,0 +1,26 @@
+{
+  "method": "POST",
+  "path": "/api/locations/",
+  "body": {
+    "collections": [
+      "4b2dbaf2-bdda-4b57-950f-386189c5d813"
+    ],
+    "is_public": false,
+    "name": "Tasmanian Museum and Art Gallery",
+    "location": "Dunn Place, Hobart",
+    "description": "Free entry. Don't miss the **natural history** galleries.",
+    "latitude": -42.8822,
+    "longitude": 147.3317,
+    "category": {
+      "name": "museum",
+      "display_name": "Museum",
+      "icon": "🏛️"
+    },
+    "tags": [
+      "art",
+      "indoor",
+      "free"
+    ],
+    "link": "https://example.com/museum"
+  }
+}

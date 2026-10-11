@@ -1,0 +1,65 @@
+{
+  "id": "19b7a4bb-5c0a-4a37-9970-1de9aac3a958",
+  "name": "Dove Lake Circuit",
+  "description": "Unscheduled on the itinerary on purpose (appears only in collection.locations).",
+  "rating": null,
+  "tags": [
+    "hike"
+  ],
+  "location": "Cradle Mountain",
+  "is_public": false,
+  "collections": [
+    "4b2dbaf2-bdda-4b57-950f-386189c5d813"
+  ],
+  "created_at": "2026-10-11T04:48:47.816791Z",
+  "updated_at": "2026-10-11T04:48:47.829328Z",
+  "images": [],
+  "link": null,
+  "longitude": 145.96,
+  "latitude": -41.66,
+  "visits": [
+    {
+      "id": "db71d4ac-9fd8-4fa9-9ed6-c38c0c5e72eb",
+      "start_date": "2027-03-10T00:00:00Z",
+      "end_date": "2027-03-10T00:00:00Z",
+      "timezone": "Australia/Hobart",
+      "notes": null,
+      "activities": [],
+      "location": "19b7a4bb-5c0a-4a37-9970-1de9aac3a958",
+      "created_at": "2026-10-11T04:48:48.039691Z",
+      "updated_at": "2026-10-11T04:48:48.039697Z"
+    }
+  ],
+  "is_visited": false,
+  "category": {
+    "id": "1dd9bd4f-cf83-473a-a2c0-9e7091b60000",
+    "name": "hiking",
+    "display_name": "Hiking",
+    "icon": "🥾",
+    "num_locations": 1
+  },
+  "attachments": [],
+  "user": {
+    "profile_pic": null,
+    "uuid": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+    "public_profile": true,
+    "username": "admin",
+    "first_name": "Alex",
+    "last_name": "Example",
+    "date_joined": "2026-10-11T01:01:09.939778Z",
+    "is_staff": true,
+    "disable_password": false,
+    "measurement_system": "metric",
+    "default_currency": "USD",
+    "map_style": "default",
+    "has_password": true,
+    "shared_collection_count": 0,
+    "pending_collection_invite_count": 0
+  },
+  "city": null,
+  "country": null,
+  "region": null,
+  "trails": [],
+  "price": null,
+  "price_currency": "USD"
+}

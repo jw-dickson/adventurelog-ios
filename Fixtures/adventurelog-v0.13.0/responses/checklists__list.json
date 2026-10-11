@@ -1,0 +1,107 @@
+[
+  {
+    "id": "b1bb2988-991b-48ab-9761-0e2610620c8f",
+    "user": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+    "name": "Car pickup",
+    "date": "2027-03-08",
+    "is_public": false,
+    "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+    "created_at": "2026-10-11T04:48:49.686850Z",
+    "updated_at": "2026-10-11T04:48:50.086720Z",
+    "items": [
+      {
+        "id": "6686a967-bb67-4064-885c-1d644a631002",
+        "user": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+        "name": "Driver licences + IDP",
+        "is_checked": true,
+        "checklist": "b1bb2988-991b-48ab-9761-0e2610620c8f",
+        "created_at": "2026-10-11T04:48:50.088730Z",
+        "updated_at": "2026-10-11T04:48:50.088739Z"
+      },
+      {
+        "id": "167105f4-3add-41ea-94eb-ec4bc1ff5c12",
+        "user": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+        "name": "Photograph existing damage",
+        "is_checked": true,
+        "checklist": "b1bb2988-991b-48ab-9761-0e2610620c8f",
+        "created_at": "2026-10-11T04:48:50.089994Z",
+        "updated_at": "2026-10-11T04:48:50.090004Z"
+      },
+      {
+        "id": "80ce7653-c61a-483d-a169-3bf3a0e990d7",
+        "user": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+        "name": "Check the spare tyre",
+        "is_checked": false,
+        "checklist": "b1bb2988-991b-48ab-9761-0e2610620c8f",
+        "created_at": "2026-10-11T04:48:50.090856Z",
+        "updated_at": "2026-10-11T04:48:50.090863Z"
+      },
+      {
+        "id": "e6a421fe-d3fb-48a6-9963-a70450d2c5c3",
+        "user": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+        "name": "Download offline maps",
+        "is_checked": true,
+        "checklist": "b1bb2988-991b-48ab-9761-0e2610620c8f",
+        "created_at": "2026-10-11T04:48:50.091670Z",
+        "updated_at": "2026-10-11T04:48:50.091678Z"
+      },
+      {
+        "id": "55c8f856-00a9-4c93-a925-7fb01a04f798",
+        "user": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+        "name": "Note the fuel level",
+        "is_checked": false,
+        "checklist": "b1bb2988-991b-48ab-9761-0e2610620c8f",
+        "created_at": "2026-10-11T04:48:50.092449Z",
+        "updated_at": "2026-10-11T04:48:50.092457Z"
+      }
+    ]
+  },
+  {
+    "id": "9c39d0c4-95bc-40cd-8bda-85c5afcfdc4d",
+    "user": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+    "name": "Packing list",
+    "date": null,
+    "is_public": false,
+    "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+    "created_at": "2026-10-11T04:48:49.883595Z",
+    "updated_at": "2026-10-11T04:48:49.883607Z",
+    "items": [
+      {
+        "id": "b5e9af13-c533-494a-821b-198c72acd88a",
+        "user": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+        "name": "Warm layers",
+        "is_checked": true,
+        "checklist": "9c39d0c4-95bc-40cd-8bda-85c5afcfdc4d",
+        "created_at": "2026-10-11T04:48:49.885104Z",
+        "updated_at": "2026-10-11T04:48:49.885112Z"
+      },
+      {
+        "id": "a1e56d78-3a53-4c30-bfa7-9792e13aaf82",
+        "user": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+        "name": "Rain shell",
+        "is_checked": true,
+        "checklist": "9c39d0c4-95bc-40cd-8bda-85c5afcfdc4d",
+        "created_at": "2026-10-11T04:48:49.886142Z",
+        "updated_at": "2026-10-11T04:48:49.886148Z"
+      },
+      {
+        "id": "1c6e7895-c709-4242-b5aa-925bdd0db9a1",
+        "user": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+        "name": "Sunscreen",
+        "is_checked": false,
+        "checklist": "9c39d0c4-95bc-40cd-8bda-85c5afcfdc4d",
+        "created_at": "2026-10-11T04:48:49.887084Z",
+        "updated_at": "2026-10-11T04:48:49.887094Z"
+      },
+      {
+        "id": "aed8061e-f102-461a-9d89-a0de02347441",
+        "user": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+        "name": "Plug adapters (Type I)",
+        "is_checked": false,
+        "checklist": "9c39d0c4-95bc-40cd-8bda-85c5afcfdc4d",
+        "created_at": "2026-10-11T04:48:49.887993Z",
+        "updated_at": "2026-10-11T04:48:49.888002Z"
+      }
+    ]
+  }
+]

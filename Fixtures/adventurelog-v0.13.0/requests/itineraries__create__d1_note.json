@@ -1,0 +1,11 @@
+{
+  "method": "POST",
+  "path": "/api/itineraries/",
+  "body": {
+    "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+    "content_type": "note",
+    "object_id": "2416e745-e1ec-4cf7-9a91-c3ac45ebafb2",
+    "order": 5,
+    "date": "2027-03-07"
+  }
+}

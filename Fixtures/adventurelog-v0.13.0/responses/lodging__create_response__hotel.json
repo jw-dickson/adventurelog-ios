@@ -1,0 +1,27 @@
+{
+  "status": 201,
+  "body": {
+    "id": "8f00d25a-1b0a-4c17-a371-f010e2b4db13",
+    "user": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+    "name": "Harbourside Hotel",
+    "description": "Early check-in requested (red-eye arrival).",
+    "rating": 4.5,
+    "link": "https://example.com/harbourside",
+    "check_in": "2027-03-07T03:00:00Z",
+    "check_out": "2027-03-07T23:00:00Z",
+    "reservation_number": "HH-40123",
+    "price": "320.00",
+    "price_currency": "AUD",
+    "latitude": -42.8826,
+    "longitude": 147.3326,
+    "location": "1 Example Quay, Hobart TAS 7000",
+    "is_public": false,
+    "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+    "created_at": "2026-10-11T04:48:45.348801Z",
+    "updated_at": "2026-10-11T04:48:45.348809Z",
+    "type": "hotel",
+    "timezone": "Australia/Hobart",
+    "images": [],
+    "attachments": []
+  }
+}

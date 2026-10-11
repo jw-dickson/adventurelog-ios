@@ -1,0 +1,56 @@
+{
+  "query": "freycinet",
+  "total": 3,
+  "limit": 20,
+  "offset": 0,
+  "results": [
+    {
+      "type": "location",
+      "id": "9e20f3bd-847e-45fb-bb94-6921d7a64e3d",
+      "title": "Wineglass Bay Lookout",
+      "subtitle": "Freycinet National Park · Viewpoint",
+      "url": "/locations/9e20f3bd-847e-45fb-bb94-6921d7a64e3d",
+      "score": 0.0608,
+      "meta": {
+        "category_icon": "🔭",
+        "category_name": "Viewpoint"
+      }
+    },
+    {
+      "type": "collection",
+      "id": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+      "title": "Tasmania Road Trip 2027",
+      "subtitle": "Hobart → Freycinet → Cradle Mountain → Strahan, by car.\n\nPlanning doc: [shared notes](https://example.com/trip-plan)\n\nTimezone for most of the trip: Australia/Hobart (AEDT, UTC+11).",
+      "url": "/collections/4b2dbaf2-bdda-4b57-950f-386189c5d813",
+      "score": 0.0608,
+      "meta": {
+        "is_shared": false
+      }
+    },
+    {
+      "type": "transportation",
+      "id": "e5aabe2c-dd9e-4372-90b2-f05cd68fda03",
+      "title": "Drive Hobart → Freycinet",
+      "subtitle": "Tasmania Road Trip 2027",
+      "url": "/collections/4b2dbaf2-bdda-4b57-950f-386189c5d813",
+      "score": 0.0608,
+      "meta": {
+        "collection_id": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+        "collection_name": "Tasmania Road Trip 2027"
+      }
+    }
+  ],
+  "facets": {
+    "activity": 0,
+    "checklist": 0,
+    "city": 0,
+    "collection": 1,
+    "country": 0,
+    "location": 1,
+    "lodging": 0,
+    "note": 0,
+    "region": 0,
+    "transportation": 1,
+    "user": 0
+  }
+}

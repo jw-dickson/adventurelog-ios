@@ -1,0 +1,17 @@
+[
+  {
+    "profile_pic": null,
+    "uuid": "2738ee4b-e999-486e-aa07-9c01d6bc0648",
+    "public_profile": true,
+    "username": "guest",
+    "first_name": "Sam",
+    "last_name": "Example",
+    "date_joined": "2026-10-11T01:01:10.423143Z",
+    "is_staff": false,
+    "measurement_system": "metric",
+    "default_currency": "USD",
+    "map_style": "default",
+    "shared_collection_count": 1,
+    "pending_collection_invite_count": 0
+  }
+]

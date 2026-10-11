@@ -1,0 +1,57 @@
+[
+  {
+    "id": "15205798-cba5-4020-84fe-557782fc40ee",
+    "start_date": "2027-03-07T02:00:00Z",
+    "end_date": "2027-03-07T03:30:00Z",
+    "timezone": "Australia/Hobart",
+    "notes": "Arrive after lunch; café on site.",
+    "activities": [],
+    "location": "b61b4c66-3813-4ae7-b2c5-a81553f5720b",
+    "created_at": "2026-10-11T04:48:46.248644Z",
+    "updated_at": "2026-10-11T04:48:46.248650Z"
+  },
+  {
+    "id": "db71d4ac-9fd8-4fa9-9ed6-c38c0c5e72eb",
+    "start_date": "2027-03-10T00:00:00Z",
+    "end_date": "2027-03-10T00:00:00Z",
+    "timezone": "Australia/Hobart",
+    "notes": null,
+    "activities": [],
+    "location": "19b7a4bb-5c0a-4a37-9970-1de9aac3a958",
+    "created_at": "2026-10-11T04:48:48.039691Z",
+    "updated_at": "2026-10-11T04:48:48.039697Z"
+  },
+  {
+    "id": "56e4b588-9ad2-4117-8a81-ddf800371d19",
+    "start_date": "2027-03-07T00:00:00Z",
+    "end_date": "2027-03-07T00:45:00Z",
+    "timezone": "Australia/Hobart",
+    "notes": "Booked 11:00 slot, ref KAY-1001.",
+    "activities": [],
+    "location": "78978dcd-a7bf-4d10-9aa8-6cb373ba8544",
+    "created_at": "2026-10-11T04:48:46.696389Z",
+    "updated_at": "2026-10-11T04:48:48.494535Z"
+  },
+  {
+    "id": "20b581cb-ca6e-4277-a048-1260fe05bd64",
+    "start_date": "2027-03-08T05:00:00Z",
+    "end_date": "2027-03-08T05:30:00Z",
+    "timezone": "Australia/Hobart",
+    "notes": null,
+    "activities": [],
+    "location": "9e20f3bd-847e-45fb-bb94-6921d7a64e3d",
+    "created_at": "2026-10-11T04:48:47.131910Z",
+    "updated_at": "2026-10-11T04:48:47.131917Z"
+  },
+  {
+    "id": "36db118b-1572-4e2e-bfae-299b9905615f",
+    "start_date": "2027-03-08T07:30:00Z",
+    "end_date": "2027-03-08T09:30:00Z",
+    "timezone": "Australia/Hobart",
+    "notes": "Bring a jacket — it gets cold on the water.",
+    "activities": [],
+    "location": "547ce065-2ae7-4a14-8e3f-76f638922234",
+    "created_at": "2026-10-11T04:48:47.612046Z",
+    "updated_at": "2026-10-11T04:48:47.612053Z"
+  }
+]

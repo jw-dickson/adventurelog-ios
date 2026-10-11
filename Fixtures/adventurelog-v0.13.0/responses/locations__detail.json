@@ -1,0 +1,79 @@
+{
+  "id": "b61b4c66-3813-4ae7-b2c5-a81553f5720b",
+  "name": "Tasmanian Museum and Art Gallery",
+  "description": "Free entry. Don't miss the **natural history** galleries.",
+  "rating": null,
+  "tags": [
+    "art",
+    "indoor",
+    "free"
+  ],
+  "location": "Dunn Place, Hobart",
+  "is_public": false,
+  "collections": [
+    "4b2dbaf2-bdda-4b57-950f-386189c5d813"
+  ],
+  "created_at": "2026-10-11T04:48:46.003554Z",
+  "updated_at": "2026-10-11T04:48:46.019912Z",
+  "images": [
+    {
+      "id": "6618d3e6-5680-4e08-b541-30b89a8d807f",
+      "image": "http://127.0.0.1:8000/media/images/be6ad04a-9f28-4fe5-b596-791954b715f2.webp",
+      "is_primary": true,
+      "user": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+      "immich_id": null,
+      "source": "upload",
+      "source_url": null,
+      "latitude": null,
+      "longitude": null
+    }
+  ],
+  "link": "https://example.com/museum",
+  "longitude": 147.3317,
+  "latitude": -42.8822,
+  "visits": [
+    {
+      "id": "15205798-cba5-4020-84fe-557782fc40ee",
+      "start_date": "2027-03-07T02:00:00Z",
+      "end_date": "2027-03-07T03:30:00Z",
+      "timezone": "Australia/Hobart",
+      "notes": "Arrive after lunch; café on site.",
+      "activities": [],
+      "location": "b61b4c66-3813-4ae7-b2c5-a81553f5720b",
+      "created_at": "2026-10-11T04:48:46.248644Z",
+      "updated_at": "2026-10-11T04:48:46.248650Z"
+    }
+  ],
+  "is_visited": false,
+  "category": {
+    "id": "26733dd2-7743-44d5-bb6f-f2c1b1b7e95d",
+    "name": "museum",
+    "display_name": "Museum",
+    "icon": "🏛️",
+    "num_locations": 1
+  },
+  "attachments": [],
+  "user": {
+    "profile_pic": null,
+    "uuid": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+    "public_profile": true,
+    "username": "admin",
+    "first_name": "Alex",
+    "last_name": "Example",
+    "date_joined": "2026-10-11T01:01:09.939778Z",
+    "is_staff": true,
+    "disable_password": false,
+    "measurement_system": "metric",
+    "default_currency": "USD",
+    "map_style": "default",
+    "has_password": true,
+    "shared_collection_count": 0,
+    "pending_collection_invite_count": 0
+  },
+  "city": null,
+  "country": null,
+  "region": null,
+  "trails": [],
+  "price": null,
+  "price_currency": "USD"
+}

@@ -1,0 +1,12 @@
+{
+  "method": "PATCH",
+  "path": "/api/locations/78978dcd-a7bf-4d10-9aa8-6cb373ba8544/",
+  "body": {
+    "rating": 4.0,
+    "tags": [
+      "outdoor",
+      "water",
+      "booked"
+    ]
+  }
+}

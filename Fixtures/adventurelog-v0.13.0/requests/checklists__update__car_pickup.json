@@ -1,0 +1,32 @@
+{
+  "method": "PATCH",
+  "path": "/api/checklists/b1bb2988-991b-48ab-9761-0e2610620c8f/",
+  "body": {
+    "items": [
+      {
+        "id": "ff2fa1fb-9a73-4b25-b5ad-0dcaac2b7503",
+        "name": "Driver licences + IDP",
+        "is_checked": true
+      },
+      {
+        "id": "72f172b4-3770-46ce-a9b8-e239e8276fda",
+        "name": "Photograph existing damage",
+        "is_checked": true
+      },
+      {
+        "id": "e2d582af-60dc-4a27-8842-f249d9d81bd6",
+        "name": "Check the spare tyre",
+        "is_checked": false
+      },
+      {
+        "id": "22db311c-1b0c-4853-afef-fa3fbe89a319",
+        "name": "Download offline maps",
+        "is_checked": true
+      },
+      {
+        "name": "Note the fuel level",
+        "is_checked": false
+      }
+    ]
+  }
+}

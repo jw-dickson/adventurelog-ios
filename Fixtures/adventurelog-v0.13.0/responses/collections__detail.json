@@ -1,0 +1,1070 @@
+{
+  "id": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+  "description": "Hobart → Freycinet → Cradle Mountain → Strahan, by car.\n\nPlanning doc: [shared notes](https://example.com/trip-plan)\n\nTimezone for most of the trip: Australia/Hobart (AEDT, UTC+11).",
+  "user": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+  "name": "Tasmania Road Trip 2027",
+  "is_public": false,
+  "locations": [
+    {
+      "id": "9e20f3bd-847e-45fb-bb94-6921d7a64e3d",
+      "name": "Wineglass Bay Lookout",
+      "description": "Steep 1.5 km walk up from the car park. Go early or late.",
+      "rating": null,
+      "tags": [
+        "walk",
+        "photo"
+      ],
+      "location": "Freycinet National Park",
+      "is_public": false,
+      "collections": [
+        "4b2dbaf2-bdda-4b57-950f-386189c5d813"
+      ],
+      "created_at": "2026-10-11T04:48:46.901555Z",
+      "updated_at": "2026-10-11T04:48:46.914401Z",
+      "images": [],
+      "link": null,
+      "longitude": 148.29,
+      "latitude": -42.15,
+      "visits": [
+        {
+          "id": "20b581cb-ca6e-4277-a048-1260fe05bd64",
+          "start_date": "2027-03-08T05:00:00Z",
+          "end_date": "2027-03-08T05:30:00Z",
+          "timezone": "Australia/Hobart",
+          "notes": null,
+          "activities": [],
+          "location": "9e20f3bd-847e-45fb-bb94-6921d7a64e3d",
+          "created_at": "2026-10-11T04:48:47.131910Z",
+          "updated_at": "2026-10-11T04:48:47.131917Z"
+        }
+      ],
+      "is_visited": false,
+      "category": {
+        "id": "ef1499ba-48ef-4e6f-97eb-a78ec761a72a",
+        "name": "viewpoint",
+        "display_name": "Viewpoint",
+        "icon": "🔭",
+        "num_locations": 1
+      },
+      "attachments": [],
+      "user": {
+        "profile_pic": null,
+        "uuid": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+        "public_profile": true,
+        "username": "admin",
+        "first_name": "Alex",
+        "last_name": "Example",
+        "date_joined": "2026-10-11T01:01:09.939778Z",
+        "is_staff": true,
+        "disable_password": false,
+        "measurement_system": "metric",
+        "default_currency": "USD",
+        "map_style": "default",
+        "has_password": true,
+        "shared_collection_count": 0,
+        "pending_collection_invite_count": 0
+      },
+      "city": null,
+      "country": null,
+      "region": null,
+      "trails": [],
+      "price": null,
+      "price_currency": "USD"
+    },
+    {
+      "id": "547ce065-2ae7-4a14-8e3f-76f638922234",
+      "name": "Sunset cruise",
+      "description": "Two hours around the bay. Runs when the sea is calm.",
+      "rating": 5.0,
+      "tags": [
+        "boat",
+        "evening"
+      ],
+      "location": "Coles Bay jetty",
+      "is_public": false,
+      "collections": [
+        "4b2dbaf2-bdda-4b57-950f-386189c5d813"
+      ],
+      "created_at": "2026-10-11T04:48:47.366840Z",
+      "updated_at": "2026-10-11T04:48:47.384306Z",
+      "images": [],
+      "link": null,
+      "longitude": 148.283,
+      "latitude": -42.121,
+      "visits": [
+        {
+          "id": "36db118b-1572-4e2e-bfae-299b9905615f",
+          "start_date": "2027-03-08T07:30:00Z",
+          "end_date": "2027-03-08T09:30:00Z",
+          "timezone": "Australia/Hobart",
+          "notes": "Bring a jacket — it gets cold on the water.",
+          "activities": [],
+          "location": "547ce065-2ae7-4a14-8e3f-76f638922234",
+          "created_at": "2026-10-11T04:48:47.612046Z",
+          "updated_at": "2026-10-11T04:48:47.612053Z"
+        }
+      ],
+      "is_visited": false,
+      "category": {
+        "id": "e2014ff8-8ebe-4cdb-85ed-3434a514e6d9",
+        "name": "tour",
+        "display_name": "Tour",
+        "icon": "🚤",
+        "num_locations": 1
+      },
+      "attachments": [],
+      "user": {
+        "profile_pic": null,
+        "uuid": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+        "public_profile": true,
+        "username": "admin",
+        "first_name": "Alex",
+        "last_name": "Example",
+        "date_joined": "2026-10-11T01:01:09.939778Z",
+        "is_staff": true,
+        "disable_password": false,
+        "measurement_system": "metric",
+        "default_currency": "USD",
+        "map_style": "default",
+        "has_password": true,
+        "shared_collection_count": 0,
+        "pending_collection_invite_count": 0
+      },
+      "city": null,
+      "country": null,
+      "region": null,
+      "trails": [],
+      "price": null,
+      "price_currency": "USD"
+    },
+    {
+      "id": "19b7a4bb-5c0a-4a37-9970-1de9aac3a958",
+      "name": "Dove Lake Circuit",
+      "description": "Unscheduled on the itinerary on purpose (appears only in collection.locations).",
+      "rating": null,
+      "tags": [
+        "hike"
+      ],
+      "location": "Cradle Mountain",
+      "is_public": false,
+      "collections": [
+        "4b2dbaf2-bdda-4b57-950f-386189c5d813"
+      ],
+      "created_at": "2026-10-11T04:48:47.816791Z",
+      "updated_at": "2026-10-11T04:48:47.829328Z",
+      "images": [],
+      "link": null,
+      "longitude": 145.96,
+      "latitude": -41.66,
+      "visits": [
+        {
+          "id": "db71d4ac-9fd8-4fa9-9ed6-c38c0c5e72eb",
+          "start_date": "2027-03-10T00:00:00Z",
+          "end_date": "2027-03-10T00:00:00Z",
+          "timezone": "Australia/Hobart",
+          "notes": null,
+          "activities": [],
+          "location": "19b7a4bb-5c0a-4a37-9970-1de9aac3a958",
+          "created_at": "2026-10-11T04:48:48.039691Z",
+          "updated_at": "2026-10-11T04:48:48.039697Z"
+        }
+      ],
+      "is_visited": false,
+      "category": {
+        "id": "1dd9bd4f-cf83-473a-a2c0-9e7091b60000",
+        "name": "hiking",
+        "display_name": "Hiking",
+        "icon": "🥾",
+        "num_locations": 1
+      },
+      "attachments": [],
+      "user": {
+        "profile_pic": null,
+        "uuid": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+        "public_profile": true,
+        "username": "admin",
+        "first_name": "Alex",
+        "last_name": "Example",
+        "date_joined": "2026-10-11T01:01:09.939778Z",
+        "is_staff": true,
+        "disable_password": false,
+        "measurement_system": "metric",
+        "default_currency": "USD",
+        "map_style": "default",
+        "has_password": true,
+        "shared_collection_count": 0,
+        "pending_collection_invite_count": 0
+      },
+      "city": null,
+      "country": null,
+      "region": null,
+      "trails": [],
+      "price": null,
+      "price_currency": "USD"
+    },
+    {
+      "id": "78978dcd-a7bf-4d10-9aa8-6cb373ba8544",
+      "name": "Harbour kayak tour",
+      "description": "45-minute paddle along the waterfront.",
+      "rating": 4.0,
+      "tags": [
+        "outdoor",
+        "water",
+        "booked"
+      ],
+      "location": "Brooke Street Pier, Hobart",
+      "is_public": false,
+      "collections": [
+        "4b2dbaf2-bdda-4b57-950f-386189c5d813"
+      ],
+      "created_at": "2026-10-11T04:48:46.460027Z",
+      "updated_at": "2026-10-11T04:48:48.261131Z",
+      "images": [],
+      "link": "https://example.com/kayak",
+      "longitude": 147.3343,
+      "latitude": -42.8846,
+      "visits": [
+        {
+          "id": "56e4b588-9ad2-4117-8a81-ddf800371d19",
+          "start_date": "2027-03-07T00:00:00Z",
+          "end_date": "2027-03-07T00:45:00Z",
+          "timezone": "Australia/Hobart",
+          "notes": "Booked 11:00 slot, ref KAY-1001.",
+          "activities": [],
+          "location": "78978dcd-a7bf-4d10-9aa8-6cb373ba8544",
+          "created_at": "2026-10-11T04:48:46.696389Z",
+          "updated_at": "2026-10-11T04:48:48.494535Z"
+        }
+      ],
+      "is_visited": false,
+      "category": {
+        "id": "9fc86c0a-4c22-4d2e-a904-158e252c3efe",
+        "name": "activity",
+        "display_name": "Activity",
+        "icon": "🛶",
+        "num_locations": 1
+      },
+      "attachments": [],
+      "user": {
+        "profile_pic": null,
+        "uuid": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+        "public_profile": true,
+        "username": "admin",
+        "first_name": "Alex",
+        "last_name": "Example",
+        "date_joined": "2026-10-11T01:01:09.939778Z",
+        "is_staff": true,
+        "disable_password": false,
+        "measurement_system": "metric",
+        "default_currency": "USD",
+        "map_style": "default",
+        "has_password": true,
+        "shared_collection_count": 0,
+        "pending_collection_invite_count": 0
+      },
+      "city": null,
+      "country": null,
+      "region": null,
+      "trails": [],
+      "price": "95.00",
+      "price_currency": "AUD"
+    },
+    {
+      "id": "b61b4c66-3813-4ae7-b2c5-a81553f5720b",
+      "name": "Tasmanian Museum and Art Gallery",
+      "description": "Free entry. Don't miss the **natural history** galleries.",
+      "rating": null,
+      "tags": [
+        "art",
+        "indoor",
+        "free"
+      ],
+      "location": "Dunn Place, Hobart",
+      "is_public": false,
+      "collections": [
+        "4b2dbaf2-bdda-4b57-950f-386189c5d813"
+      ],
+      "created_at": "2026-10-11T04:48:46.003554Z",
+      "updated_at": "2026-10-11T04:48:46.019912Z",
+      "images": [
+        {
+          "id": "6618d3e6-5680-4e08-b541-30b89a8d807f",
+          "image": "http://127.0.0.1:8000/media/images/be6ad04a-9f28-4fe5-b596-791954b715f2.webp",
+          "is_primary": true,
+          "user": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+          "immich_id": null,
+          "source": "upload",
+          "source_url": null,
+          "latitude": null,
+          "longitude": null
+        }
+      ],
+      "link": "https://example.com/museum",
+      "longitude": 147.3317,
+      "latitude": -42.8822,
+      "visits": [
+        {
+          "id": "15205798-cba5-4020-84fe-557782fc40ee",
+          "start_date": "2027-03-07T02:00:00Z",
+          "end_date": "2027-03-07T03:30:00Z",
+          "timezone": "Australia/Hobart",
+          "notes": "Arrive after lunch; café on site.",
+          "activities": [],
+          "location": "b61b4c66-3813-4ae7-b2c5-a81553f5720b",
+          "created_at": "2026-10-11T04:48:46.248644Z",
+          "updated_at": "2026-10-11T04:48:46.248650Z"
+        }
+      ],
+      "is_visited": false,
+      "category": {
+        "id": "26733dd2-7743-44d5-bb6f-f2c1b1b7e95d",
+        "name": "museum",
+        "display_name": "Museum",
+        "icon": "🏛️",
+        "num_locations": 1
+      },
+      "attachments": [],
+      "user": {
+        "profile_pic": null,
+        "uuid": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+        "public_profile": true,
+        "username": "admin",
+        "first_name": "Alex",
+        "last_name": "Example",
+        "date_joined": "2026-10-11T01:01:09.939778Z",
+        "is_staff": true,
+        "disable_password": false,
+        "measurement_system": "metric",
+        "default_currency": "USD",
+        "map_style": "default",
+        "has_password": true,
+        "shared_collection_count": 0,
+        "pending_collection_invite_count": 0
+      },
+      "city": null,
+      "country": null,
+      "region": null,
+      "trails": [],
+      "price": null,
+      "price_currency": "USD"
+    }
+  ],
+  "created_at": "2026-10-11T04:48:42.385709Z",
+  "start_date": "2027-03-05",
+  "end_date": "2027-03-23",
+  "transportations": [
+    {
+      "id": "dc241ea6-b2d6-46d4-a60e-30f10f839af6",
+      "user": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+      "type": "plane",
+      "name": "Example Air EX 101 DEN → LAX",
+      "description": null,
+      "rating": null,
+      "price": "149.00",
+      "price_currency": "USD",
+      "link": null,
+      "date": "2027-03-05T20:00:00Z",
+      "flight_number": "EX101",
+      "from_location": "Denver International Airport (DEN)",
+      "to_location": "Los Angeles International Airport (LAX)",
+      "is_public": false,
+      "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+      "created_at": "2026-10-11T04:48:43.814808Z",
+      "updated_at": "2026-10-11T04:48:43.814816Z",
+      "end_date": "2027-03-05T22:40:00Z",
+      "origin_latitude": 39.8561,
+      "origin_longitude": -104.6737,
+      "destination_latitude": 33.9416,
+      "destination_longitude": -118.4085,
+      "start_timezone": "America/Denver",
+      "end_timezone": "America/Los_Angeles",
+      "distance": 1386.81,
+      "images": [],
+      "attachments": [],
+      "start_code": "DEN",
+      "end_code": "LAX",
+      "travel_duration_minutes": 160
+    },
+    {
+      "id": "d8171654-cade-4dce-95d1-f6c394f04caa",
+      "user": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+      "type": "plane",
+      "name": "Example Air EX 7 LAX → SYD",
+      "description": "Overnight. Crosses the International Date Line — departs 5 Mar, arrives 7 Mar.",
+      "rating": null,
+      "price": "1350.00",
+      "price_currency": "USD",
+      "link": "https://example.com/flights",
+      "date": "2027-03-06T03:10:00Z",
+      "flight_number": "EX7",
+      "from_location": "Los Angeles International Airport (LAX)",
+      "to_location": "Sydney Airport (SYD)",
+      "is_public": false,
+      "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+      "created_at": "2026-10-11T04:48:44.029555Z",
+      "updated_at": "2026-10-11T04:48:44.029563Z",
+      "end_date": "2027-03-06T18:00:00Z",
+      "origin_latitude": 33.9416,
+      "origin_longitude": -118.4085,
+      "destination_latitude": -33.9399,
+      "destination_longitude": 151.1753,
+      "start_timezone": "America/Los_Angeles",
+      "end_timezone": "Australia/Sydney",
+      "distance": 12050.43,
+      "images": [],
+      "attachments": [],
+      "start_code": "LAX",
+      "end_code": "SYD",
+      "travel_duration_minutes": 890
+    },
+    {
+      "id": "7dc4a38c-f9cb-4563-a2aa-b42cdfa84469",
+      "user": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+      "type": "plane",
+      "name": "Example Air EX 1501 SYD → HBA",
+      "description": "Domestic connection. Re-check bags at SYD after customs.",
+      "rating": null,
+      "price": "189.00",
+      "price_currency": "AUD",
+      "link": null,
+      "date": "2027-03-06T20:00:00Z",
+      "flight_number": "EX1501",
+      "from_location": "Sydney Airport (SYD)",
+      "to_location": "Hobart Airport (HBA)",
+      "is_public": false,
+      "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+      "created_at": "2026-10-11T04:48:44.228390Z",
+      "updated_at": "2026-10-11T04:48:45.153617Z",
+      "end_date": "2027-03-06T21:50:00Z",
+      "origin_latitude": -33.9399,
+      "origin_longitude": 151.1753,
+      "destination_latitude": -42.8361,
+      "destination_longitude": 147.5103,
+      "start_timezone": "Australia/Sydney",
+      "end_timezone": "Australia/Hobart",
+      "distance": 1037.84,
+      "images": [],
+      "attachments": [],
+      "start_code": "SYD",
+      "end_code": "HBA",
+      "travel_duration_minutes": 110
+    },
+    {
+      "id": "2c2b725b-7b75-4cf2-96e7-0ff6753e898d",
+      "user": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+      "type": "car",
+      "name": "Taxi: HBA airport → Harbourside Hotel",
+      "description": null,
+      "rating": null,
+      "price": "55.00",
+      "price_currency": "AUD",
+      "link": null,
+      "date": "2027-03-06T22:15:00Z",
+      "flight_number": null,
+      "from_location": "Hobart Airport",
+      "to_location": "Harbourside Hotel, 1 Example Quay",
+      "is_public": false,
+      "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+      "created_at": "2026-10-11T04:48:44.436967Z",
+      "updated_at": "2026-10-11T04:48:44.436977Z",
+      "end_date": "2027-03-06T22:45:00Z",
+      "origin_latitude": -42.8361,
+      "origin_longitude": 147.5103,
+      "destination_latitude": -42.8826,
+      "destination_longitude": 147.3326,
+      "start_timezone": "Australia/Hobart",
+      "end_timezone": "Australia/Hobart",
+      "distance": 15.41,
+      "images": [],
+      "attachments": [],
+      "start_code": null,
+      "end_code": null,
+      "travel_duration_minutes": 30
+    },
+    {
+      "id": "7df86ee7-33ff-45ee-8532-71869bd0ebea",
+      "user": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+      "type": "car",
+      "name": "Car hire (Hobart → Hobart)",
+      "description": "Compact SUV, unlimited km. Pick-up 8 Mar 09:00, drop-off 23 Mar 10:00.",
+      "rating": null,
+      "price": "2900.00",
+      "price_currency": "AUD",
+      "link": null,
+      "date": "2027-03-07T22:00:00Z",
+      "flight_number": null,
+      "from_location": "Car rental desk, 10 Example St, Hobart",
+      "to_location": "Car rental desk, 10 Example St, Hobart",
+      "is_public": false,
+      "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+      "created_at": "2026-10-11T04:48:44.642462Z",
+      "updated_at": "2026-10-11T04:48:44.642470Z",
+      "end_date": "2027-03-22T23:00:00Z",
+      "origin_latitude": -42.85,
+      "origin_longitude": 147.5,
+      "destination_latitude": -42.85,
+      "destination_longitude": 147.5,
+      "start_timezone": "Australia/Hobart",
+      "end_timezone": "Australia/Hobart",
+      "distance": 0.0,
+      "images": [],
+      "attachments": [],
+      "start_code": null,
+      "end_code": null,
+      "travel_duration_minutes": 21660
+    },
+    {
+      "id": "e5aabe2c-dd9e-4372-90b2-f05cd68fda03",
+      "user": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+      "type": "car",
+      "name": "Drive Hobart → Freycinet",
+      "description": "Tasman Hwy via Swansea. ~190 km. Stop for lunch in Swansea.",
+      "rating": null,
+      "price": null,
+      "price_currency": "USD",
+      "link": null,
+      "date": "2027-03-08T00:00:00Z",
+      "flight_number": null,
+      "from_location": "Hobart",
+      "to_location": "Coles Bay",
+      "is_public": false,
+      "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+      "created_at": "2026-10-11T04:48:44.935078Z",
+      "updated_at": "2026-10-11T04:48:44.935086Z",
+      "end_date": "2027-03-08T03:30:00Z",
+      "origin_latitude": -42.8821,
+      "origin_longitude": 147.3272,
+      "destination_latitude": -42.1247,
+      "destination_longitude": 148.2861,
+      "start_timezone": "Australia/Hobart",
+      "end_timezone": "Australia/Hobart",
+      "distance": 115.28,
+      "images": [],
+      "attachments": [],
+      "start_code": null,
+      "end_code": null,
+      "travel_duration_minutes": 210
+    }
+  ],
+  "notes": [
+    {
+      "id": "2416e745-e1ec-4cf7-9a91-c3ac45ebafb2",
+      "user": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+      "name": "Hobart day tips",
+      "content": "## Jet-lag plan\n- Stay up until 21:00\n- Coffee on the waterfront\n- Early night\n\nFerry: [harbour ferry](https://example.com/ferry)",
+      "date": "2027-03-07",
+      "links": [
+        "https://example.com/ferry"
+      ],
+      "is_public": false,
+      "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+      "created_at": "2026-10-11T04:48:49.109451Z",
+      "updated_at": "2026-10-11T04:48:49.498098Z"
+    },
+    {
+      "id": "aaf74e7a-9462-4f96-a7b7-a9db3ed7069c",
+      "user": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+      "name": "Trip essentials",
+      "content": "# Essentials\n1. Visa sorted ✅\n2. Rental car bond: A$500 hold\n3. Emergency: **000**\n\nSee [park alerts](https://example.com/park-alerts)",
+      "date": null,
+      "links": [
+        "https://example.com/park-alerts"
+      ],
+      "is_public": false,
+      "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+      "created_at": "2026-10-11T04:48:49.301903Z",
+      "updated_at": "2026-10-11T04:48:49.301914Z"
+    }
+  ],
+  "updated_at": "2026-10-11T04:48:42.599139Z",
+  "checklists": [
+    {
+      "id": "b1bb2988-991b-48ab-9761-0e2610620c8f",
+      "user": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+      "name": "Car pickup",
+      "date": "2027-03-08",
+      "is_public": false,
+      "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+      "created_at": "2026-10-11T04:48:49.686850Z",
+      "updated_at": "2026-10-11T04:48:50.086720Z",
+      "items": [
+        {
+          "id": "6686a967-bb67-4064-885c-1d644a631002",
+          "user": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+          "name": "Driver licences + IDP",
+          "is_checked": true,
+          "checklist": "b1bb2988-991b-48ab-9761-0e2610620c8f",
+          "created_at": "2026-10-11T04:48:50.088730Z",
+          "updated_at": "2026-10-11T04:48:50.088739Z"
+        },
+        {
+          "id": "167105f4-3add-41ea-94eb-ec4bc1ff5c12",
+          "user": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+          "name": "Photograph existing damage",
+          "is_checked": true,
+          "checklist": "b1bb2988-991b-48ab-9761-0e2610620c8f",
+          "created_at": "2026-10-11T04:48:50.089994Z",
+          "updated_at": "2026-10-11T04:48:50.090004Z"
+        },
+        {
+          "id": "80ce7653-c61a-483d-a169-3bf3a0e990d7",
+          "user": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+          "name": "Check the spare tyre",
+          "is_checked": false,
+          "checklist": "b1bb2988-991b-48ab-9761-0e2610620c8f",
+          "created_at": "2026-10-11T04:48:50.090856Z",
+          "updated_at": "2026-10-11T04:48:50.090863Z"
+        },
+        {
+          "id": "e6a421fe-d3fb-48a6-9963-a70450d2c5c3",
+          "user": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+          "name": "Download offline maps",
+          "is_checked": true,
+          "checklist": "b1bb2988-991b-48ab-9761-0e2610620c8f",
+          "created_at": "2026-10-11T04:48:50.091670Z",
+          "updated_at": "2026-10-11T04:48:50.091678Z"
+        },
+        {
+          "id": "55c8f856-00a9-4c93-a925-7fb01a04f798",
+          "user": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+          "name": "Note the fuel level",
+          "is_checked": false,
+          "checklist": "b1bb2988-991b-48ab-9761-0e2610620c8f",
+          "created_at": "2026-10-11T04:48:50.092449Z",
+          "updated_at": "2026-10-11T04:48:50.092457Z"
+        }
+      ]
+    },
+    {
+      "id": "9c39d0c4-95bc-40cd-8bda-85c5afcfdc4d",
+      "user": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+      "name": "Packing list",
+      "date": null,
+      "is_public": false,
+      "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+      "created_at": "2026-10-11T04:48:49.883595Z",
+      "updated_at": "2026-10-11T04:48:49.883607Z",
+      "items": [
+        {
+          "id": "b5e9af13-c533-494a-821b-198c72acd88a",
+          "user": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+          "name": "Warm layers",
+          "is_checked": true,
+          "checklist": "9c39d0c4-95bc-40cd-8bda-85c5afcfdc4d",
+          "created_at": "2026-10-11T04:48:49.885104Z",
+          "updated_at": "2026-10-11T04:48:49.885112Z"
+        },
+        {
+          "id": "a1e56d78-3a53-4c30-bfa7-9792e13aaf82",
+          "user": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+          "name": "Rain shell",
+          "is_checked": true,
+          "checklist": "9c39d0c4-95bc-40cd-8bda-85c5afcfdc4d",
+          "created_at": "2026-10-11T04:48:49.886142Z",
+          "updated_at": "2026-10-11T04:48:49.886148Z"
+        },
+        {
+          "id": "1c6e7895-c709-4242-b5aa-925bdd0db9a1",
+          "user": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+          "name": "Sunscreen",
+          "is_checked": false,
+          "checklist": "9c39d0c4-95bc-40cd-8bda-85c5afcfdc4d",
+          "created_at": "2026-10-11T04:48:49.887084Z",
+          "updated_at": "2026-10-11T04:48:49.887094Z"
+        },
+        {
+          "id": "aed8061e-f102-461a-9d89-a0de02347441",
+          "user": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+          "name": "Plug adapters (Type I)",
+          "is_checked": false,
+          "checklist": "9c39d0c4-95bc-40cd-8bda-85c5afcfdc4d",
+          "created_at": "2026-10-11T04:48:49.887993Z",
+          "updated_at": "2026-10-11T04:48:49.888002Z"
+        }
+      ]
+    }
+  ],
+  "is_archived": false,
+  "shared_with": [
+    "2738ee4b-e999-486e-aa07-9c01d6bc0648"
+  ],
+  "collaborators": [
+    {
+      "uuid": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+      "username": "admin",
+      "first_name": "Alex",
+      "last_name": "Example",
+      "profile_pic": null,
+      "public_profile": true,
+      "is_owner": true,
+      "is_current_user": true
+    },
+    {
+      "uuid": "2738ee4b-e999-486e-aa07-9c01d6bc0648",
+      "username": "guest",
+      "first_name": "Sam",
+      "last_name": "Example",
+      "profile_pic": null,
+      "public_profile": true,
+      "is_owner": false,
+      "is_current_user": false
+    }
+  ],
+  "link": "https://example.com/tasmania",
+  "lodging": [
+    {
+      "id": "8f00d25a-1b0a-4c17-a371-f010e2b4db13",
+      "user": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+      "name": "Harbourside Hotel",
+      "description": "Early check-in requested (red-eye arrival).",
+      "rating": 4.5,
+      "link": "https://example.com/harbourside",
+      "check_in": "2027-03-07T03:00:00Z",
+      "check_out": "2027-03-07T23:00:00Z",
+      "reservation_number": "HH-40123",
+      "price": "320.00",
+      "price_currency": "AUD",
+      "latitude": -42.8826,
+      "longitude": 147.3326,
+      "location": "1 Example Quay, Hobart TAS 7000",
+      "is_public": false,
+      "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+      "created_at": "2026-10-11T04:48:45.348801Z",
+      "updated_at": "2026-10-11T04:48:45.348809Z",
+      "type": "hotel",
+      "timezone": "Australia/Hobart",
+      "images": [],
+      "attachments": []
+    },
+    {
+      "id": "07e61ce8-042a-495a-bf1b-a12a10b6ce6e",
+      "user": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+      "name": "Bay Holiday Park",
+      "description": "Powered site #14, bay view. Quiet hours 22:00–07:00.",
+      "rating": null,
+      "link": null,
+      "check_in": "2027-03-08T04:00:00Z",
+      "check_out": "2027-03-08T23:00:00Z",
+      "reservation_number": "BHP-0042",
+      "price": "58.00",
+      "price_currency": "AUD",
+      "latitude": -42.1247,
+      "longitude": 148.2861,
+      "location": "1 Example Rd, Coles Bay TAS 7215",
+      "is_public": false,
+      "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+      "created_at": "2026-10-11T04:48:45.561035Z",
+      "updated_at": "2026-10-11T04:48:45.775738Z",
+      "type": "campground",
+      "timezone": "Australia/Hobart",
+      "images": [],
+      "attachments": []
+    }
+  ],
+  "status": "upcoming",
+  "days_until_start": 145,
+  "primary_image": null,
+  "itinerary": [
+    {
+      "id": "210b76f2-747e-4e71-a07c-f9c1d858dc35",
+      "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+      "content_type": 20,
+      "object_id": "dc241ea6-b2d6-46d4-a60e-30f10f839af6",
+      "item": {
+        "id": "dc241ea6-b2d6-46d4-a60e-30f10f839af6",
+        "type": "transportation"
+      },
+      "date": "2027-03-05",
+      "is_global": false,
+      "order": 0,
+      "start_datetime": "2027-03-05T20:00:00Z",
+      "end_datetime": "2027-03-05T22:40:00Z",
+      "created_at": "2026-10-11T04:48:50.304421Z",
+      "object_name": "transportation"
+    },
+    {
+      "id": "c4fa0e17-5ee3-4042-ac45-d14af9993231",
+      "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+      "content_type": 20,
+      "object_id": "d8171654-cade-4dce-95d1-f6c394f04caa",
+      "item": {
+        "id": "d8171654-cade-4dce-95d1-f6c394f04caa",
+        "type": "transportation"
+      },
+      "date": "2027-03-05",
+      "is_global": false,
+      "order": 1,
+      "start_datetime": "2027-03-06T03:10:00Z",
+      "end_datetime": "2027-03-06T18:00:00Z",
+      "created_at": "2026-10-11T04:48:50.506182Z",
+      "object_name": "transportation"
+    },
+    {
+      "id": "665930fb-c669-44c7-890c-945964e3be69",
+      "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+      "content_type": 20,
+      "object_id": "7dc4a38c-f9cb-4563-a2aa-b42cdfa84469",
+      "item": {
+        "id": "7dc4a38c-f9cb-4563-a2aa-b42cdfa84469",
+        "type": "transportation"
+      },
+      "date": "2027-03-07",
+      "is_global": false,
+      "order": 0,
+      "start_datetime": "2027-03-06T20:00:00Z",
+      "end_datetime": "2027-03-06T21:50:00Z",
+      "created_at": "2026-10-11T04:48:50.704625Z",
+      "object_name": "transportation"
+    },
+    {
+      "id": "2bf7506e-763f-4d2f-a788-ceecd680a57b",
+      "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+      "content_type": 20,
+      "object_id": "2c2b725b-7b75-4cf2-96e7-0ff6753e898d",
+      "item": {
+        "id": "2c2b725b-7b75-4cf2-96e7-0ff6753e898d",
+        "type": "transportation"
+      },
+      "date": "2027-03-07",
+      "is_global": false,
+      "order": 1,
+      "start_datetime": "2027-03-06T22:15:00Z",
+      "end_datetime": "2027-03-06T22:45:00Z",
+      "created_at": "2026-10-11T04:48:50.905074Z",
+      "object_name": "transportation"
+    },
+    {
+      "id": "3ba80fce-5fd6-4a81-ab61-3c146de94225",
+      "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+      "content_type": 23,
+      "object_id": "8f00d25a-1b0a-4c17-a371-f010e2b4db13",
+      "item": {
+        "id": "8f00d25a-1b0a-4c17-a371-f010e2b4db13",
+        "type": "lodging"
+      },
+      "date": "2027-03-07",
+      "is_global": false,
+      "order": 2,
+      "start_datetime": "2027-03-07T03:00:00Z",
+      "end_datetime": "2027-03-07T23:00:00Z",
+      "created_at": "2026-10-11T04:48:51.103812Z",
+      "object_name": "lodging"
+    },
+    {
+      "id": "fe98924d-84da-475e-8775-78456cef198a",
+      "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+      "content_type": 24,
+      "object_id": "b61b4c66-3813-4ae7-b2c5-a81553f5720b",
+      "item": {
+        "id": "b61b4c66-3813-4ae7-b2c5-a81553f5720b",
+        "type": "location"
+      },
+      "date": "2027-03-07",
+      "is_global": false,
+      "order": 3,
+      "start_datetime": null,
+      "end_datetime": null,
+      "created_at": "2026-10-11T04:48:51.301804Z",
+      "object_name": "location"
+    },
+    {
+      "id": "000ed5f4-6cad-48c5-8a1e-f5b61e5d9f1a",
+      "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+      "content_type": 24,
+      "object_id": "78978dcd-a7bf-4d10-9aa8-6cb373ba8544",
+      "item": {
+        "id": "78978dcd-a7bf-4d10-9aa8-6cb373ba8544",
+        "type": "location"
+      },
+      "date": "2027-03-07",
+      "is_global": false,
+      "order": 4,
+      "start_datetime": null,
+      "end_datetime": null,
+      "created_at": "2026-10-11T04:48:51.500444Z",
+      "object_name": "location"
+    },
+    {
+      "id": "96b0757e-149c-4fb5-a533-2f489ffef3a6",
+      "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+      "content_type": 19,
+      "object_id": "2416e745-e1ec-4cf7-9a91-c3ac45ebafb2",
+      "item": {
+        "id": "2416e745-e1ec-4cf7-9a91-c3ac45ebafb2",
+        "type": "note"
+      },
+      "date": "2027-03-07",
+      "is_global": false,
+      "order": 5,
+      "start_datetime": "2027-03-07",
+      "end_datetime": null,
+      "created_at": "2026-10-11T04:48:51.754829Z",
+      "object_name": "note"
+    },
+    {
+      "id": "1522fa65-0716-4bdf-9b15-e944dde0e0c4",
+      "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+      "content_type": 20,
+      "object_id": "7df86ee7-33ff-45ee-8532-71869bd0ebea",
+      "item": {
+        "id": "7df86ee7-33ff-45ee-8532-71869bd0ebea",
+        "type": "transportation"
+      },
+      "date": "2027-03-08",
+      "is_global": false,
+      "order": 0,
+      "start_datetime": "2027-03-07T22:00:00Z",
+      "end_datetime": "2027-03-22T23:00:00Z",
+      "created_at": "2026-10-11T04:48:51.990454Z",
+      "object_name": "transportation"
+    },
+    {
+      "id": "30b5d0cf-206f-4756-9ef1-24a75cacce96",
+      "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+      "content_type": 16,
+      "object_id": "b1bb2988-991b-48ab-9761-0e2610620c8f",
+      "item": {
+        "id": "b1bb2988-991b-48ab-9761-0e2610620c8f",
+        "type": "checklist"
+      },
+      "date": "2027-03-08",
+      "is_global": false,
+      "order": 1,
+      "start_datetime": "2027-03-08",
+      "end_datetime": null,
+      "created_at": "2026-10-11T04:48:52.191875Z",
+      "object_name": "checklist"
+    },
+    {
+      "id": "a57d9224-b6d9-4152-940d-b06d318aa767",
+      "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+      "content_type": 20,
+      "object_id": "e5aabe2c-dd9e-4372-90b2-f05cd68fda03",
+      "item": {
+        "id": "e5aabe2c-dd9e-4372-90b2-f05cd68fda03",
+        "type": "transportation"
+      },
+      "date": "2027-03-08",
+      "is_global": false,
+      "order": 2,
+      "start_datetime": "2027-03-08T00:00:00Z",
+      "end_datetime": "2027-03-08T03:30:00Z",
+      "created_at": "2026-10-11T04:48:52.399223Z",
+      "object_name": "transportation"
+    },
+    {
+      "id": "8918556e-f3f1-4292-9bb7-8960b1e2c90f",
+      "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+      "content_type": 23,
+      "object_id": "07e61ce8-042a-495a-bf1b-a12a10b6ce6e",
+      "item": {
+        "id": "07e61ce8-042a-495a-bf1b-a12a10b6ce6e",
+        "type": "lodging"
+      },
+      "date": "2027-03-08",
+      "is_global": false,
+      "order": 3,
+      "start_datetime": "2027-03-08T04:00:00Z",
+      "end_datetime": "2027-03-08T23:00:00Z",
+      "created_at": "2026-10-11T04:48:52.625116Z",
+      "object_name": "lodging"
+    },
+    {
+      "id": "51d09ad6-3eeb-4835-94e6-d777247b84dc",
+      "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+      "content_type": 24,
+      "object_id": "9e20f3bd-847e-45fb-bb94-6921d7a64e3d",
+      "item": {
+        "id": "9e20f3bd-847e-45fb-bb94-6921d7a64e3d",
+        "type": "location"
+      },
+      "date": "2027-03-08",
+      "is_global": false,
+      "order": 4,
+      "start_datetime": null,
+      "end_datetime": null,
+      "created_at": "2026-10-11T04:48:52.854235Z",
+      "object_name": "location"
+    },
+    {
+      "id": "6316c620-3683-4ef0-add4-f5a485a637de",
+      "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+      "content_type": 24,
+      "object_id": "547ce065-2ae7-4a14-8e3f-76f638922234",
+      "item": {
+        "id": "547ce065-2ae7-4a14-8e3f-76f638922234",
+        "type": "location"
+      },
+      "date": "2027-03-08",
+      "is_global": false,
+      "order": 5,
+      "start_datetime": null,
+      "end_datetime": null,
+      "created_at": "2026-10-11T04:48:53.125221Z",
+      "object_name": "location"
+    },
+    {
+      "id": "4440fba2-49bf-4375-a24f-6a4052f9d47e",
+      "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+      "content_type": 19,
+      "object_id": "aaf74e7a-9462-4f96-a7b7-a9db3ed7069c",
+      "item": {
+        "id": "aaf74e7a-9462-4f96-a7b7-a9db3ed7069c",
+        "type": "note"
+      },
+      "date": null,
+      "is_global": true,
+      "order": 0,
+      "start_datetime": null,
+      "end_datetime": null,
+      "created_at": "2026-10-11T04:48:53.327830Z",
+      "object_name": "note"
+    },
+    {
+      "id": "d568ac8e-de64-44b8-bb5f-913471b28e6b",
+      "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+      "content_type": 16,
+      "object_id": "9c39d0c4-95bc-40cd-8bda-85c5afcfdc4d",
+      "item": {
+        "id": "9c39d0c4-95bc-40cd-8bda-85c5afcfdc4d",
+        "type": "checklist"
+      },
+      "date": null,
+      "is_global": true,
+      "order": 1,
+      "start_datetime": null,
+      "end_datetime": null,
+      "created_at": "2026-10-11T04:48:53.521891Z",
+      "object_name": "checklist"
+    }
+  ],
+  "itinerary_days": [
+    {
+      "id": "b7829275-5423-4611-b3b4-53a0fbad72e3",
+      "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+      "date": "2027-03-05",
+      "name": "D0 · Travel day (DEN → LAX → SYD)",
+      "description": "Cross the date line overnight; 6 Mar does not exist for us.",
+      "created_at": "2026-10-11T04:48:43.010941Z",
+      "updated_at": "2026-10-11T04:48:43.010953Z"
+    },
+    {
+      "id": "52fec846-8ec0-4b8a-b321-7c51d57d83da",
+      "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+      "date": "2027-03-07",
+      "name": "D1 · Hobart",
+      "description": "Land early, recover, gentle city day.",
+      "created_at": "2026-10-11T04:48:43.205285Z",
+      "updated_at": "2026-10-11T04:48:43.205296Z"
+    },
+    {
+      "id": "136d6585-96fc-43ab-b22c-4e36248ca939",
+      "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+      "date": "2027-03-08",
+      "name": "D2 · Hobart → Freycinet",
+      "description": "Collect the rental car at 09:00, drive the Tasman Hwy (~3 h), sunset cruise in the evening.",
+      "created_at": "2026-10-11T04:48:43.401978Z",
+      "updated_at": "2026-10-11T04:48:43.616826Z"
+    }
+  ]
+}

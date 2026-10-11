@@ -1,0 +1,23 @@
+{
+  "method": "POST",
+  "path": "/api/locations/",
+  "body": {
+    "collections": [
+      "4b2dbaf2-bdda-4b57-950f-386189c5d813"
+    ],
+    "is_public": false,
+    "name": "Dove Lake Circuit",
+    "location": "Cradle Mountain",
+    "description": "Unscheduled on the itinerary on purpose (appears only in collection.locations).",
+    "latitude": -41.66,
+    "longitude": 145.96,
+    "category": {
+      "name": "hiking",
+      "display_name": "Hiking",
+      "icon": "🥾"
+    },
+    "tags": [
+      "hike"
+    ]
+  }
+}

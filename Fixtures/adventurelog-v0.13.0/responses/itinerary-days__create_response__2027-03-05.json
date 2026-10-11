@@ -1,0 +1,12 @@
+{
+  "status": 201,
+  "body": {
+    "id": "b7829275-5423-4611-b3b4-53a0fbad72e3",
+    "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+    "date": "2027-03-05",
+    "name": "D0 · Travel day (DEN → LAX → SYD)",
+    "description": "Cross the date line overnight; 6 Mar does not exist for us.",
+    "created_at": "2026-10-11T04:48:43.010941Z",
+    "updated_at": "2026-10-11T04:48:43.010953Z"
+  }
+}
