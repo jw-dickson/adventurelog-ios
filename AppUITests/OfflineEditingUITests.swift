@@ -68,7 +68,10 @@ final class OfflineEditingUITests: XCTestCase {
 
         // Signing out now warns that the change would be lost.
         app.navigationBars.buttons.element(boundBy: 0).tap()
-        app.buttons["Account"].tap()
+        // Today has an Account button too; use the one on the screen in front.
+        let account = app.navigationBars["Trips"].buttons["Account"]
+        XCTAssertTrue(account.waitForExistence(timeout: 5))
+        account.tap()
         app.buttons["Sign out"].tap()
         XCTAssertTrue(element(app, containing: "1 change hasn't synced").waitForExistence(timeout: 5))
     }
