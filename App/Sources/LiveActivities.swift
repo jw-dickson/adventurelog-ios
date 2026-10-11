@@ -44,9 +44,11 @@ struct LiveActivityController: Sendable {
                                                 content: ActivityContent(state: plan.state, staleDate: plan.end),
                                                 pushType: onToken == nil ? nil : .token)
             if let onToken {
+                let id = activity.id
                 let info = plan.info
                 Task {
-                    for await token in activity.pushTokenUpdates { await onToken(token, info.tripID, info.rowID) }
+                    guard let started = Activity<TripActivityAttributes>.activities.first(where: { $0.id == id }) else { return }
+                    for await token in started.pushTokenUpdates { await onToken(token, info.tripID, info.rowID) }
                 }
             }
         } catch {
@@ -63,9 +65,12 @@ struct LiveActivityController: Sendable {
             }
             group.addTask {
                 for await activity in Activity<TripActivityAttributes>.activityUpdates {
+                    // `Activity` isn't Sendable: hand the task its id and look it up again there.
+                    let id = activity.id
                     let info = activity.attributes.info
                     Task {
-                        for await token in activity.pushTokenUpdates { await onToken(token, info.tripID, info.rowID) }
+                        guard let started = Activity<TripActivityAttributes>.activities.first(where: { $0.id == id }) else { return }
+                        for await token in started.pushTokenUpdates { await onToken(token, info.tripID, info.rowID) }
                     }
                 }
             }
