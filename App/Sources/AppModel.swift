@@ -20,6 +20,12 @@ final class AppModel {
     private(set) var tripListSavedAt: Date?
     private(set) var isRefreshing = false
     var lastError: String?
+    /// Set when sign-out could not delete the saved credentials; the session stays signed in.
+    var signOutError: String?
+    var showingSignOutError: Bool {
+        get { signOutError != nil }
+        set { if !newValue { signOutError = nil } }
+    }
 
     private let credentialStore: any CredentialStore
     let snapshots: TripSnapshotStore
@@ -70,16 +76,27 @@ final class AppModel {
         await refreshTrips()
     }
 
-    /// Clears the signed-in state and trip list, and attempts to delete credentials and snapshots.
-    /// Storage deletion errors are ignored, so persisted data may remain.
+    /// Deletes the saved credentials, ends the session, then attempts to delete snapshots.
+    /// If the credentials can't be deleted, stays signed in and sets `signOutError`, since the next
+    /// launch would otherwise restore them. The session ends before the first `await`, so a refresh
+    /// still in flight is no longer current and can't write snapshots back. Snapshot deletion
+    /// errors are ignored, so cached trips may remain.
     func signOut() async {
-        try? credentialStore.clear()
-        try? await snapshots.removeAll()
+        do {
+            try credentialStore.clear()
+        } catch {
+            signOutError = error.localizedDescription
+            return
+        }
         client = nil
+        refreshingClient = nil
+        isRefreshing = false
         ownedTrips = []
         sharedTrips = []
         tripListSavedAt = nil
+        lastError = nil
         phase = .signedOut
+        try? await snapshots.removeAll()
     }
 
     // MARK: Trips

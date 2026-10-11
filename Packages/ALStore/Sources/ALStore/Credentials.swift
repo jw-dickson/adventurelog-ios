@@ -68,16 +68,20 @@ public struct KeychainCredentialStore: CredentialStore {
         return try JSONDecoder().decode(ServerCredentials.self, from: data)
     }
 
-    /// Replaces the selected item with credentials accessible after first unlock on this device.
-    /// The previous item is deleted before insertion, so an insertion failure can leave no saved credentials.
-    /// - Throws: JSON encoding errors or `KeychainError` from deletion or insertion.
+    /// Stores credentials accessible after first unlock on this device, updating the existing item
+    /// in place (or adding one), so a failure leaves the previous credentials intact.
+    /// - Throws: JSON encoding errors or `KeychainError` from the update or insertion.
     public func save(_ credentials: ServerCredentials) throws {
         let data = try JSONEncoder().encode(credentials)
-        try clear()
-        var attributes = baseQuery
-        attributes[kSecValueData as String] = data
-        attributes[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
-        let status = SecItemAdd(attributes as CFDictionary, nil)
+        let values: [String: Any] = [
+            kSecValueData as String: data,
+            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
+        ]
+        var status = SecItemUpdate(baseQuery as CFDictionary, values as CFDictionary)
+        if status == errSecItemNotFound {
+            let attributes = baseQuery.merging(values) { $1 }
+            status = SecItemAdd(attributes as CFDictionary, nil)
+        }
         guard status == errSecSuccess else { throw KeychainError(status: status) }
     }
 
