@@ -293,3 +293,37 @@ The extension needs its own bundle id, the app's id plus `.widgets`, in App Stor
 
 ### Results
 
+---
+
+## Handoff 7 · Stage 4b, the companion service (2026-10-11)
+
+**Branch:** `stage-4b-companion`. **Goal:** a push from your companion reaches a TestFlight build, and the Live Activity starts and ends without opening the app.
+
+### What changed
+
+- **`Companion/`:** the service in Python and FastAPI, with a Dockerfile and setup in its README. Its tests run on Linux in CI.
+- **The app:** Reminders has a companion address field. The app registers and hands over push tokens, and unregisters on sign-out.
+- **Signing:** the app now has the Push Notifications entitlement (`App/AdventureLog.entitlements`).
+
+### 1. Apple Developer account
+
+1. Turn on Push Notifications for the app's App ID. The widget extension's id needs no capability.
+2. Create an APNs auth key (Keys › +, Apple Push Notifications service) and download the `.p8`. Keep it outside the repo.
+
+### 2. Run the companion
+
+1. Build and run it next to AdventureLog as in `Companion/README.md`: `ADVENTURELOG_URL`, the key file, key id, team id and bundle id.
+2. Put it behind your reverse proxy on HTTPS. Its requests carry the API key, so the forward-auth bypass for `X-API-Key` that AdventureLog's `/api/` uses needs to cover the companion too.
+3. `GET /healthz` should say `"pushes": true`.
+
+### 3. On a phone
+
+1. In the app, open Reminders, enter the companion's address and wait for "Connected".
+2. Add a flight to a trip that departs about 3 h 10 min from now. Lock the phone and don't open the app. Within five minutes of the window opening, the Live Activity should appear by itself. At departure it should end.
+3. Change the flight's time in AdventureLog while the activity is showing. Within five minutes, the countdown should move.
+4. Sign out: the companion's database should no longer list the phone.
+
+A build from Xcode registers as `sandbox`, and TestFlight builds as `production`. Test with the build you'll use.
+
+### Results
+

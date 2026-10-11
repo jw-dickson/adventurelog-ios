@@ -81,6 +81,9 @@ targets:
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         GENERATE_INFOPLIST_FILE: NO
         INFOPLIST_FILE: App/Info.plist
+        # Push notifications, for Live Activity pushes from the companion (Stage 4b). The App ID
+        # needs the Push Notifications capability; archiving for TestFlight switches it to production.
+        CODE_SIGN_ENTITLEMENTS: App/AdventureLog.entitlements
 
   # The Live Activity's Lock Screen card and Dynamic Island (Stage 4). Signing needs its own
   # bundle id, $(AL_BUNDLE_ID).widgets, in the signing setup outside the repo.

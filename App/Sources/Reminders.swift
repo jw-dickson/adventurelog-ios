@@ -176,6 +176,23 @@ struct ReminderSettingsView: View {
                 } footer: {
                     Text("Flights and booked tours count down on the Lock Screen and in the Dynamic Island: a flight from three hours before departure, a tour from an hour before it starts.")
                 }
+                Section {
+                    TextField("Companion address", text: $model.companionAddress, prompt: Text("companion.example.com"))
+                        .textContentType(.URL)
+                        .keyboardType(.URL)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .accessibilityIdentifier("reminders.companion")
+                    if let status = model.companionStatus {
+                        Label(status, systemImage: status == "Connected" ? "checkmark.circle" : "exclamationmark.triangle")
+                            .font(ALFont.footnote)
+                            .foregroundStyle(status == "Connected" ? ALColor.successText : ALColor.errorText)
+                    }
+                } header: {
+                    Text("Companion service")
+                } footer: {
+                    Text("Optional. With your self-hosted AdventureLog companion, Live Activities start and end on time without opening the app. It uses this phone's AdventureLog key.")
+                }
                 if model.remindersEnabled {
                     Section("Remind me") {
                         Toggle("When to leave", isOn: $model.reminderSettings.leaveBy)

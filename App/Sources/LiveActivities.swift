@@ -16,8 +16,13 @@ import Foundation
 struct LiveActivityController: Sendable {
     var isAllowed: Bool { ActivityAuthorizationInfo().areActivitiesEnabled }
 
+    /// A running activity's push token, for the companion service: token, trip id, row id.
+    typealias TokenHandler = @Sendable (Data, String, String) async -> Void
+
     /// Makes the running activity match `plan`, or ends every activity when `plan` is nil.
-    func show(_ plan: LiveActivityPlanner.Plan?) async {
+    /// - Parameter onToken: when set (a companion is configured), a new activity asks for a push
+    ///   token and each token goes here.
+    func show(_ plan: LiveActivityPlanner.Plan?, onToken: TokenHandler? = nil) async {
         let running = Activity<TripActivityAttributes>.activities
         for activity in running where !matches(activity, plan) {
             await activity.end(nil, dismissalPolicy: .immediate)
@@ -35,11 +40,35 @@ struct LiveActivityController: Sendable {
         }
         guard isAllowed else { return }
         do {
-            _ = try Activity.request(attributes: TripActivityAttributes(info: plan.info),
-                                     content: ActivityContent(state: plan.state, staleDate: plan.end),
-                                     pushType: nil)
+            let activity = try Activity.request(attributes: TripActivityAttributes(info: plan.info),
+                                                content: ActivityContent(state: plan.state, staleDate: plan.end),
+                                                pushType: onToken == nil ? nil : .token)
+            if let onToken {
+                let info = plan.info
+                Task {
+                    for await token in activity.pushTokenUpdates { await onToken(token, info.tripID, info.rowID) }
+                }
+            }
         } catch {
             // Not in the foreground, or the person turned Live Activities off: try again next time.
+        }
+    }
+
+    /// Runs for the signed-in session: hands the companion the push-to-start token, and the push
+    /// token of every activity a push starts.
+    func watchTokens(onStartToken: @escaping @Sendable (Data) async -> Void, onToken: @escaping TokenHandler) async {
+        await withDiscardingTaskGroup { group in
+            group.addTask {
+                for await token in Activity<TripActivityAttributes>.pushToStartTokenUpdates { await onStartToken(token) }
+            }
+            group.addTask {
+                for await activity in Activity<TripActivityAttributes>.activityUpdates {
+                    let info = activity.attributes.info
+                    Task {
+                        for await token in activity.pushTokenUpdates { await onToken(token, info.tripID, info.rowID) }
+                    }
+                }
+            }
         }
     }
 
