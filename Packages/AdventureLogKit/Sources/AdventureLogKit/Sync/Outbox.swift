@@ -152,7 +152,13 @@ public struct Outbox: Codable, Sendable, Hashable {
                 entries[index].notBefore = nil
                 entries[index].lastError = nil
                 return
-            case .conflict, .failed, .unauthorized:
+            case .failed:
+                // The refusal was for the older edit; the newer one still gets its own try.
+                entries[index].attempts = 0
+                entries[index].notBefore = nil
+                entries[index].lastError = nil
+                return
+            case .conflict, .unauthorized:
                 break
             }
         }

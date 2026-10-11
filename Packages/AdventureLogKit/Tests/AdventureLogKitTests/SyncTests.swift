@@ -373,6 +373,16 @@ struct OutboxTests {
         #expect(notes.entries.first?.edit == .editNote(.init(noteID: "n", noteName: "N", baseContent: "b", content: "c")))
     }
 
+    @Test func aRefusalOfTheSentEditDoesntFailTheNewerOne() {
+        var outbox = Outbox()
+        outbox.enqueue(tick(true), tripID: "t", at: now)
+        let sending = outbox.entries[0]
+        outbox.enqueue(tick(false), tripID: "t", at: now)
+        outbox.record(.failed("No."), for: sending.id, sent: sending.edit, at: now)
+        #expect(outbox.entries.first?.isWaiting == true)
+        #expect(outbox.entries.first?.edit == tick(false))
+    }
+
     @Test func aNewTickSupersedesAFailedOne() {
         var outbox = Outbox()
         outbox.enqueue(tick(true), tripID: "t", at: now)
