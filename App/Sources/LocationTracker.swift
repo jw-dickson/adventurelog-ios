@@ -20,6 +20,8 @@ final class LocationTracker {
     @ObservationIgnored var onPoints: (([TrackPoint]) -> Void)?
     /// Arriving at or leaving a watched stop.
     @ObservationIgnored var onEvent: ((PlaceEvent) -> Void)?
+    /// Every update, moving or not, and a refused permission: a chance to decide whether to go on.
+    @ObservationIgnored var onTick: (() -> Void)?
 
     @ObservationIgnored private let manager = CLLocationManager()
     @ObservationIgnored private var updates: Task<Void, Never>?
@@ -29,6 +31,8 @@ final class LocationTracker {
     @ObservationIgnored private var monitor: CLMonitor?
     @ObservationIgnored private var monitorEvents: Task<Void, Never>?
     @ObservationIgnored private var watched: Set<String> = []
+    /// Geofence changes run one at a time, in order, so an older `watch` can't finish after a newer `unwatchAll`.
+    @ObservationIgnored private var monitorTail: Task<Void, Never>?
     @ObservationIgnored private var buffer: [TrackPoint] = []
     @ObservationIgnored private var lastKept: TrackPoint?
     @ObservationIgnored private var lastFlush = Date.distantPast
@@ -61,6 +65,7 @@ final class LocationTracker {
                     guard let self, !Task.isCancelled else { return }
                     self.refreshAuthorization()
                     if let location = update.location { self.record(location) }
+                    self.onTick?()
                 }
             } catch {}
             // The stream ended by itself: let the next `start` begin again.
@@ -120,24 +125,38 @@ final class LocationTracker {
 
     /// Watches exactly these places (iOS allows 20 per app; the caller sends the next few).
     func watch(_ places: [Place]) async {
-        let monitor = await ensureMonitor()
-        let wanted = Dictionary(places.map { ($0.rowID, $0) }, uniquingKeysWith: { first, _ in first })
-        for id in watched where wanted[id] == nil {
-            await monitor.remove(id)
+        await serially { [self] in
+            let monitor = await ensureMonitor()
+            let wanted = Dictionary(places.map { ($0.rowID, $0) }, uniquingKeysWith: { first, _ in first })
+            for id in watched where wanted[id] == nil {
+                await monitor.remove(id)
+            }
+            for (id, place) in wanted where !watched.contains(id) {
+                let condition = CLMonitor.CircularGeographicCondition(
+                    center: CLLocationCoordinate2D(latitude: place.latitude, longitude: place.longitude), radius: place.radius)
+                await monitor.add(condition, identifier: id, assuming: .unsatisfied)
+            }
+            watched = Set(wanted.keys)
         }
-        for (id, place) in wanted where !watched.contains(id) {
-            let condition = CLMonitor.CircularGeographicCondition(
-                center: CLLocationCoordinate2D(latitude: place.latitude, longitude: place.longitude), radius: place.radius)
-            await monitor.add(condition, identifier: id, assuming: .unsatisfied)
-        }
-        watched = Set(wanted.keys)
     }
 
     /// Stops watching everything, including places a previous launch left registered.
     func unwatchAll() async {
-        let monitor = await ensureMonitor()
-        for id in watched { await monitor.remove(id) }
-        watched = []
+        await serially { [self] in
+            let monitor = await ensureMonitor()
+            for id in watched { await monitor.remove(id) }
+            watched = []
+        }
+    }
+
+    private func serially(_ operation: @escaping @MainActor () async -> Void) async {
+        let previous = monitorTail
+        let task = Task { @MainActor in
+            await previous?.value
+            await operation()
+        }
+        monitorTail = task
+        await task.value
     }
 
     /// The monitor, created once. Its conditions outlive the app, so start from what it holds.

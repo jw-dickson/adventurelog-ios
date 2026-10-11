@@ -227,3 +227,40 @@ Append under "Results":
 3. Leave the app in the background overnight, then open Settings › General › Background App Refresh and confirm AdventureLog is on. The next day's reminders should arrive without opening the app.
 
 ### Results
+
+---
+
+## Handoff 5 · Stage 3b, tracking (2026-10-11)
+
+**Branch:** `stage-3b-tracking`. **Goal:** a real drive is recorded, its stops match the plan, and the phone stays quiet when it should.
+
+### What changed
+
+- **Tracking** on trip days after one opt-in per trip; see "How Stage 3 tracks" in [PLAN.md](PLAN.md). The Info.plist gains the two location usage descriptions and the `location` background mode.
+- **The Log tab** (Design/review-1, 07) without Photos and XMP, which are Stage 6. **The Map tab** draws the recorded route and unplanned stops.
+- **Kit tests** replay a made-up drive for 8 Mar of the seed trip and check the stops, each row of the log and the distance. UI tests seed the same drive offline (`AL_SEED_TRACK`) and check the Log tab, and that nothing records before the person agrees.
+
+### 1. Simulator replay
+
+Points carry the real time, so this needs a trip with a day today rather than a pinned clock.
+
+1. On the disposable test server, make a one-day trip for today with two places: "Car hire" at -42.85, 147.5 at the current time, and "Holiday park" (a stay) at -42.1247, 148.2861 about half an hour later.
+2. Run the app in the Simulator, sign in, open the trip and choose **Record trip days** on Today. Allow location "While Using".
+3. Run `scripts/replay-drive.sh` (about 30 minutes). It stays at the car hire, drives to a point that isn't in the plan, stays there, then drives to the holiday park and stays.
+4. Open the Log tab. Expect: the car hire done, an unplanned stop, the holiday park done or late, the distance driven around 110 km, and the route on the Map tab. Share **GPX track** to Files and check it opens.
+
+### 2. On a device (TestFlight)
+
+1. On a day with a trip, agree to tracking and lock the phone for a short drive with a stop of 10 minutes or more. The location indicator should show while it records.
+2. Open the Log: the drive and the stop should be there. A planned place you reached should show as done, with your arrival time.
+3. Turn the switch off on the Log tab. The location indicator should go away within a few seconds.
+4. The next morning after the trip's last day, open the app: nothing should be recording.
+5. Note how much battery the day used (Settings › Battery) for the next stage's tuning.
+
+### Send back
+
+- The Log and Map screenshots from step 1 (synthetic places only) and whether the stop detection matched.
+- Anything wrong with background recording on the device, and the battery figure.
+
+### Results
+

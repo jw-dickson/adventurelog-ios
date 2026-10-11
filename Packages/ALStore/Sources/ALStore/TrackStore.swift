@@ -80,9 +80,15 @@ public actor TrackStore {
             try? target.setResourceValues(values)
             return
         }
-        let handle = try FileHandle(forWritingTo: url)
+        let handle = try FileHandle(forUpdating: url)
         defer { try? handle.close() }
-        try handle.seekToEnd()
+        let end = try handle.seekToEnd()
+        if end > 0 {
+            // A write cut short leaves no newline; start on a fresh line so this record survives.
+            try handle.seek(toOffset: end - 1)
+            if try handle.read(upToCount: 1) != Data([0x0A]) { data.insert(0x0A, at: 0) }
+            try handle.seekToEnd()
+        }
         try handle.write(contentsOf: data)
     }
 

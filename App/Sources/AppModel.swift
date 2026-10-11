@@ -118,6 +118,10 @@ final class AppModel {
     private(set) var trackPoints: [String: [TrackPoint]] = [:]
     private(set) var placeEvents: [String: [PlaceEvent]] = [:]
     private var watchTask: Task<Void, Never>?
+    /// Geofences outlive the app; the first pass after launch clears any it isn't using.
+    private var geofencesChecked = false
+    /// Re-checks at midnight, so recording stops after the trip's last day even if the phone sits still.
+    private var midnightTask: Task<Void, Never>?
 
     /// The background refresh that keeps the reminder window rolling and the trip fresh.
     nonisolated static let refreshTaskID = "app.adventurelog.refresh"
@@ -144,6 +148,7 @@ final class AppModel {
         }
         tracker.onPoints = { [weak self] points in self?.recorded(points) }
         tracker.onEvent = { [weak self] event in self?.recorded(event) }
+        tracker.onTick = { [weak self] in self?.checkTrackingDay() }
     }
 
     /// Real storage, or throwaway storage when UI tests ask for a clean start.
@@ -280,7 +285,7 @@ final class AppModel {
             Task.detached { try? await revoke.client.deleteAPIKey(id: revoke.id) }
         }
         await reminderScheduler.removeAll()
-        await tracker.unwatchAll()
+        await tracker.unwatchAll() // runs after any geofence change already under way
         await drainWrites()
         try? await tracks.removeAll()
         try? await snapshots.removeAll()
@@ -297,6 +302,8 @@ final class AppModel {
         reminderTask = nil
         watchTask?.cancel()
         watchTask = nil
+        midnightTask?.cancel()
+        midnightTask = nil
         // Stop first: points already buffered belong to the old session and are dropped.
         trackedTripID = nil
         tracker.stop()
@@ -582,10 +589,12 @@ final class AppModel {
 
     // MARK: Tracking (this phone only)
 
-    /// The trip with a day today, preferring the one on screen.
-    var tripWithDayToday: String? {
+    /// The agreed-to trip with a day today, preferring the one on screen.
+    var trackableTripToday: String? {
         let listed = Set((ownedTrips + sharedTrips).map(\.id))
-        let candidates = trips.filter { listed.contains($0.key) && $0.value.plan.day(for: today) != nil }.map(\.key)
+        let candidates = trips.filter {
+            listed.contains($0.key) && trackingAllowed.contains($0.key) && $0.value.plan.day(for: today) != nil
+        }.map(\.key)
         if let selected = selectedTripID, candidates.contains(selected) { return selected }
         if let current = sections().current?.id, candidates.contains(current) { return current }
         return candidates.sorted().first
@@ -613,18 +622,22 @@ final class AppModel {
 
     /// Records on a trip day the person agreed to, and stops otherwise. Cheap to call often.
     func updateTracking() {
-        guard credentials != nil, let id = tripWithDayToday, trackingAllowed.contains(id),
+        guard credentials != nil, let id = trackableTripToday,
               let plan = trips[id]?.plan, tracker.authorization != .denied, tracker.authorization != .restricted
         else {
-            if trackedTripID != nil || tracker.isRunning {
+            if trackedTripID != nil || tracker.isRunning || !geofencesChecked {
+                geofencesChecked = true
                 tracker.flush()
                 trackedTripID = nil
                 tracker.stop()
-                watchTask?.cancel()
+                midnightTask?.cancel()
+                midnightTask = nil
                 watchTask = Task { [tracker] in await tracker.unwatchAll() }
             }
             return
         }
+        geofencesChecked = true
+        scheduleMidnightCheck()
         if trackedTripID != id {
             tracker.flush()
             trackedTripID = id
@@ -633,17 +646,34 @@ final class AppModel {
         let places = TripLog.placesToWatch(on: today, plan: plan, skipped: skipped[id] ?? [], now: now).map {
             LocationTracker.Place(rowID: $0.rowID, latitude: $0.coordinate.latitude, longitude: $0.coordinate.longitude, radius: $0.radius)
         }
-        watchTask?.cancel()
         watchTask = Task { [tracker] in await tracker.watch(places) }
     }
 
-    private func recorded(_ points: [TrackPoint]) {
-        guard credentials != nil, let id = trackedTripID, !points.isEmpty else { return }
-        // Past midnight after the trip's last day (or the trip went away): stop, and keep nothing new.
-        guard trips[id]?.plan.day(for: today) != nil else {
-            updateTracking()
-            return
+    /// Stops when the trip being recorded has no day today any more.
+    private func checkTrackingDay() {
+        guard let id = trackedTripID else { return }
+        if trips[id]?.plan.day(for: today) == nil || tracker.authorization == .denied { updateTracking() }
+    }
+
+    private func scheduleMidnightCheck() {
+        guard midnightTask == nil else { return }
+        let zone = TimeZone.autoupdatingCurrent
+        let midnight = CalendarDate(Date.now, in: zone).adding(days: 1).startOfDay(in: zone)
+        midnightTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(max(midnight.timeIntervalSinceNow, 1) + 5))
+            guard !Task.isCancelled, let self else { return }
+            self.midnightTask = nil
+            self.updateTracking()
         }
+    }
+
+    private func recorded(_ points: [TrackPoint]) {
+        guard credentials != nil, let id = trackedTripID, !points.isEmpty, let plan = trips[id]?.plan else { return }
+        // Only points on the trip's days are kept: a batch handed over just after midnight on the
+        // last day keeps its points from before midnight and drops the rest.
+        let points = points.filter { plan.day(for: CalendarDate($0.time, in: plan.timeZone)) != nil }
+        defer { checkTrackingDay() }
+        guard !points.isEmpty else { return }
         if trackPoints[id] != nil { trackPoints[id]?.append(contentsOf: points) }
         let store = tracks
         queueWrite { try? await store.append(points, tripID: id) }

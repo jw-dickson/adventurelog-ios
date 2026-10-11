@@ -27,6 +27,9 @@ struct TrackStoreTests {
         try handle.write(contentsOf: Data(#"{"time":1900000090,"lat"#.utf8))
         try handle.close()
         #expect(await store.points(tripID: "a").count == 3)
+        // The next write starts on a new line, so it isn't lost to the fragment.
+        try await store.append([TrackPoint(time: t0.addingTimeInterval(120), latitude: -42.85, longitude: 147.36)], tripID: "a")
+        #expect(await store.points(tripID: "a").count == 4)
 
         try await store.remove(tripID: "a")
         #expect(await store.points(tripID: "a").isEmpty)
