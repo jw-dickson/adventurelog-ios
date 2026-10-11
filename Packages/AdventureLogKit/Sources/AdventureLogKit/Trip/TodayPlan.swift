@@ -85,7 +85,7 @@ public struct TodayPlan: Sendable {
     }
 
     /// Notes and checklists are things to read or tick, not places to be.
-    static func isPlace(_ kind: ItemKind) -> Bool {
+    public static func isPlace(_ kind: ItemKind) -> Bool {
         kind != .note && kind != .checklist
     }
 

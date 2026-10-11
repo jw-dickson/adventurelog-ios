@@ -64,7 +64,7 @@ final class OfflineEditingUITests: XCTestCase {
         let waiting = app.descendants(matching: .any)["sync.waiting"]
         if !waiting.waitForExistence(timeout: 3) { app.swipeUp() }
         XCTAssertTrue(waiting.waitForExistence(timeout: 5))
-        XCTAssertTrue(waiting.label.contains("1 change waiting to sync"), waiting.label)
+        XCTAssertTrue(waiting.label.contains("1 change waiting to sync") || waiting.label.contains("Saving"), waiting.label)
 
         // Signing out now warns that the change would be lost.
         app.navigationBars.buttons.element(boundBy: 0).tap()

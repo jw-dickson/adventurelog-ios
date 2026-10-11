@@ -63,6 +63,9 @@ final class AppModel {
     /// Bumped each time an edit to a trip is settled, so a fetch that started before can't
     /// briefly show the trip without it.
     private var tripRevisions: [String: Int] = [:]
+    /// Numbers each trip fetch, and the newest one shown, so a slow response can't replace a newer one.
+    private var fetchCounter = 0
+    private var newestFetchShown: [String: Int] = [:]
     /// The client whose trip-list refresh is in flight; a new session's client can start its own.
     private var refreshingClient: AdventureLogClient?
     /// Writes to disk run one after another through this chain, so sign-out can wait for every
@@ -200,6 +203,7 @@ final class AppModel {
         trips = [:]
         savedTrips = [:]
         tripRevisions = [:]
+        newestFetchShown = [:]
         outbox = Outbox()
         skipped = [:]
         selectedTripID = nil
@@ -288,12 +292,17 @@ final class AppModel {
         }
         guard let client else { return }
         let revision = tripRevisions[id, default: 0]
+        fetchCounter += 1
+        let fetch = fetchCounter
         do {
             let detail = try await client.collection(id: id)
             guard isCurrent(client) else { return }
             lastError = nil
             // An edit settled while this was in flight; the refresh after sending fetches again.
             guard tripRevisions[id, default: 0] == revision else { return }
+            // A fetch that started later has already been shown.
+            guard fetch > newestFetchShown[id, default: 0] else { return }
+            newestFetchShown[id] = fetch
             let savedAt = Date.now
             savedTrips[id] = TripSnapshotStore.Snapshot(value: detail, savedAt: savedAt)
             show(id)
@@ -379,8 +388,18 @@ final class AppModel {
     /// Keeps this phone's version of a note that was also changed elsewhere.
     func keepMine(_ id: UUID) { changeOutbox { $0.keepMine(id) } }
 
-    /// Drops this phone's edit in favour of the server's version.
-    func discard(_ id: UUID) { changeOutbox { $0.discard(id) } }
+    /// Drops this phone's edit. For a conflicting note, shows the server's version straight away.
+    func discard(_ id: UUID) {
+        if let entry = outbox.entries.first(where: { $0.id == id }), case .conflict(let conflict) = entry.state,
+           case .editNote(let edit) = entry.edit, var saved = savedTrips[entry.tripID],
+           let note = saved.value.notes.firstIndex(where: { $0.id == edit.noteID }) {
+            saved.value.notes[note].content = conflict.serverContent
+            savedTrips[entry.tripID] = saved
+            let tripID = entry.tripID
+            Task { await loadTrip(id: tripID) }
+        }
+        changeOutbox { $0.discard(id) }
+    }
 
     func retry(_ id: UUID) { changeOutbox { $0.retry(id) } }
 
@@ -422,7 +441,8 @@ final class AppModel {
             isSyncing = true
             let outcome = await sender.send(entry.edit, tripID: entry.tripID)
             guard session == started, isCurrent(client) else { return }
-            outbox.record(outcome, for: entry.id, at: .now)
+            outbox.record(outcome, for: entry.id, sent: entry.edit, at: .now)
+            if outcome == .done { settle(entry.edit, in: entry.tripID) }
             tripRevisions[entry.tripID, default: 0] += 1
             touched.insert(entry.tripID)
             show(entry.tripID)
@@ -431,8 +451,8 @@ final class AppModel {
                 syncProblem = "AdventureLog didn't accept the API key (\(message)). Your changes are kept on this phone."
                 break
             }
-            if case .retry = outcome { break }
             syncProblem = nil
+            if case .retry = outcome { break }
         }
         guard session == started else { return }
         isSyncing = false
@@ -445,11 +465,24 @@ final class AppModel {
         }
     }
 
-    /// Wakes the sender when the first waiting edit's back-off ends.
+    /// Puts an edit the server now has into the saved copy, so the trip doesn't flick back while
+    /// (or if) the refresh after sending is still to come. The refresh replaces it with the server's own.
+    private func settle(_ edit: TripEdit, in tripID: String) {
+        guard var saved = savedTrips[tripID] else { return }
+        edit.apply(to: &saved.value)
+        savedTrips[tripID] = saved
+        let detail = saved.value
+        let savedAt = saved.savedAt
+        let store = snapshots
+        queueWrite { _ = try? await store.saveTrip(detail, at: savedAt) }
+    }
+
+    /// Wakes the sender when the first waiting edit's back-off ends. Not while the API key is
+    /// refused: that waits for the person, or for the app coming back to the front.
     private func scheduleRetry() {
         retryTask?.cancel()
         retryTask = nil
-        guard sendTask == nil, let at = outbox.nextAttempt else { return }
+        guard sendTask == nil, syncProblem == nil, let at = outbox.nextAttempt else { return }
         let started = session
         retryTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(max(1, at.timeIntervalSinceNow)))

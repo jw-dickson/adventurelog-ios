@@ -83,6 +83,10 @@ final class SignInUITests: XCTestCase {
         }
         let app = launch(["-ALServerURL", server, "-ALAPIKey", key])
         app.buttons["signin.connect"].tap()
+        // The app opens on Today; the trip list is on the Trip tab.
+        let tripTab = app.tabBars.buttons["Trip"]
+        XCTAssertTrue(tripTab.waitForExistence(timeout: 20))
+        tripTab.tap()
 
         // Rows combine their texts for VoiceOver, so match on part of the label.
         let trip = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", "Tasmania Road Trip 2027")).firstMatch

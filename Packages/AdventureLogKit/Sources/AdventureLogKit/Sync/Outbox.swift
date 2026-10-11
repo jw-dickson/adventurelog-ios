@@ -75,6 +75,11 @@ public struct Outbox: Codable, Sendable, Hashable {
     public mutating func enqueue(_ edit: TripEdit, tripID: String, at now: Date, id: UUID = UUID()) {
         switch edit {
         case .checkItem(let new):
+            // A failed edit to the same item is superseded; retrying it later would undo this one.
+            entries.removeAll { entry in
+                guard case .failed = entry.state, entry.tripID == tripID, case .checkItem(let old) = entry.edit else { return false }
+                return old.sameItem(as: new)
+            }
             if let index = entries.lastIndex(where: { entry in
                 guard entry.isWaiting, entry.tripID == tripID, case .checkItem(let old) = entry.edit else { return false }
                 return old.sameItem(as: new)
@@ -127,8 +132,30 @@ public struct Outbox: Codable, Sendable, Hashable {
     }
 
     /// Updates the outbox with the result of sending `id`.
-    public mutating func record(_ outcome: SyncOutcome, for id: UUID, at now: Date) {
+    ///
+    /// - Parameter sent: the edit as it was sent. If another edit was folded into the entry while
+    ///   it was being sent, the entry stays to send the newer edit, instead of being removed.
+    public mutating func record(_ outcome: SyncOutcome, for id: UUID, sent: TripEdit? = nil, at now: Date) {
         guard let index = entries.firstIndex(where: { $0.id == id }) else { return }
+        if let sent, entries[index].edit != sent {
+            switch outcome {
+            case .done, .dropped, .retry:
+                // The newer edit still has to go. For a note, the server now holds what was sent.
+                if case .editNote(let old) = sent, case .editNote(var newer) = entries[index].edit, outcome == .done {
+                    newer.baseContent = old.content
+                    entries[index].edit = .editNote(newer)
+                }
+                if case .retry = outcome {
+                    break
+                }
+                entries[index].attempts = 0
+                entries[index].notBefore = nil
+                entries[index].lastError = nil
+                return
+            case .conflict, .failed, .unauthorized:
+                break
+            }
+        }
         switch outcome {
         case .done:
             entries.remove(at: index)

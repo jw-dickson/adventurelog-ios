@@ -354,6 +354,34 @@ struct OutboxTests {
         #expect(outbox.next(at: now)?.id == ids[1])
     }
 
+    @Test func anEditFoldedInWhileSendingIsStillSent() {
+        var outbox = Outbox()
+        outbox.enqueue(tick(true), tripID: "t", at: now)
+        let sending = outbox.entries[0]
+        // Untick again while the tick is on its way.
+        outbox.enqueue(tick(false), tripID: "t", at: now)
+        outbox.record(.done, for: sending.id, sent: sending.edit, at: now)
+        #expect(outbox.entries.map(\.edit) == [tick(false)])
+        #expect(outbox.next(at: now)?.id == sending.id)
+
+        // A note saved twice: the second send starts from what the first one saved.
+        var notes = Outbox()
+        notes.enqueue(.editNote(.init(noteID: "n", noteName: "N", baseContent: "a", content: "b")), tripID: "t", at: now)
+        let first = notes.entries[0]
+        notes.enqueue(.editNote(.init(noteID: "n", noteName: "N", baseContent: "b", content: "c")), tripID: "t", at: now)
+        notes.record(.done, for: first.id, sent: first.edit, at: now)
+        #expect(notes.entries.first?.edit == .editNote(.init(noteID: "n", noteName: "N", baseContent: "b", content: "c")))
+    }
+
+    @Test func aNewTickSupersedesAFailedOne() {
+        var outbox = Outbox()
+        outbox.enqueue(tick(true), tripID: "t", at: now)
+        outbox.record(.failed("No."), for: outbox.entries[0].id, at: now)
+        outbox.enqueue(tick(false), tripID: "t", at: now)
+        #expect(outbox.entries.map(\.edit) == [tick(false)])
+        #expect(outbox.entries[0].isWaiting)
+    }
+
     @Test func retriesBackOff() {
         var outbox = Outbox()
         outbox.enqueue(tick(true), tripID: "t", at: now)

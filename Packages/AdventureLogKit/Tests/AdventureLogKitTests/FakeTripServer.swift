@@ -139,7 +139,7 @@ struct FakeDevice {
         let sender = EditSender(server: server)
         while let entry = outbox.next(at: now) {
             let outcome = await sender.send(entry.edit, tripID: tripID)
-            outbox.record(outcome, for: entry.id, at: now)
+            outbox.record(outcome, for: entry.id, sent: entry.edit, at: now)
             if case .retry = outcome { break }
             if case .unauthorized = outcome { break }
         }
