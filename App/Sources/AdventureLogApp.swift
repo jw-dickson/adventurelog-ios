@@ -3,11 +3,16 @@
 import ALDesign
 import ALStore
 import SwiftUI
+import UserNotifications
 
 @main
 struct AdventureLogApp: App {
     @State private var model = AppModel.forLaunch()
     private let colorScheme = LaunchOptions.current.colorScheme
+
+    init() {
+        UNUserNotificationCenter.current().delegate = NotificationPresenter.shared
+    }
 
     var body: some Scene {
         WindowGroup {
@@ -15,6 +20,9 @@ struct AdventureLogApp: App {
                 .environment(model)
                 .tint(ALColor.primary)
                 .preferredColorScheme(colorScheme)
+        }
+        .backgroundTask(.appRefresh(AppModel.refreshTaskID)) { [model] in
+            await model.backgroundRefresh()
         }
     }
 }
@@ -63,7 +71,11 @@ struct MainView: View {
             }
         }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active { model.becameActive() }
+            switch phase {
+            case .active: model.becameActive()
+            case .background: AppModel.scheduleBackgroundRefresh()
+            default: break
+            }
         }
         .alert("Couldn't sign out", isPresented: $model.showingSignOutError) {
             Button("OK", role: .cancel) {}

@@ -184,3 +184,26 @@ Append under "Results":
 4. Provider sign-in can only be tried against a server with a provider configured. Note what happens at the end of the flow: whether the sheet closes by itself and the app signs in.
 
 ### Results
+
+---
+
+## Handoff 4 · Stage 3a, reminders (2026-10-11)
+
+**Branch:** `stage-3a-reminders`. **Goal:** reminders fire on a real phone at the right local times.
+
+### What changed
+
+- **Leave-by and heads-up notifications** are worked out from the plan on the phone; see "How Stage 3 reminds" in [PLAN.md](PLAN.md).
+- **Turning them on:** Today offers them once, and the account menu has a Reminders screen.
+- **Background refresh** (`app.adventurelog.refresh`) keeps the 48-hour window rolling.
+- **Kit tests** replay 8 Mar of the seed trip in 15-minute steps. Each of the day's six reminders fires once, at its Tasmanian time.
+
+### Check on a device (TestFlight)
+
+1. Turn reminders on. In AdventureLog, add a timed place today, an hour from now, after another place with a position. Pull to refresh.
+   - A heads-up should arrive 15 minutes before it starts.
+   - A leave-by should arrive at the time in its own text ("Leave by …"). That time comes from `ReminderPlanner` (straight-line estimate plus a buffer), so it can be a few minutes earlier than the leave-by on Today, which uses Apple Maps' drive time and no buffer.
+2. Change the phone's time zone in Settings. The pending reminders should still fire at the same moments.
+3. Leave the app in the background overnight, then open Settings › General › Background App Refresh and confirm AdventureLog is on. The next day's reminders should arrive without opening the app.
+
+### Results

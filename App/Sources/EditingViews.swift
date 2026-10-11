@@ -15,6 +15,7 @@ import UIKit
 struct AccountMenu: View {
     @Environment(AppModel.self) private var model
     @State private var showingTokens = false
+    @State private var showingReminders = false
     @State private var confirmingSignOut = false
 
     var body: some View {
@@ -23,6 +24,7 @@ struct AccountMenu: View {
                 Text(credentials.displayName ?? credentials.username ?? "Signed in")
                 Text(credentials.serverURL.host() ?? credentials.serverURL.absoluteString)
             }
+            Button("Reminders", systemImage: "bell") { showingReminders = true }
             Button("Design tokens", systemImage: "paintpalette") { showingTokens = true }
             Button("Sign out", systemImage: "rectangle.portrait.and.arrow.right", role: .destructive) {
                 if model.outbox.entries.isEmpty {
@@ -37,6 +39,9 @@ struct AccountMenu: View {
         .accessibilityLabel("Account")
         .sheet(isPresented: $showingTokens) {
             NavigationStack { TokenGallery() }
+        }
+        .sheet(isPresented: $showingReminders) {
+            ReminderSettingsView()
         }
         .confirmationDialog(unsentTitle, isPresented: $confirmingSignOut, titleVisibility: .visible) {
             Button("Sign out and delete them", role: .destructive) {

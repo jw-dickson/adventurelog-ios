@@ -106,6 +106,8 @@ private struct TodayContent: View {
                         .foregroundStyle(ALColor.inkMuted)
                         .alCard()
                 }
+                ReminderOffer()
+                    .padding(.top, ALSpace.space2)
                 if let message = model.lastError {
                     OfflineBanner(message: message)
                 }
