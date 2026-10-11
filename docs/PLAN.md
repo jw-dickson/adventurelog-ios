@@ -65,7 +65,5 @@ Every outside dependency comes through a protocol the tests replace: the network
 ## CI
 
 - `ci.yml` — every PR and push, GitHub-hosted macOS, no secrets: tokens check, package tests, Simulator UI tests.
-- `simulator.yml` — pushes to `main` on the maintainer's self-hosted Mac: full suite against a live test server.
-- `testflight.yml` — manual, self-hosted, behind a protected environment.
+- Self-hosted work (nightly full Simulator suite against a live test server, and TestFlight uploads) lives in the maintainer's private repository, which checks out this one. Nothing here can trigger code on the maintainer's machine.
 
-Self-hosted jobs never run on pull requests and skip themselves outside the maintainer's repository.
