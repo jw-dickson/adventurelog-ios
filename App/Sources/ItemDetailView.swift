@@ -6,7 +6,8 @@ import SwiftUI
 import UIKit
 
 /// One item (Design/review-1, 04): photo, title and time, Navigate, the facts with a
-/// tap-to-copy booking reference, notes and checklist items. Read-only until Stage 2.
+/// tap-to-copy booking reference, notes and checklist items. Checklist items tick on tap and notes
+/// can be edited; both are saved on the phone at once and sent when the server can be reached.
 struct ItemDetailView: View {
     let route: ItemRoute
     @Environment(AppModel.self) private var model
@@ -14,7 +15,7 @@ struct ItemDetailView: View {
     var body: some View {
         Group {
             if let plan = model.trip(route.tripID)?.plan, let item = Self.find(route.itemID, in: plan) {
-                ItemDetailContent(summary: ItemSummary(item, day: route.day, tripZone: plan.timeZone), item: item)
+                ItemDetailContent(summary: ItemSummary(item, day: route.day, tripZone: plan.timeZone), item: item, tripID: route.tripID)
             } else {
                 ContentUnavailableView("Not in this trip any more", systemImage: "questionmark.circle")
             }
@@ -41,8 +42,11 @@ struct Fact: Identifiable, Hashable {
 private struct ItemDetailContent: View {
     let summary: ItemSummary
     let item: TripPlan.Item
+    let tripID: String
+    @Environment(AppModel.self) private var model
     @Environment(\.openURL) private var openURL
     @State private var copied = false
+    @State private var editingNote: Note?
 
     var body: some View {
         ScrollView {
@@ -52,7 +56,9 @@ private struct ItemDetailContent: View {
                     header
                     actions
                     facts
-                    if let notes = summary.notes {
+                    if case .note(let note) = item {
+                        noteSection(note)
+                    } else if let notes = summary.notes {
                         Overline("Notes").padding(.top, ALSpace.space2)
                         Text(Self.markdown(notes))
                             .font(ALFont.body)
@@ -63,22 +69,32 @@ private struct ItemDetailContent: View {
                             .textSelection(.enabled)
                             .accessibilityIdentifier("item.notes")
                     }
-                    if !summary.checklist.isEmpty {
+                    if case .checklist(let list) = item, !list.items.isEmpty {
                         Overline("Checklist").padding(.top, ALSpace.space2)
                         ALGroup {
-                            ForEach(summary.checklist) { entry in
-                                Label {
-                                    Text(entry.name)
-                                        .foregroundStyle(entry.isChecked ? ALColor.inkMuted : ALColor.ink)
-                                        .strikethrough(entry.isChecked)
-                                } icon: {
-                                    Image(systemName: entry.isChecked ? "checkmark.circle.fill" : "circle")
-                                        .foregroundStyle(entry.isChecked ? ALColor.success : ALColor.inkMuted)
+                            ForEach(list.items) { entry in
+                                Button {
+                                    model.setChecked(!entry.isChecked, itemID: entry.id, in: list, tripID: tripID)
+                                } label: {
+                                    Label {
+                                        Text(entry.name)
+                                            .foregroundStyle(entry.isChecked ? ALColor.inkMuted : ALColor.ink)
+                                            .strikethrough(entry.isChecked)
+                                            .multilineTextAlignment(.leading)
+                                    } icon: {
+                                        Image(systemName: entry.isChecked ? "checkmark.circle.fill" : "circle")
+                                            .foregroundStyle(entry.isChecked ? ALColor.success : ALColor.inkMuted)
+                                    }
+                                    .font(ALFont.body)
+                                    .padding(ALSpace.space3)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .contentShape(Rectangle())
                                 }
-                                .font(ALFont.body)
-                                .padding(ALSpace.space3)
-                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .buttonStyle(.plain)
+                                .sensoryFeedback(.selection, trigger: entry.isChecked)
                                 .accessibilityValue(entry.isChecked ? "Done" : "Not done")
+                                .accessibilityHint(entry.isChecked ? "Unticks it" : "Ticks it")
+                                .accessibilityIdentifier("checklist.item.\(entry.name)")
                             }
                         }
                     }
@@ -102,6 +118,43 @@ private struct ItemDetailContent: View {
             }
         }
         .accessibilityIdentifier("item.detail")
+        .toolbar {
+            if case .note(let note) = item {
+                ToolbarItem(placement: .primaryAction) {
+                    Button("Edit") { editingNote = note }
+                        .accessibilityIdentifier("note.edit")
+                }
+            }
+        }
+        .sheet(item: $editingNote) { note in
+            NoteEditor(note: note, tripID: tripID)
+        }
+    }
+
+    /// A note's text, always shown for notes so an empty one can be filled in.
+    @ViewBuilder private func noteSection(_ note: Note) -> some View {
+        Overline("Note").padding(.top, ALSpace.space2)
+        Button {
+            editingNote = note
+        } label: {
+            Group {
+                if let text = note.content?.nilIfBlank {
+                    Text(Self.markdown(text))
+                        .foregroundStyle(ALColor.ink)
+                        .tint(ALColor.primaryText)
+                } else {
+                    Text("Add to this note…")
+                        .foregroundStyle(ALColor.inkMuted)
+                }
+            }
+            .font(ALFont.body)
+            .multilineTextAlignment(.leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .alCard()
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint("Edits the note")
+        .accessibilityIdentifier("item.notes")
     }
 
     private var header: some View {
@@ -124,11 +177,17 @@ private struct ItemDetailContent: View {
                     .font(ALFont.subheadline)
                     .foregroundStyle(ALColor.inkMuted)
             }
+            if model.hasWaitingEdit(forItem: summary.id, tripID: tripID) {
+                Label("Saved on this phone, waiting to sync", systemImage: "arrow.triangle.2.circlepath")
+                    .font(ALFont.footnote)
+                    .foregroundStyle(ALColor.inkMuted)
+                    .accessibilityIdentifier("item.waiting")
+            }
         }
     }
 
     @ViewBuilder private var actions: some View {
-        let directions = Self.directionsURL(for: summary)
+        let directions = summary.directionsURL
         if directions != nil || summary.link != nil {
             HStack(spacing: ALSpace.space2) {
                 if let directions {
@@ -238,7 +297,7 @@ private struct ItemDetailContent: View {
     }
 
     /// Apple Maps directions to the item's coordinate, or its address.
-    static func directionsURL(for summary: ItemSummary) -> URL? {
+    nonisolated static func directionsURL(for summary: ItemSummary) -> URL? {
         var components = URLComponents(string: "https://maps.apple.com/")
         if let point = summary.kind == .transportation ? (summary.coordinate ?? summary.destination) : summary.coordinate {
             components?.queryItems = [
@@ -282,6 +341,11 @@ private struct Hero: View {
             }
         }
     }
+}
+
+extension ItemSummary {
+    /// Apple Maps directions to the item, when it has a place.
+    var directionsURL: URL? { ItemDetailContent.directionsURL(for: self) }
 }
 
 extension String {

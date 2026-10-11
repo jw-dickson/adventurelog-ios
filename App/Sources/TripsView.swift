@@ -10,11 +10,9 @@ struct TripsView: View {
     @Environment(AppModel.self) private var model
     @State private var path = NavigationPath()
     @State private var query = ""
-    @State private var showingTokens = false
     @State private var openedCurrentTrip = false
 
     var body: some View {
-        @Bindable var model = model
         NavigationStack(path: $path) {
             let sections = model.sections(matching: query)
             ScrollView {
@@ -64,15 +62,7 @@ struct TripsView: View {
                 TripView(tripID: id)
             }
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) { accountMenu }
-            }
-            .sheet(isPresented: $showingTokens) {
-                NavigationStack { TokenGallery() }
-            }
-            .alert("Couldn't sign out", isPresented: $model.showingSignOutError) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text(model.signOutError ?? "")
+                ToolbarItem(placement: .topBarTrailing) { AccountMenu() }
             }
             .onChange(of: model.selectedTripID, initial: true) { _, id in
                 // Open the trip that is happening now, once, when the list first knows about it.
@@ -83,21 +73,6 @@ struct TripsView: View {
         }
     }
 
-    private var accountMenu: some View {
-        Menu {
-            if let credentials = model.credentials {
-                Text(credentials.displayName ?? credentials.username ?? "Signed in")
-                Text(credentials.serverURL.host() ?? credentials.serverURL.absoluteString)
-            }
-            Button("Design tokens", systemImage: "paintpalette") { showingTokens = true }
-            Button("Sign out", systemImage: "rectangle.portrait.and.arrow.right", role: .destructive) {
-                Task { await model.signOut() }
-            }
-        } label: {
-            Image(systemName: "person.crop.circle")
-        }
-        .accessibilityLabel("Account")
-    }
 }
 
 /// A plain line saying the server could not be reached; the saved copy stays on screen.

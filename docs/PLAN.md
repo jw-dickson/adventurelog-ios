@@ -15,6 +15,19 @@ The app is built in stages. Each ends in something that runs in the Simulator an
 | **Design review 3, freeze** | Full-app review | Fixes only after this point |
 | **6 · Photo export** *(optional module)* | Per-day GPX and XMP keywords for Lightroom Classic | Round-trip on a sample catalogue |
 
+## How Stage 2 syncs
+
+Edits are kept on the phone first and sent when the server can be reached: a ticked checklist item, a note's new text, a row moved to another position or day. Skipping something on Today stays on the phone.
+
+- **The saved copy is always the server's.** Unsent edits live in an outbox next to it (`ALStore/DeviceStateStore`), and what the app shows is the saved copy with the outbox replayed on top. A refresh can't overwrite an unsent edit.
+- **Edits are intents, replayed when sent.** Each edit is re-applied to the server's current copy just before it is sent (`AdventureLogKit/Sync/EditSender`), so two phones don't undo each other:
+  - A tick fetches the checklist, changes that one item and saves the whole list. AdventureLog replaces every item on each save and gives each a new id, so items are found by name and position, not id. Items added elsewhere in the meantime survive.
+  - A move fetches the trip's rows, puts the row at its place among the rows the server has now, and sends only the rows whose order or day changed.
+  - A note edit remembers the text it started from. If the server's text is still that, it is saved. If someone else changed it, the person chooses which version to keep.
+- **In order, with retry.** Edits go one at a time, in the order they were made. A send that fails because the server can't be reached waits 5 s, then 10, 20… up to 5 minutes. It goes again as soon as the network comes back, the app comes to the front, or the person pulls to refresh. An edit whose item was deleted elsewhere is dropped with a notice; if it was note text, the text can be copied. The server refusing an edit is listed for a retry or discard.
+- **Shared trips.** Every PATCH carries the trip's `collection`, which AdventureLog requires from collaborators. Collaborators can tick, edit notes and reorder like the owner. Changing the trip itself (name, dates, sharing) stays with the owner and isn't in the app.
+- **Converging.** After sending, the app fetches the trip again. It also refreshes the open trip every two minutes while it's on screen, and when the app comes to the front, so a second phone's changes show up.
+
 ## Testing without a device
 
 Every outside dependency comes through a protocol the tests replace: the network (a stub server and real fixtures), the clock (`-ALNow`), Core Location (recorded GPX replayed in tests and with `simctl location`), and push (`simctl push` payloads). Physical-device checks (background wake-ups, battery, cellular push) happen on TestFlight builds from design review 2 onward.
