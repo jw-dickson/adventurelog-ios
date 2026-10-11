@@ -76,7 +76,7 @@ struct TripEditTests {
             ChecklistItem(id: "b", name: "Snacks", isChecked: false, checklist: "l"),
             ChecklistItem(id: "c", name: "Water", isChecked: false, checklist: "l"),
         ]
-        let list = Checklist(id: "l", user: nil, name: "Day pack", date: nil, isPublic: nil, collection: nil, items: items, createdAt: nil, updatedAt: nil)
+        let list = Checklist(id: "l", user: nil, name: "Day pack", date: nil, isPublic: nil, collection: nil, items: DefaultEmpty(wrappedValue: items), createdAt: nil, updatedAt: nil)
         let edit = TripEdit.CheckItem(checklist: list, itemID: "c", isChecked: true)
         #expect(edit?.occurrence == 1)
         let renamed = items.map { ChecklistItem(id: $0.id + "2", name: $0.name, isChecked: $0.isChecked, checklist: "l") }
