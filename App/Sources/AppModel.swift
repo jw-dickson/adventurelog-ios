@@ -126,6 +126,9 @@ final class AppModel {
     /// "Connected", or why not; nil when no companion is set.
     private(set) var companionStatus: String?
     private var startToken: Data?
+    /// Activity push tokens the companion hasn't accepted yet (e.g. one that came before the phone
+    /// was registered), by trip and item; sent again after each registration.
+    private var pendingActivityTokens: [String: (token: Data, tripID: String, rowID: String)] = [:]
     /// On unless the person turns them off in Reminders; iOS has its own switch too.
     var liveActivitiesEnabled: Bool {
         didSet {
@@ -322,6 +325,7 @@ final class AppModel {
         let revoke = credentials?.apiKeyID.flatMap { id in client.map { (client: $0, id: id) } }
         let companion = registeredCompanion ?? self.companion
         registeredCompanion = nil
+        pendingActivityTokens = [:]
         resetSession()
         client = nil
         lastError = nil
@@ -669,6 +673,7 @@ final class AppModel {
             }
             registeredCompanion = companion
             companionStatus = "Connected"
+            await sendPendingActivityTokens()
         } catch {
             guard session == started else { return }
             companionStatus = Self.describe(error)
@@ -690,7 +695,22 @@ final class AppModel {
     }
 
     private func receivedActivityToken(_ token: Data, tripID: String, rowID: String) async {
-        try? await companion?.setActivityToken(token, tripID: tripID, rowID: rowID)
+        pendingActivityTokens[tripID + "/" + rowID] = (token, tripID, rowID)
+        await sendPendingActivityTokens()
+    }
+
+    /// Hands the companion every token it hasn't accepted yet; a failure keeps it for next time.
+    private func sendPendingActivityTokens() async {
+        guard let companion else { return }
+        for (key, pending) in pendingActivityTokens {
+            do {
+                try await companion.setActivityToken(pending.token, tripID: pending.tripID, rowID: pending.rowID)
+                // Only if a newer token for the same activity didn't arrive meanwhile.
+                if pendingActivityTokens[key]?.token == pending.token { pendingActivityTokens[key] = nil }
+            } catch {
+                continue
+            }
+        }
     }
 
     /// Schedules the next reminders across every loaded trip, soonest first, within iOS's limit.
