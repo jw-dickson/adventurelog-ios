@@ -8,8 +8,9 @@ A small self-hosted service that sends the AdventureLog iOS app its Live Activit
 - **Ends** it at departure, or when the item is skipped, moved or deleted.
 
 It decides what to show with the same rules as the app (`companion/planner.py`, a port of
-`LiveActivityPlanner`; both are tested against the same synthetic trip). It keeps no trip data: it
-reads the trips from AdventureLog on every pass.
+`LiveActivityPlanner`; both are tested against the same synthetic trip). It reads the trips from
+AdventureLog on every pass and keeps no trip details; its database holds each phone's API key and
+push tokens, and for each Live Activity the trip and item ids and the last state it sent.
 
 ## How the phone talks to it
 

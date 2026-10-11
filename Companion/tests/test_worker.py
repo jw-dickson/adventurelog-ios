@@ -23,17 +23,17 @@ def at(text: str) -> datetime:
     return datetime.fromisoformat(text.replace("Z", "+00:00")).astimezone(timezone.utc)
 
 
-def fake_adventurelog() -> AdventureLog:
+def fake_adventurelog(keys: frozenset[str] = frozenset({KEY}), extra: list[dict] = ()) -> AdventureLog:
     trip = json.loads((RESPONSES / "collections__detail.json").read_text())
 
     def handler(request: httpx.Request) -> httpx.Response:
-        if request.headers.get("X-API-Key") != KEY:
+        if request.headers.get("X-API-Key") not in keys:
             return httpx.Response(401, json={"detail": "Invalid API key."})
         path = request.url.path
         if path == "/auth/user-metadata/":
             return httpx.Response(200, json={"uuid": "user-alex", "username": "alex"})
         if path == "/api/collections/all/":
-            return httpx.Response(200, json=[{"id": trip["id"], "start_date": trip["start_date"], "end_date": trip["end_date"]}])
+            return httpx.Response(200, json=[*extra, {"id": trip["id"], "start_date": trip["start_date"], "end_date": trip["end_date"]}])
         if path == "/api/collections/shared/":
             return httpx.Response(200, json=[])
         if path == f"/api/collections/{trip['id']}/":
@@ -44,9 +44,10 @@ def fake_adventurelog() -> AdventureLog:
 
 
 class FakeAPNs:
-    def __init__(self, gone: set[str] = frozenset()):
+    def __init__(self, gone: set[str] = frozenset(), failing: set[str] = frozenset()):
         self.sent: list[tuple[str, dict, dict]] = []
         self.gone = gone
+        self.failing = failing
         key = ec.generate_private_key(ec.SECP256R1()).private_bytes(
             serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()).decode()
         self.client = APNs(APNsConfig("KEYID12345", "TEAMID1234", key, "app.adventurelog.ios.dev"),
@@ -56,6 +57,8 @@ class FakeAPNs:
         token = request.url.path.rsplit("/", 1)[-1]
         if token in self.gone:
             return httpx.Response(410, json={"reason": "Unregistered"})
+        if token in self.failing:
+            return httpx.Response(500, json={"reason": "InternalServerError"})
         self.sent.append((token, dict(request.headers), json.loads(request.content)))
         return httpx.Response(200)
 
@@ -117,3 +120,19 @@ def test_nothing_is_sent_outside_a_window_or_without_tokens(tmp_path):
     store.register("user-alex", KEY, "sandbox", "start-token")
     run(tick(store, fake_adventurelog(), apns.client, at("2027-03-06T22:00:00Z")))  # between windows
     assert apns.sent == []
+
+
+def test_one_phone_failing_does_not_stop_the_others(tmp_path):
+    store = Store(tmp_path / "c.sqlite")
+    store.register("user-alex", "al_first_key", "sandbox", "broken-token")
+    store.register("user-alex", KEY, "sandbox", "start-token")
+    apns = FakeAPNs(failing={"broken-token"})
+    adventurelog = fake_adventurelog(keys=frozenset({"al_first_key", KEY}))
+    run(tick(store, adventurelog, apns.client, at("2027-03-06T18:03:00Z")))
+    assert [token for token, _, _ in apns.sent] == ["start-token"]
+
+
+def test_a_trip_with_a_malformed_date_is_skipped(tmp_path):
+    bad = [{"id": "bad", "start_date": "someday", "end_date": "2027-03-10"}, {"id": "none", "start_date": None, "end_date": None}]
+    trips = run(fake_adventurelog(extra=bad).current_trips(KEY, at("2027-03-06T18:03:00Z").date()))
+    assert len(trips) == 1 and trips[0]["id"] != "bad"

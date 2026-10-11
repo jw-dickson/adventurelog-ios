@@ -29,7 +29,10 @@ class AdventureLog:
             raise AdventureLogError("AdventureLog refused the API key.")
         if response.status_code >= 400:
             raise AdventureLogError(f"AdventureLog answered {response.status_code} for {path}.")
-        return response.json()
+        try:
+            return response.json()
+        except ValueError as error:
+            raise AdventureLogError(f"AdventureLog sent something other than JSON for {path}.") from error
 
     async def user(self, api_key: str) -> dict:
         """Who the key belongs to; also how a registration is checked."""
@@ -44,6 +47,11 @@ class AdventureLog:
             start, end = summary.get("start_date"), summary.get("end_date")
             if not start or not end:
                 continue
-            if date.fromisoformat(start) - timedelta(days=1) <= today <= date.fromisoformat(end) + timedelta(days=1):
+            try:
+                # A date, or a datetime whose first ten characters are its date.
+                first, last = date.fromisoformat(str(start)[:10]), date.fromisoformat(str(end)[:10])
+            except ValueError:
+                continue  # one malformed trip mustn't stop the rest
+            if first - timedelta(days=1) <= today <= last + timedelta(days=1):
                 trips.append(await self._get(f"api/collections/{summary['id']}/", api_key))
         return trips

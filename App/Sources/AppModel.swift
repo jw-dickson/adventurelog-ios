@@ -120,6 +120,9 @@ final class AppModel {
         }
     }
     private var companionTask: Task<Void, Never>?
+    /// The companion this phone last registered with, so a changed or cleared address (or
+    /// sign-out) unregisters it rather than leaving it with the key.
+    private var registeredCompanion: CompanionClient?
     /// "Connected", or why not; nil when no companion is set.
     private(set) var companionStatus: String?
     private var startToken: Data?
@@ -317,7 +320,8 @@ final class AppModel {
         // A key the app made at sign-in is revoked; one the person pasted stays theirs. The
         // companion is told first, while the key still works.
         let revoke = credentials?.apiKeyID.flatMap { id in client.map { (client: $0, id: id) } }
-        let companion = self.companion
+        let companion = registeredCompanion ?? self.companion
+        registeredCompanion = nil
         resetSession()
         client = nil
         lastError = nil
@@ -624,9 +628,11 @@ final class AppModel {
 
     // MARK: Companion service
 
-    /// The companion, when an address is set and someone is signed in.
+    /// The companion, when an HTTPS address is set and someone is signed in. Every request carries
+    /// the AdventureLog API key, so plain http is never used.
     var companion: CompanionClient? {
-        guard let credentials, let url = AdventureLogClient.normalizedServerURL(companionAddress) else { return nil }
+        guard let credentials, let url = AdventureLogClient.normalizedServerURL(companionAddress),
+              url.scheme?.lowercased() == "https" else { return nil }
         return CompanionClient(baseURL: url, apiKey: credentials.apiKey)
     }
 
@@ -641,14 +647,22 @@ final class AppModel {
 
     /// Registers this phone (again) with the companion, with the push-to-start token once iOS gives one.
     func connectCompanion() async {
+        let companion = self.companion
+        // A different (or no) address: the old companion stops pushing and drops the key.
+        if let previous = registeredCompanion, previous.baseURL != companion?.baseURL {
+            registeredCompanion = nil
+            try? await previous.unregister()
+        }
         guard let companion else {
-            companionStatus = nil
+            let address = companionAddress.trimmingCharacters(in: .whitespacesAndNewlines)
+            companionStatus = address.isEmpty || credentials == nil ? nil : "Use an https:// address."
             return
         }
         let started = session
         do {
             try await companion.register(environment: Self.pushEnvironment, startToken: startToken)
             guard session == started else { return }
+            registeredCompanion = companion
             companionStatus = "Connected"
         } catch {
             guard session == started else { return }

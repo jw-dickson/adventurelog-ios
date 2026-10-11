@@ -15,7 +15,7 @@ from zoneinfo import ZoneInfo
 from . import planner
 from .adventurelog import AdventureLog, AdventureLogError
 from .apns import APNs, TokenGone
-from .store import Store
+from .store import Device, Store
 
 log = logging.getLogger("companion")
 
@@ -36,41 +36,50 @@ def start_alert(plan: planner.Plan) -> dict:
 async def tick(store: Store, adventurelog: AdventureLog, apns: APNs | None, now: datetime | None = None) -> None:
     now = now or datetime.now(timezone.utc)
     for device in store.devices():
+        # One phone's failure (AdventureLog down for that key, APNs refusing a push) is logged
+        # and the pass goes on to the next phone.
         try:
-            trips = await adventurelog.current_trips(device.api_key, now.date())
-        except AdventureLogError as error:
-            log.warning("device %s: %s", device.id, error)
-            continue
-        plans = [p for trip in trips if (p := planner.current(trip, now))]
-        plan = min(plans, key=lambda p: p.end) if plans else None
+            await _tick_device(device, store, adventurelog, apns, now)
+        except Exception:
+            log.exception("device %s", device.id)
 
-        # End whatever no longer matches the plan.
-        for activity in store.open_activities(device.id):
-            if plan is not None and activity.key == plan.key:
-                continue
-            if activity.push_token and apns:
-                try:
-                    await apns.end(activity.push_token, device.environment, activity.last_state or {}, int(now.timestamp()))
-                except TokenGone:
-                    pass
-            store.mark_ended(activity)
 
-        if plan is None:
+async def _tick_device(device: Device, store: Store, adventurelog: AdventureLog, apns: APNs | None, now: datetime) -> None:
+    try:
+        trips = await adventurelog.current_trips(device.api_key, now.date())
+    except AdventureLogError as error:
+        log.warning("device %s: %s", device.id, error)
+        return
+    plans = [p for trip in trips if (p := planner.current(trip, now))]
+    plan = min(plans, key=lambda p: p.end) if plans else None
+
+    # End whatever no longer matches the plan.
+    for activity in store.open_activities(device.id):
+        if plan is not None and activity.key == plan.key:
             continue
-        activity = store.activity(device.id, *plan.key)
-        if activity and activity.push_token and not activity.ended:
-            if activity.last_state != plan.state and apns:
-                try:
-                    await apns.update(activity.push_token, device.environment, plan.state, int(plan.end.timestamp()))
-                    store.save_state(activity, plan.state)
-                except TokenGone:
-                    store.mark_ended(activity)
-        elif not (activity and activity.start_sent) and device.start_token and apns:
+        if activity.push_token and apns:
             try:
-                await apns.start(device.start_token, device.environment, plan.info, plan.state, start_alert(plan))
-                store.mark_start_sent(device.id, *plan.key)
-                started = store.activity(device.id, *plan.key)
-                if started:
-                    store.save_state(started, plan.state)
+                await apns.end(activity.push_token, device.environment, activity.last_state or {}, int(now.timestamp()))
             except TokenGone:
-                store.forget_start_token(device.id)
+                pass
+        store.mark_ended(activity)
+
+    if plan is None:
+        return
+    activity = store.activity(device.id, *plan.key)
+    if activity and activity.push_token and not activity.ended:
+        if activity.last_state != plan.state and apns:
+            try:
+                await apns.update(activity.push_token, device.environment, plan.state, int(plan.end.timestamp()))
+                store.save_state(activity, plan.state)
+            except TokenGone:
+                store.mark_ended(activity)
+    elif not (activity and activity.start_sent) and device.start_token and apns:
+        try:
+            await apns.start(device.start_token, device.environment, plan.info, plan.state, start_alert(plan))
+            store.mark_start_sent(device.id, *plan.key)
+            started = store.activity(device.id, *plan.key)
+            if started:
+                store.save_state(started, plan.state)
+        except TokenGone:
+            store.forget_start_token(device.id)

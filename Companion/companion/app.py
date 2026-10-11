@@ -82,15 +82,19 @@ def create_app(settings: Settings | None = None, adventurelog: AdventureLog | No
 
     async def user_for(x_api_key: str = Header(...)) -> str:
         """The AdventureLog user the key belongs to, checked at most every ten minutes."""
+        now = time.time()
+        # Drop expired entries so keys that stop being used don't pile up.
+        for key in [key for key, (_, checked) in verified.items() if now - checked >= 600]:
+            del verified[key]
         cached = verified.get(x_api_key)
-        if cached and time.time() - cached[1] < 600:
+        if cached:
             return cached[0]
         try:
             user = await adventurelog.user(x_api_key)
         except AdventureLogError as error:
             raise HTTPException(status_code=401, detail=str(error)) from error
         user_id = str(user.get("uuid") or user.get("id") or user.get("username"))
-        verified[x_api_key] = (user_id, time.time())
+        verified[x_api_key] = (user_id, now)
         return user_id
 
     def device_for(x_api_key: str = Header(...), _user: str = Depends(user_for)) -> Device:
