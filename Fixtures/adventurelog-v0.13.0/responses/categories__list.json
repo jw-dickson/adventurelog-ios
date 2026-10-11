@@ -1,0 +1,44 @@
+[
+  {
+    "id": "1dd9bd4f-cf83-473a-a2c0-9e7091b60000",
+    "name": "hiking",
+    "display_name": "Hiking",
+    "icon": "🥾",
+    "num_locations": 1
+  },
+  {
+    "id": "26733dd2-7743-44d5-bb6f-f2c1b1b7e95d",
+    "name": "museum",
+    "display_name": "Museum",
+    "icon": "🏛️",
+    "num_locations": 1
+  },
+  {
+    "id": "9fc86c0a-4c22-4d2e-a904-158e252c3efe",
+    "name": "activity",
+    "display_name": "Activity",
+    "icon": "🛶",
+    "num_locations": 1
+  },
+  {
+    "id": "d093a274-f2b4-4aaf-be83-b458e869c1dc",
+    "name": "general",
+    "display_name": "General",
+    "icon": "🌍",
+    "num_locations": 0
+  },
+  {
+    "id": "e2014ff8-8ebe-4cdb-85ed-3434a514e6d9",
+    "name": "tour",
+    "display_name": "Tour",
+    "icon": "🚤",
+    "num_locations": 1
+  },
+  {
+    "id": "ef1499ba-48ef-4e6f-97eb-a78ec761a72a",
+    "name": "viewpoint",
+    "display_name": "Viewpoint",
+    "icon": "🔭",
+    "num_locations": 1
+  }
+]

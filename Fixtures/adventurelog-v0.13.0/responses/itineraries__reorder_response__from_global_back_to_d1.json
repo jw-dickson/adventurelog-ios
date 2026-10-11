@@ -1,0 +1,22 @@
+{
+  "status": 200,
+  "body": [
+    {
+      "id": "96b0757e-149c-4fb5-a533-2f489ffef3a6",
+      "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+      "content_type": 19,
+      "object_id": "2416e745-e1ec-4cf7-9a91-c3ac45ebafb2",
+      "item": {
+        "id": "2416e745-e1ec-4cf7-9a91-c3ac45ebafb2",
+        "type": "note"
+      },
+      "date": "2027-03-07",
+      "is_global": false,
+      "order": 5,
+      "start_datetime": "2027-03-07",
+      "end_datetime": null,
+      "created_at": "2026-10-11T04:48:51.754829Z",
+      "object_name": "note"
+    }
+  ]
+}

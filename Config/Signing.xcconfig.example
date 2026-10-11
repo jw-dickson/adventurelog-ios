@@ -1,0 +1,7 @@
+// Copy to Config/Signing.xcconfig (gitignored) to build for a device or TestFlight.
+//
+// DEVELOPMENT_TEAM is your Apple Developer team id (App Store Connect → Membership).
+// AL_BUNDLE_ID must match the app record you created in App Store Connect.
+
+DEVELOPMENT_TEAM = ABCDE12345
+AL_BUNDLE_ID = com.example.adventurelog

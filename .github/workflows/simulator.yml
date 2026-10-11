@@ -1,0 +1,61 @@
+name: simulator
+
+# Private lane on the self-hosted Mac (the soap-sim runner, registered again for this repo).
+# Never triggered by pull requests: a public repo must not run strangers' code on a personal Mac.
+# Runs the full Simulator suite on the pinned Xcode, including the end-to-end test against the
+# local AdventureLog test server, and keeps the screenshots for design review.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: simulator
+  cancel-in-progress: false
+
+jobs:
+  simulator:
+    if: github.repository == 'jw-dickson/adventurelog-ios'
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 60
+    env:
+      # Required here: a test AdventureLog seeded with Fixtures/adventurelog-v0.13.0/seed.py.
+      # (The GitHub-hosted lane in ci.yml has no test server and lets that test skip.)
+      AL_TEST_SERVER: ${{ vars.AL_TEST_SERVER }}
+      AL_TEST_API_KEY: ${{ secrets.AL_TEST_API_KEY }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Preflight
+        run: |
+          set -e
+          xcodebuild -version
+          command -v xcodegen >/dev/null || { echo "::error::install XcodeGen on the runner (brew install xcodegen)"; exit 1; }
+          scripts/simulator.sh destination
+          # The live-server UI test skips without these, so this lane would pass without running it.
+          [ -n "$AL_TEST_SERVER" ] || { echo "::error::set the AL_TEST_SERVER repository variable (the seeded test server)"; exit 1; }
+          [ -n "$AL_TEST_API_KEY" ] || { echo "::error::set the AL_TEST_API_KEY repository secret"; exit 1; }
+
+      - name: Tokens in sync
+        run: python3 scripts/gen-tokens.py --check
+
+      - name: Package tests
+        run: make test-packages
+
+      - name: Simulator tests
+        run: |
+          xcodegen generate --quiet
+          TEST_RUNNER_AL_TEST_SERVER="$AL_TEST_SERVER" TEST_RUNNER_AL_TEST_API_KEY="$AL_TEST_API_KEY" \
+          xcodebuild test -project AdventureLog.xcodeproj -scheme AdventureLog \
+            -destination "$(scripts/simulator.sh destination)" -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+            -resultBundlePath "$RUNNER_TEMP/UITests.xcresult" CODE_SIGNING_ALLOWED=NO
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: simulator-xcresult
+          path: ${{ runner.temp }}/UITests.xcresult
+          retention-days: 14

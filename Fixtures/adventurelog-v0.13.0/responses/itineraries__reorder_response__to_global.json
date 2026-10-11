@@ -1,0 +1,56 @@
+{
+  "status": 200,
+  "body": [
+    {
+      "id": "4440fba2-49bf-4375-a24f-6a4052f9d47e",
+      "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+      "content_type": 19,
+      "object_id": "aaf74e7a-9462-4f96-a7b7-a9db3ed7069c",
+      "item": {
+        "id": "aaf74e7a-9462-4f96-a7b7-a9db3ed7069c",
+        "type": "note"
+      },
+      "date": null,
+      "is_global": true,
+      "order": 0,
+      "start_datetime": null,
+      "end_datetime": null,
+      "created_at": "2026-10-11T04:48:53.327830Z",
+      "object_name": "note"
+    },
+    {
+      "id": "d568ac8e-de64-44b8-bb5f-913471b28e6b",
+      "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+      "content_type": 16,
+      "object_id": "9c39d0c4-95bc-40cd-8bda-85c5afcfdc4d",
+      "item": {
+        "id": "9c39d0c4-95bc-40cd-8bda-85c5afcfdc4d",
+        "type": "checklist"
+      },
+      "date": null,
+      "is_global": true,
+      "order": 1,
+      "start_datetime": null,
+      "end_datetime": null,
+      "created_at": "2026-10-11T04:48:53.521891Z",
+      "object_name": "checklist"
+    },
+    {
+      "id": "96b0757e-149c-4fb5-a533-2f489ffef3a6",
+      "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+      "content_type": 19,
+      "object_id": "2416e745-e1ec-4cf7-9a91-c3ac45ebafb2",
+      "item": {
+        "id": "2416e745-e1ec-4cf7-9a91-c3ac45ebafb2",
+        "type": "note"
+      },
+      "date": null,
+      "is_global": true,
+      "order": 2,
+      "start_datetime": "2027-03-07",
+      "end_datetime": null,
+      "created_at": "2026-10-11T04:48:51.754829Z",
+      "object_name": "note"
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "method": "POST",
+  "path": "/api/itineraries/reorder/",
+  "body": {
+    "items": [
+      {
+        "id": "4440fba2-49bf-4375-a24f-6a4052f9d47e",
+        "is_global": true,
+        "date": null,
+        "order": 0
+      },
+      {
+        "id": "d568ac8e-de64-44b8-bb5f-913471b28e6b",
+        "is_global": true,
+        "date": null,
+        "order": 1
+      },
+      {
+        "id": "96b0757e-149c-4fb5-a533-2f489ffef3a6",
+        "is_global": true,
+        "date": null,
+        "order": 2
+      }
+    ]
+  }
+}

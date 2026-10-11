@@ -1,0 +1,7 @@
+{
+  "method": "PATCH",
+  "path": "/api/notes/2416e745-e1ec-4cf7-9a91-c3ac45ebafb2/",
+  "body": {
+    "content": "## Jet-lag plan\n- Stay up until 21:00\n- Coffee on the waterfront\n- Early night\n\nFerry: [harbour ferry](https://example.com/ferry)"
+  }
+}

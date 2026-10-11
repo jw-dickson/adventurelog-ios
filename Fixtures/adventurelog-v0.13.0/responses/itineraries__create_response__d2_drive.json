@@ -1,0 +1,20 @@
+{
+  "status": 201,
+  "body": {
+    "id": "a57d9224-b6d9-4152-940d-b06d318aa767",
+    "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+    "content_type": 20,
+    "object_id": "e5aabe2c-dd9e-4372-90b2-f05cd68fda03",
+    "item": {
+      "id": "e5aabe2c-dd9e-4372-90b2-f05cd68fda03",
+      "type": "transportation"
+    },
+    "date": "2027-03-08",
+    "is_global": false,
+    "order": 2,
+    "start_datetime": "2027-03-08T00:00:00Z",
+    "end_datetime": "2027-03-08T03:30:00Z",
+    "created_at": "2026-10-11T04:48:52.399223Z",
+    "object_name": "transportation"
+  }
+}

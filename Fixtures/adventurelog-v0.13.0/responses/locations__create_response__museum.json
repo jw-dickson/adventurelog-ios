@@ -1,0 +1,58 @@
+{
+  "status": 201,
+  "body": {
+    "id": "b61b4c66-3813-4ae7-b2c5-a81553f5720b",
+    "name": "Tasmanian Museum and Art Gallery",
+    "description": "Free entry. Don't miss the **natural history** galleries.",
+    "rating": null,
+    "tags": [
+      "art",
+      "indoor",
+      "free"
+    ],
+    "location": "Dunn Place, Hobart",
+    "is_public": false,
+    "collections": [
+      "4b2dbaf2-bdda-4b57-950f-386189c5d813"
+    ],
+    "created_at": "2026-10-11T04:48:46.003554Z",
+    "updated_at": "2026-10-11T04:48:46.019912Z",
+    "images": [],
+    "link": "https://example.com/museum",
+    "longitude": 147.3317,
+    "latitude": -42.8822,
+    "visits": [],
+    "is_visited": false,
+    "category": {
+      "id": "26733dd2-7743-44d5-bb6f-f2c1b1b7e95d",
+      "name": "museum",
+      "display_name": "Museum",
+      "icon": "🏛️",
+      "num_locations": 1
+    },
+    "attachments": [],
+    "user": {
+      "profile_pic": null,
+      "uuid": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+      "public_profile": true,
+      "username": "admin",
+      "first_name": "Alex",
+      "last_name": "Example",
+      "date_joined": "2026-10-11T01:01:09.939778Z",
+      "is_staff": true,
+      "disable_password": false,
+      "measurement_system": "metric",
+      "default_currency": "USD",
+      "map_style": "default",
+      "has_password": true,
+      "shared_collection_count": 0,
+      "pending_collection_invite_count": 0
+    },
+    "city": null,
+    "country": null,
+    "region": null,
+    "trails": [],
+    "price": null,
+    "price_currency": "USD"
+  }
+}

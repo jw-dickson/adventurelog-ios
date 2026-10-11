@@ -1,0 +1,238 @@
+{
+  "query": "hobart",
+  "total": 19,
+  "limit": 20,
+  "offset": 0,
+  "results": [
+    {
+      "type": "location",
+      "id": "78978dcd-a7bf-4d10-9aa8-6cb373ba8544",
+      "title": "Harbour kayak tour",
+      "subtitle": "Brooke Street Pier, Hobart · Activity",
+      "url": "/locations/78978dcd-a7bf-4d10-9aa8-6cb373ba8544",
+      "score": 0.0608,
+      "meta": {
+        "category_icon": "🛶",
+        "category_name": "Activity"
+      }
+    },
+    {
+      "type": "location",
+      "id": "b61b4c66-3813-4ae7-b2c5-a81553f5720b",
+      "title": "Tasmanian Museum and Art Gallery",
+      "subtitle": "Dunn Place, Hobart · Museum",
+      "url": "/locations/b61b4c66-3813-4ae7-b2c5-a81553f5720b",
+      "score": 0.0608,
+      "meta": {
+        "category_icon": "🏛️",
+        "category_name": "Museum"
+      }
+    },
+    {
+      "type": "collection",
+      "id": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+      "title": "Tasmania Road Trip 2027",
+      "subtitle": "Hobart → Freycinet → Cradle Mountain → Strahan, by car.\n\nPlanning doc: [shared notes](https://example.com/trip-plan)\n\nTimezone for most of the trip: Australia/Hobart (AEDT, UTC+11).",
+      "url": "/collections/4b2dbaf2-bdda-4b57-950f-386189c5d813",
+      "score": 0.0608,
+      "meta": {
+        "is_shared": false
+      }
+    },
+    {
+      "type": "transportation",
+      "id": "7df86ee7-33ff-45ee-8532-71869bd0ebea",
+      "title": "Car hire (Hobart → Hobart)",
+      "subtitle": "Tasmania Road Trip 2027",
+      "url": "/collections/4b2dbaf2-bdda-4b57-950f-386189c5d813",
+      "score": 0.0865,
+      "meta": {
+        "collection_id": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+        "collection_name": "Tasmania Road Trip 2027"
+      }
+    },
+    {
+      "type": "transportation",
+      "id": "e5aabe2c-dd9e-4372-90b2-f05cd68fda03",
+      "title": "Drive Hobart → Freycinet",
+      "subtitle": "Tasmania Road Trip 2027",
+      "url": "/collections/4b2dbaf2-bdda-4b57-950f-386189c5d813",
+      "score": 0.076,
+      "meta": {
+        "collection_id": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+        "collection_name": "Tasmania Road Trip 2027"
+      }
+    },
+    {
+      "type": "note",
+      "id": "2416e745-e1ec-4cf7-9a91-c3ac45ebafb2",
+      "title": "Hobart day tips",
+      "subtitle": "Tasmania Road Trip 2027",
+      "url": "/collections/4b2dbaf2-bdda-4b57-950f-386189c5d813",
+      "score": 0.0608,
+      "meta": {
+        "collection_id": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+        "collection_name": "Tasmania Road Trip 2027"
+      }
+    },
+    {
+      "type": "lodging",
+      "id": "8f00d25a-1b0a-4c17-a371-f010e2b4db13",
+      "title": "Harbourside Hotel",
+      "subtitle": "Tasmania Road Trip 2027",
+      "url": "/collections/4b2dbaf2-bdda-4b57-950f-386189c5d813",
+      "score": 0.0608,
+      "meta": {
+        "collection_id": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+        "collection_name": "Tasmania Road Trip 2027"
+      }
+    },
+    {
+      "type": "transportation",
+      "id": "7dc4a38c-f9cb-4563-a2aa-b42cdfa84469",
+      "title": "Example Air EX 1501 SYD → HBA",
+      "subtitle": "Tasmania Road Trip 2027",
+      "url": "/collections/4b2dbaf2-bdda-4b57-950f-386189c5d813",
+      "score": 0.0608,
+      "meta": {
+        "collection_id": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+        "collection_name": "Tasmania Road Trip 2027"
+      }
+    },
+    {
+      "type": "transportation",
+      "id": "2c2b725b-7b75-4cf2-96e7-0ff6753e898d",
+      "title": "Taxi: HBA airport → Harbourside Hotel",
+      "subtitle": "Tasmania Road Trip 2027",
+      "url": "/collections/4b2dbaf2-bdda-4b57-950f-386189c5d813",
+      "score": 0.0608,
+      "meta": {
+        "collection_id": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+        "collection_name": "Tasmania Road Trip 2027"
+      }
+    },
+    {
+      "type": "city",
+      "id": "AU-TAS-7790",
+      "title": "West Hobart",
+      "subtitle": "Tasmania, Australia",
+      "url": "/worldtravel/AU/AU-TAS",
+      "score": 0.45,
+      "meta": {
+        "is_visited": false
+      }
+    },
+    {
+      "type": "city",
+      "id": "AU-TAS-7265",
+      "title": "South Hobart",
+      "subtitle": "Tasmania, Australia",
+      "url": "/worldtravel/AU/AU-TAS",
+      "score": 0.45,
+      "meta": {
+        "is_visited": false
+      }
+    },
+    {
+      "type": "city",
+      "id": "AU-TAS-6632",
+      "title": "North Hobart",
+      "subtitle": "Tasmania, Australia",
+      "url": "/worldtravel/AU/AU-TAS",
+      "score": 0.45,
+      "meta": {
+        "is_visited": false
+      }
+    },
+    {
+      "type": "city",
+      "id": "AU-NSW-5623",
+      "title": "Hobartville",
+      "subtitle": "New South Wales, Australia",
+      "url": "/worldtravel/AU/AU-NSW",
+      "score": 0.45,
+      "meta": {
+        "is_visited": false
+      }
+    },
+    {
+      "type": "city",
+      "id": "AU-TAS-5622",
+      "title": "Hobart city centre",
+      "subtitle": "Tasmania, Australia",
+      "url": "/worldtravel/AU/AU-TAS",
+      "score": 0.45,
+      "meta": {
+        "is_visited": false
+      }
+    },
+    {
+      "type": "city",
+      "id": "US-IN-118497",
+      "title": "Hobart",
+      "subtitle": "Indiana, United States",
+      "url": "/worldtravel/US/US-IN",
+      "score": 0.45,
+      "meta": {
+        "is_visited": false
+      }
+    },
+    {
+      "type": "city",
+      "id": "AU-TAS-5621",
+      "title": "Hobart",
+      "subtitle": "Tasmania, Australia",
+      "url": "/worldtravel/AU/AU-TAS",
+      "score": 0.45,
+      "meta": {
+        "is_visited": false
+      }
+    },
+    {
+      "type": "city",
+      "id": "US-OK-118496",
+      "title": "Hobart",
+      "subtitle": "Oklahoma, United States",
+      "url": "/worldtravel/US/US-OK",
+      "score": 0.45,
+      "meta": {
+        "is_visited": false
+      }
+    },
+    {
+      "type": "city",
+      "id": "US-WA-118498",
+      "title": "Hobart",
+      "subtitle": "Washington, United States",
+      "url": "/worldtravel/US/US-WA",
+      "score": 0.45,
+      "meta": {
+        "is_visited": false
+      }
+    },
+    {
+      "type": "city",
+      "id": "US-WI-118499",
+      "title": "Hobart",
+      "subtitle": "Wisconsin, United States",
+      "url": "/worldtravel/US/US-WI",
+      "score": 0.45,
+      "meta": {
+        "is_visited": false
+      }
+    }
+  ],
+  "facets": {
+    "activity": 0,
+    "checklist": 0,
+    "city": 10,
+    "collection": 1,
+    "country": 0,
+    "location": 2,
+    "lodging": 1,
+    "note": 1,
+    "region": 0,
+    "transportation": 4,
+    "user": 0
+  }
+}

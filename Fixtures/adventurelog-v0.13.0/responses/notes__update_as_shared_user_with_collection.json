@@ -1,0 +1,14 @@
+{
+  "id": "aaf74e7a-9462-4f96-a7b7-a9db3ed7069c",
+  "user": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+  "name": "Trip essentials",
+  "content": "# Essentials\n1. Visa sorted ✅\n2. Rental car bond: A$500 hold\n3. Emergency: **000**\n\nSee [park alerts](https://example.com/park-alerts)",
+  "date": null,
+  "links": [
+    "https://example.com/park-alerts"
+  ],
+  "is_public": false,
+  "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+  "created_at": "2026-10-11T04:48:49.301903Z",
+  "updated_at": "2026-10-11T04:49:07.925401Z"
+}

@@ -1,0 +1,350 @@
+{
+  "count": 5,
+  "next": null,
+  "previous": null,
+  "results": [
+    {
+      "id": "78978dcd-a7bf-4d10-9aa8-6cb373ba8544",
+      "name": "Harbour kayak tour",
+      "description": "45-minute paddle along the waterfront.",
+      "rating": 4.0,
+      "tags": [
+        "outdoor",
+        "water",
+        "booked"
+      ],
+      "location": "Brooke Street Pier, Hobart",
+      "is_public": false,
+      "collections": [
+        "4b2dbaf2-bdda-4b57-950f-386189c5d813"
+      ],
+      "created_at": "2026-10-11T04:48:46.460027Z",
+      "updated_at": "2026-10-11T04:48:48.261131Z",
+      "images": [],
+      "link": "https://example.com/kayak",
+      "longitude": 147.3343,
+      "latitude": -42.8846,
+      "visits": [
+        {
+          "id": "56e4b588-9ad2-4117-8a81-ddf800371d19",
+          "start_date": "2027-03-07T00:00:00Z",
+          "end_date": "2027-03-07T00:45:00Z",
+          "timezone": "Australia/Hobart",
+          "notes": "Booked 11:00 slot, ref KAY-1001.",
+          "activities": [],
+          "location": "78978dcd-a7bf-4d10-9aa8-6cb373ba8544",
+          "created_at": "2026-10-11T04:48:46.696389Z",
+          "updated_at": "2026-10-11T04:48:48.494535Z"
+        }
+      ],
+      "is_visited": false,
+      "category": {
+        "id": "9fc86c0a-4c22-4d2e-a904-158e252c3efe",
+        "name": "activity",
+        "display_name": "Activity",
+        "icon": "🛶",
+        "num_locations": 1
+      },
+      "attachments": [],
+      "user": {
+        "profile_pic": null,
+        "uuid": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+        "public_profile": true,
+        "username": "admin",
+        "first_name": "Alex",
+        "last_name": "Example",
+        "date_joined": "2026-10-11T01:01:09.939778Z",
+        "is_staff": true,
+        "disable_password": false,
+        "measurement_system": "metric",
+        "default_currency": "USD",
+        "map_style": "default",
+        "has_password": true,
+        "shared_collection_count": 0,
+        "pending_collection_invite_count": 0
+      },
+      "city": null,
+      "country": null,
+      "region": null,
+      "trails": [],
+      "price": "95.00",
+      "price_currency": "AUD"
+    },
+    {
+      "id": "19b7a4bb-5c0a-4a37-9970-1de9aac3a958",
+      "name": "Dove Lake Circuit",
+      "description": "Unscheduled on the itinerary on purpose (appears only in collection.locations).",
+      "rating": null,
+      "tags": [
+        "hike"
+      ],
+      "location": "Cradle Mountain",
+      "is_public": false,
+      "collections": [
+        "4b2dbaf2-bdda-4b57-950f-386189c5d813"
+      ],
+      "created_at": "2026-10-11T04:48:47.816791Z",
+      "updated_at": "2026-10-11T04:48:47.829328Z",
+      "images": [],
+      "link": null,
+      "longitude": 145.96,
+      "latitude": -41.66,
+      "visits": [
+        {
+          "id": "db71d4ac-9fd8-4fa9-9ed6-c38c0c5e72eb",
+          "start_date": "2027-03-10T00:00:00Z",
+          "end_date": "2027-03-10T00:00:00Z",
+          "timezone": "Australia/Hobart",
+          "notes": null,
+          "activities": [],
+          "location": "19b7a4bb-5c0a-4a37-9970-1de9aac3a958",
+          "created_at": "2026-10-11T04:48:48.039691Z",
+          "updated_at": "2026-10-11T04:48:48.039697Z"
+        }
+      ],
+      "is_visited": false,
+      "category": {
+        "id": "1dd9bd4f-cf83-473a-a2c0-9e7091b60000",
+        "name": "hiking",
+        "display_name": "Hiking",
+        "icon": "🥾",
+        "num_locations": 1
+      },
+      "attachments": [],
+      "user": {
+        "profile_pic": null,
+        "uuid": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+        "public_profile": true,
+        "username": "admin",
+        "first_name": "Alex",
+        "last_name": "Example",
+        "date_joined": "2026-10-11T01:01:09.939778Z",
+        "is_staff": true,
+        "disable_password": false,
+        "measurement_system": "metric",
+        "default_currency": "USD",
+        "map_style": "default",
+        "has_password": true,
+        "shared_collection_count": 0,
+        "pending_collection_invite_count": 0
+      },
+      "city": null,
+      "country": null,
+      "region": null,
+      "trails": [],
+      "price": null,
+      "price_currency": "USD"
+    },
+    {
+      "id": "547ce065-2ae7-4a14-8e3f-76f638922234",
+      "name": "Sunset cruise",
+      "description": "Two hours around the bay. Runs when the sea is calm.",
+      "rating": 5.0,
+      "tags": [
+        "boat",
+        "evening"
+      ],
+      "location": "Coles Bay jetty",
+      "is_public": false,
+      "collections": [
+        "4b2dbaf2-bdda-4b57-950f-386189c5d813"
+      ],
+      "created_at": "2026-10-11T04:48:47.366840Z",
+      "updated_at": "2026-10-11T04:48:47.384306Z",
+      "images": [],
+      "link": null,
+      "longitude": 148.283,
+      "latitude": -42.121,
+      "visits": [
+        {
+          "id": "36db118b-1572-4e2e-bfae-299b9905615f",
+          "start_date": "2027-03-08T07:30:00Z",
+          "end_date": "2027-03-08T09:30:00Z",
+          "timezone": "Australia/Hobart",
+          "notes": "Bring a jacket — it gets cold on the water.",
+          "activities": [],
+          "location": "547ce065-2ae7-4a14-8e3f-76f638922234",
+          "created_at": "2026-10-11T04:48:47.612046Z",
+          "updated_at": "2026-10-11T04:48:47.612053Z"
+        }
+      ],
+      "is_visited": false,
+      "category": {
+        "id": "e2014ff8-8ebe-4cdb-85ed-3434a514e6d9",
+        "name": "tour",
+        "display_name": "Tour",
+        "icon": "🚤",
+        "num_locations": 1
+      },
+      "attachments": [],
+      "user": {
+        "profile_pic": null,
+        "uuid": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+        "public_profile": true,
+        "username": "admin",
+        "first_name": "Alex",
+        "last_name": "Example",
+        "date_joined": "2026-10-11T01:01:09.939778Z",
+        "is_staff": true,
+        "disable_password": false,
+        "measurement_system": "metric",
+        "default_currency": "USD",
+        "map_style": "default",
+        "has_password": true,
+        "shared_collection_count": 0,
+        "pending_collection_invite_count": 0
+      },
+      "city": null,
+      "country": null,
+      "region": null,
+      "trails": [],
+      "price": null,
+      "price_currency": "USD"
+    },
+    {
+      "id": "9e20f3bd-847e-45fb-bb94-6921d7a64e3d",
+      "name": "Wineglass Bay Lookout",
+      "description": "Steep 1.5 km walk up from the car park. Go early or late.",
+      "rating": null,
+      "tags": [
+        "walk",
+        "photo"
+      ],
+      "location": "Freycinet National Park",
+      "is_public": false,
+      "collections": [
+        "4b2dbaf2-bdda-4b57-950f-386189c5d813"
+      ],
+      "created_at": "2026-10-11T04:48:46.901555Z",
+      "updated_at": "2026-10-11T04:48:46.914401Z",
+      "images": [],
+      "link": null,
+      "longitude": 148.29,
+      "latitude": -42.15,
+      "visits": [
+        {
+          "id": "20b581cb-ca6e-4277-a048-1260fe05bd64",
+          "start_date": "2027-03-08T05:00:00Z",
+          "end_date": "2027-03-08T05:30:00Z",
+          "timezone": "Australia/Hobart",
+          "notes": null,
+          "activities": [],
+          "location": "9e20f3bd-847e-45fb-bb94-6921d7a64e3d",
+          "created_at": "2026-10-11T04:48:47.131910Z",
+          "updated_at": "2026-10-11T04:48:47.131917Z"
+        }
+      ],
+      "is_visited": false,
+      "category": {
+        "id": "ef1499ba-48ef-4e6f-97eb-a78ec761a72a",
+        "name": "viewpoint",
+        "display_name": "Viewpoint",
+        "icon": "🔭",
+        "num_locations": 1
+      },
+      "attachments": [],
+      "user": {
+        "profile_pic": null,
+        "uuid": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+        "public_profile": true,
+        "username": "admin",
+        "first_name": "Alex",
+        "last_name": "Example",
+        "date_joined": "2026-10-11T01:01:09.939778Z",
+        "is_staff": true,
+        "disable_password": false,
+        "measurement_system": "metric",
+        "default_currency": "USD",
+        "map_style": "default",
+        "has_password": true,
+        "shared_collection_count": 0,
+        "pending_collection_invite_count": 0
+      },
+      "city": null,
+      "country": null,
+      "region": null,
+      "trails": [],
+      "price": null,
+      "price_currency": "USD"
+    },
+    {
+      "id": "b61b4c66-3813-4ae7-b2c5-a81553f5720b",
+      "name": "Tasmanian Museum and Art Gallery",
+      "description": "Free entry. Don't miss the **natural history** galleries.",
+      "rating": null,
+      "tags": [
+        "art",
+        "indoor",
+        "free"
+      ],
+      "location": "Dunn Place, Hobart",
+      "is_public": false,
+      "collections": [
+        "4b2dbaf2-bdda-4b57-950f-386189c5d813"
+      ],
+      "created_at": "2026-10-11T04:48:46.003554Z",
+      "updated_at": "2026-10-11T04:48:46.019912Z",
+      "images": [
+        {
+          "id": "6618d3e6-5680-4e08-b541-30b89a8d807f",
+          "image": "http://127.0.0.1:8000/media/images/be6ad04a-9f28-4fe5-b596-791954b715f2.webp",
+          "is_primary": true,
+          "user": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+          "immich_id": null,
+          "source": "upload",
+          "source_url": null,
+          "latitude": null,
+          "longitude": null
+        }
+      ],
+      "link": "https://example.com/museum",
+      "longitude": 147.3317,
+      "latitude": -42.8822,
+      "visits": [
+        {
+          "id": "15205798-cba5-4020-84fe-557782fc40ee",
+          "start_date": "2027-03-07T02:00:00Z",
+          "end_date": "2027-03-07T03:30:00Z",
+          "timezone": "Australia/Hobart",
+          "notes": "Arrive after lunch; café on site.",
+          "activities": [],
+          "location": "b61b4c66-3813-4ae7-b2c5-a81553f5720b",
+          "created_at": "2026-10-11T04:48:46.248644Z",
+          "updated_at": "2026-10-11T04:48:46.248650Z"
+        }
+      ],
+      "is_visited": false,
+      "category": {
+        "id": "26733dd2-7743-44d5-bb6f-f2c1b1b7e95d",
+        "name": "museum",
+        "display_name": "Museum",
+        "icon": "🏛️",
+        "num_locations": 1
+      },
+      "attachments": [],
+      "user": {
+        "profile_pic": null,
+        "uuid": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+        "public_profile": true,
+        "username": "admin",
+        "first_name": "Alex",
+        "last_name": "Example",
+        "date_joined": "2026-10-11T01:01:09.939778Z",
+        "is_staff": true,
+        "disable_password": false,
+        "measurement_system": "metric",
+        "default_currency": "USD",
+        "map_style": "default",
+        "has_password": true,
+        "shared_collection_count": 0,
+        "pending_collection_invite_count": 0
+      },
+      "city": null,
+      "country": null,
+      "region": null,
+      "trails": [],
+      "price": null,
+      "price_currency": "USD"
+    }
+  ]
+}

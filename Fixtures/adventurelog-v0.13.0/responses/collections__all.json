@@ -1,0 +1,57 @@
+[
+  {
+    "id": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+    "user": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+    "name": "Tasmania Road Trip 2027",
+    "description": "Hobart → Freycinet → Cradle Mountain → Strahan, by car.\n\nPlanning doc: [shared notes](https://example.com/trip-plan)\n\nTimezone for most of the trip: Australia/Hobart (AEDT, UTC+11).",
+    "is_public": false,
+    "start_date": "2027-03-05",
+    "end_date": "2027-03-23",
+    "is_archived": false,
+    "link": "https://example.com/tasmania",
+    "created_at": "2026-10-11T04:48:42.385709Z",
+    "updated_at": "2026-10-11T04:48:42.599139Z",
+    "location_images": [
+      {
+        "id": "6618d3e6-5680-4e08-b541-30b89a8d807f",
+        "image": "http://127.0.0.1:8000/media/images/be6ad04a-9f28-4fe5-b596-791954b715f2.webp",
+        "is_primary": true,
+        "user": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+        "immich_id": null,
+        "source": "upload",
+        "source_url": null,
+        "latitude": null,
+        "longitude": null
+      }
+    ],
+    "location_count": 5,
+    "shared_with": [
+      "2738ee4b-e999-486e-aa07-9c01d6bc0648"
+    ],
+    "collaborators": [
+      {
+        "uuid": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+        "username": "admin",
+        "first_name": "Alex",
+        "last_name": "Example",
+        "profile_pic": null,
+        "public_profile": true,
+        "is_owner": true,
+        "is_current_user": true
+      },
+      {
+        "uuid": "2738ee4b-e999-486e-aa07-9c01d6bc0648",
+        "username": "guest",
+        "first_name": "Sam",
+        "last_name": "Example",
+        "profile_pic": null,
+        "public_profile": true,
+        "is_owner": false,
+        "is_current_user": false
+      }
+    ],
+    "status": "upcoming",
+    "days_until_start": 145,
+    "primary_image": null
+  }
+]

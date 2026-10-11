@@ -1,0 +1,573 @@
+{
+  "responses/collections__list.json": {
+    "method": "GET",
+    "path": "/api/collections/",
+    "status": 200,
+    "content_type": "application/json",
+    "auth": "admin"
+  },
+  "responses/collections__detail.json": {
+    "method": "GET",
+    "path": "/api/collections/4b2dbaf2-bdda-4b57-950f-386189c5d813/",
+    "status": 200,
+    "content_type": "application/json",
+    "auth": "admin"
+  },
+  "responses/collections__detail_nested.json": {
+    "method": "GET",
+    "path": "/api/collections/4b2dbaf2-bdda-4b57-950f-386189c5d813/?nested=true",
+    "status": 200,
+    "content_type": "application/json",
+    "auth": "admin"
+  },
+  "responses/collections__all.json": {
+    "method": "GET",
+    "path": "/api/collections/all/",
+    "status": 200,
+    "content_type": "application/json",
+    "auth": "admin"
+  },
+  "responses/collections__shared__as_guest.json": {
+    "method": "GET",
+    "path": "/api/collections/shared/",
+    "status": 200,
+    "content_type": "application/json",
+    "auth": "guest"
+  },
+  "responses/collections__detail__as_guest.json": {
+    "method": "GET",
+    "path": "/api/collections/4b2dbaf2-bdda-4b57-950f-386189c5d813/",
+    "status": 200,
+    "content_type": "application/json",
+    "auth": "guest"
+  },
+  "responses/collections__invites.json": {
+    "method": "GET",
+    "path": "/api/collections/invites/",
+    "status": 200,
+    "content_type": "application/json",
+    "auth": "admin"
+  },
+  "responses/collections__archived.json": {
+    "method": "GET",
+    "path": "/api/collections/archived/",
+    "status": 200,
+    "content_type": "application/json",
+    "auth": "admin"
+  },
+  "responses/itineraries__list.json": {
+    "method": "GET",
+    "path": "/api/itineraries/",
+    "status": 200,
+    "content_type": "application/json",
+    "auth": "admin"
+  },
+  "responses/itineraries__detail.json": {
+    "method": "GET",
+    "path": "/api/itineraries/fe98924d-84da-475e-8775-78456cef198a/",
+    "status": 200,
+    "content_type": "application/json",
+    "auth": "admin"
+  },
+  "responses/itineraries__detail_global.json": {
+    "method": "GET",
+    "path": "/api/itineraries/4440fba2-49bf-4375-a24f-6a4052f9d47e/",
+    "status": 200,
+    "content_type": "application/json",
+    "auth": "admin"
+  },
+  "responses/itinerary-days__list.json": {
+    "method": "GET",
+    "path": "/api/itinerary-days/",
+    "status": 200,
+    "content_type": "application/json",
+    "auth": "admin"
+  },
+  "responses/itinerary-days__detail.json": {
+    "method": "GET",
+    "path": "/api/itinerary-days/136d6585-96fc-43ab-b22c-4e36248ca939/",
+    "status": 200,
+    "content_type": "application/json",
+    "auth": "admin"
+  },
+  "responses/locations__list.json": {
+    "method": "GET",
+    "path": "/api/locations/",
+    "status": 200,
+    "content_type": "application/json",
+    "auth": "admin"
+  },
+  "responses/locations__list_page_size_2.json": {
+    "method": "GET",
+    "path": "/api/locations/?page_size=2",
+    "status": 200,
+    "content_type": "application/json",
+    "auth": "admin"
+  },
+  "responses/locations__detail.json": {
+    "method": "GET",
+    "path": "/api/locations/b61b4c66-3813-4ae7-b2c5-a81553f5720b/",
+    "status": 200,
+    "content_type": "application/json",
+    "auth": "admin"
+  },
+  "responses/locations__detail_allday_visit.json": {
+    "method": "GET",
+    "path": "/api/locations/19b7a4bb-5c0a-4a37-9970-1de9aac3a958/",
+    "status": 200,
+    "content_type": "application/json",
+    "auth": "admin"
+  },
+  "responses/locations__all.json": {
+    "method": "GET",
+    "path": "/api/locations/all/",
+    "status": 200,
+    "content_type": "application/json",
+    "auth": "admin"
+  },
+  "responses/locations__pins.json": {
+    "method": "GET",
+    "path": "/api/locations/pins/",
+    "status": 200,
+    "content_type": "application/json",
+    "auth": "admin"
+  },
+  "responses/visits__list.json": {
+    "method": "GET",
+    "path": "/api/visits/",
+    "status": 200,
+    "content_type": "application/json",
+    "auth": "admin"
+  },
+  "responses/visits__detail.json": {
+    "method": "GET",
+    "path": "/api/visits/36db118b-1572-4e2e-bfae-299b9905615f/",
+    "status": 200,
+    "content_type": "application/json",
+    "auth": "admin"
+  },
+  "responses/transportations__list.json": {
+    "method": "GET",
+    "path": "/api/transportations/",
+    "status": 200,
+    "content_type": "application/json",
+    "auth": "admin"
+  },
+  "responses/transportations__detail.json": {
+    "method": "GET",
+    "path": "/api/transportations/d8171654-cade-4dce-95d1-f6c394f04caa/",
+    "status": 200,
+    "content_type": "application/json",
+    "auth": "admin"
+  },
+  "responses/lodging__list.json": {
+    "method": "GET",
+    "path": "/api/lodging/",
+    "status": 200,
+    "content_type": "application/json",
+    "auth": "admin"
+  },
+  "responses/lodging__detail.json": {
+    "method": "GET",
+    "path": "/api/lodging/8f00d25a-1b0a-4c17-a371-f010e2b4db13/",
+    "status": 200,
+    "content_type": "application/json",
+    "auth": "admin"
+  },
+  "responses/notes__list.json": {
+    "method": "GET",
+    "path": "/api/notes/",
+    "status": 403,
+    "content_type": "application/json",
+    "auth": "admin"
+  },
+  "responses/notes__all.json": {
+    "method": "GET",
+    "path": "/api/notes/all/",
+    "status": 200,
+    "content_type": "application/json",
+    "auth": "admin"
+  },
+  "responses/notes__detail.json": {
+    "method": "GET",
+    "path": "/api/notes/2416e745-e1ec-4cf7-9a91-c3ac45ebafb2/",
+    "status": 200,
+    "content_type": "application/json",
+    "auth": "admin"
+  },
+  "responses/checklists__list.json": {
+    "method": "GET",
+    "path": "/api/checklists/",
+    "status": 200,
+    "content_type": "application/json",
+    "auth": "admin"
+  },
+  "responses/checklists__detail.json": {
+    "method": "GET",
+    "path": "/api/checklists/b1bb2988-991b-48ab-9761-0e2610620c8f/",
+    "status": 200,
+    "content_type": "application/json",
+    "auth": "admin"
+  },
+  "responses/categories__list.json": {
+    "method": "GET",
+    "path": "/api/categories/",
+    "status": 200,
+    "content_type": "application/json",
+    "auth": "admin"
+  },
+  "responses/categories__detail.json": {
+    "method": "GET",
+    "path": "/api/categories/ef1499ba-48ef-4e6f-97eb-a78ec761a72a/",
+    "status": 200,
+    "content_type": "application/json",
+    "auth": "admin"
+  },
+  "responses/images__list.json": {
+    "method": "GET",
+    "path": "/api/images/",
+    "status": 200,
+    "content_type": "application/json",
+    "auth": "admin"
+  },
+  "responses/images__detail.json": {
+    "method": "GET",
+    "path": "/api/images/6618d3e6-5680-4e08-b541-30b89a8d807f/",
+    "status": 200,
+    "content_type": "application/json",
+    "auth": "admin"
+  },
+  "responses/calendar__events.json": {
+    "method": "GET",
+    "path": "/api/calendar/events/",
+    "status": 200,
+    "content_type": "application/json",
+    "auth": "admin"
+  },
+  "responses/calendar__events_range.json": {
+    "method": "GET",
+    "path": "/api/calendar/events/?start=2027-03-07&end=2027-03-08",
+    "status": 200,
+    "content_type": "application/json",
+    "auth": "admin"
+  },
+  "responses/search__list.json": {
+    "method": "GET",
+    "path": "/api/search/?q=hobart",
+    "status": 200,
+    "content_type": "application/json",
+    "auth": "admin"
+  },
+  "responses/search__list_freycinet.json": {
+    "method": "GET",
+    "path": "/api/search/?q=freycinet",
+    "status": 200,
+    "content_type": "application/json",
+    "auth": "admin"
+  },
+  "responses/ics-calendar__generate.ics": {
+    "method": "GET",
+    "path": "/api/ics-calendar/generate/",
+    "status": 200,
+    "content_type": "text/calendar",
+    "auth": "admin"
+  },
+  "responses/auth__user-metadata.json": {
+    "method": "GET",
+    "path": "/auth/user-metadata/",
+    "status": 200,
+    "content_type": "application/json",
+    "auth": "admin"
+  },
+  "responses/auth__current-user.json": {
+    "method": "GET",
+    "path": "/auth/current-user/",
+    "status": 200,
+    "content_type": "application/json",
+    "auth": "admin"
+  },
+  "responses/auth__users.json": {
+    "method": "GET",
+    "path": "/auth/users/",
+    "status": 200,
+    "content_type": "application/json",
+    "auth": "admin"
+  },
+  "responses/auth__api-keys.json": {
+    "method": "GET",
+    "path": "/auth/api-keys/",
+    "status": 200,
+    "content_type": "application/json",
+    "auth": "admin"
+  },
+  "responses/auth__is-registration-disabled.json": {
+    "method": "GET",
+    "path": "/auth/is-registration-disabled/",
+    "status": 200,
+    "content_type": "application/json",
+    "auth": "none"
+  },
+  "responses/public-url.json": {
+    "method": "GET",
+    "path": "/public-url/",
+    "status": 200,
+    "content_type": "application/json",
+    "auth": "none"
+  },
+  "responses/health.json": {
+    "method": "GET",
+    "path": "/health/",
+    "status": 200,
+    "content_type": "application/json",
+    "auth": "none"
+  },
+  "responses/stats__dashboard.json": {
+    "method": "GET",
+    "path": "/api/stats/dashboard/",
+    "status": 200,
+    "content_type": "application/json",
+    "auth": "admin"
+  },
+  "responses/tags__types.json": {
+    "method": "GET",
+    "path": "/api/tags/types/",
+    "status": 200,
+    "content_type": "application/json",
+    "auth": "admin"
+  },
+  "errors/401__bad_api_key.json": {
+    "method": "GET",
+    "path": "/api/collections/",
+    "status": 401,
+    "content_type": "application/json",
+    "auth": "bad-key",
+    "www_authenticate": "Api-Key"
+  },
+  "errors/401__no_auth_list_categories.json": {
+    "method": "GET",
+    "path": "/api/categories/",
+    "status": 401,
+    "content_type": "application/json",
+    "auth": "none",
+    "www_authenticate": "Api-Key"
+  },
+  "errors/400__collections_list_no_auth.json": {
+    "method": "GET",
+    "path": "/api/collections/",
+    "status": 400,
+    "content_type": "application/json",
+    "auth": "none"
+  },
+  "errors/403__notes_list_not_allowed.json": {
+    "method": "GET",
+    "path": "/api/notes/",
+    "status": 403,
+    "content_type": "application/json",
+    "auth": "admin"
+  },
+  "errors/404__other_users_private_location.json": {
+    "method": "GET",
+    "path": "/api/locations/61ab1f3b-956c-46f0-a636-9b6f68e971f3/",
+    "status": 404,
+    "content_type": "application/json",
+    "auth": "admin"
+  },
+  "errors/404__other_users_location_patch.json": {
+    "method": "PATCH",
+    "path": "/api/locations/61ab1f3b-956c-46f0-a636-9b6f68e971f3/",
+    "status": 404,
+    "content_type": "application/json",
+    "auth": "admin",
+    "request_body": {
+      "name": "hijack"
+    }
+  },
+  "errors/404__shared_user_patch_collection.json": {
+    "method": "PATCH",
+    "path": "/api/collections/4b2dbaf2-bdda-4b57-950f-386189c5d813/",
+    "status": 404,
+    "content_type": "application/json",
+    "auth": "guest",
+    "request_body": {
+      "name": "Guest renamed it"
+    }
+  },
+  "errors/403__shared_user_delete_owners_location.json": {
+    "method": "DELETE",
+    "path": "/api/locations/78978dcd-a7bf-4d10-9aa8-6cb373ba8544/",
+    "status": 403,
+    "content_type": "application/json",
+    "auth": "guest"
+  },
+  "errors/403__shared_user_patch_note_without_collection.json": {
+    "method": "PATCH",
+    "path": "/api/notes/aaf74e7a-9462-4f96-a7b7-a9db3ed7069c/",
+    "status": 403,
+    "content_type": "application/json",
+    "auth": "guest",
+    "request_body": {
+      "name": "Trip essentials"
+    }
+  },
+  "responses/notes__update_as_shared_user_with_collection.json": {
+    "method": "PATCH",
+    "path": "/api/notes/aaf74e7a-9462-4f96-a7b7-a9db3ed7069c/",
+    "status": 200,
+    "content_type": "application/json",
+    "auth": "guest",
+    "request_body": {
+      "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+      "name": "Trip essentials"
+    }
+  },
+  "errors/403__itinerary_create_for_other_users_object.json": {
+    "method": "POST",
+    "path": "/api/itineraries/",
+    "status": 403,
+    "content_type": "application/json",
+    "auth": "admin",
+    "request_body": {
+      "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+      "content_type": "location",
+      "object_id": "61ab1f3b-956c-46f0-a636-9b6f68e971f3",
+      "date": "2027-03-09",
+      "order": 0
+    }
+  },
+  "errors/404__collection_not_found.json": {
+    "method": "GET",
+    "path": "/api/collections/00000000-0000-4000-8000-000000000000/",
+    "status": 404,
+    "content_type": "application/json",
+    "auth": "admin"
+  },
+  "errors/404__non_uuid_pk.json": {
+    "method": "GET",
+    "path": "/api/locations/not-a-uuid/",
+    "status": 404,
+    "content_type": "application/json",
+    "auth": "admin"
+  },
+  "errors/400__transportation_missing_required.json": {
+    "method": "POST",
+    "path": "/api/transportations/",
+    "status": 400,
+    "content_type": "application/json",
+    "auth": "admin",
+    "request_body": {
+      "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+      "name": ""
+    }
+  },
+  "errors/400__visit_bad_datetime.json": {
+    "method": "POST",
+    "path": "/api/visits/",
+    "status": 400,
+    "content_type": "application/json",
+    "auth": "admin",
+    "request_body": {
+      "location": "78978dcd-a7bf-4d10-9aa8-6cb373ba8544",
+      "start_date": "07/03/2027 10am",
+      "timezone": "Mars/Olympus"
+    }
+  },
+  "errors/400__itinerary_both_date_and_global.json": {
+    "method": "POST",
+    "path": "/api/itineraries/",
+    "status": 400,
+    "content_type": "application/json",
+    "auth": "admin",
+    "request_body": {
+      "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+      "content_type": "note",
+      "object_id": "aaf74e7a-9462-4f96-a7b7-a9db3ed7069c",
+      "date": "2027-03-07",
+      "is_global": true,
+      "order": 0
+    }
+  },
+  "errors/400__itinerary_date_outside_collection.json": {
+    "method": "POST",
+    "path": "/api/itineraries/",
+    "status": 400,
+    "content_type": "application/json",
+    "auth": "admin",
+    "request_body": {
+      "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+      "content_type": "note",
+      "object_id": "aaf74e7a-9462-4f96-a7b7-a9db3ed7069c",
+      "date": "2027-03-29",
+      "order": 0
+    }
+  },
+  "errors/400__reorder_empty.json": {
+    "method": "POST",
+    "path": "/api/itineraries/reorder/",
+    "status": 400,
+    "content_type": "application/json",
+    "auth": "admin",
+    "request_body": {
+      "items": []
+    }
+  },
+  "errors/400__checklist_missing_items.json": {
+    "method": "POST",
+    "path": "/api/checklists/",
+    "status": 400,
+    "content_type": "application/json",
+    "auth": "admin",
+    "request_body": {
+      "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+      "name": "no items key"
+    }
+  },
+  "errors/quirk_201__lodging_checkout_before_checkin_accepted.json": {
+    "method": "POST",
+    "path": "/api/lodging/",
+    "status": 201,
+    "content_type": "application/json",
+    "auth": "admin",
+    "request_body": {
+      "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+      "name": "bad",
+      "type": "hotel",
+      "check_in": "2027-03-13T02:00:00Z",
+      "check_out": "2027-03-12T02:00:00Z"
+    }
+  },
+  "errors/pagination__locations_page_size_2_page_1.json": {
+    "method": "GET",
+    "path": "/api/locations/?page_size=2",
+    "status": 200,
+    "content_type": "application/json",
+    "auth": "admin"
+  },
+  "errors/pagination__locations_page_size_2_page_2.json": {
+    "method": "GET",
+    "path": "/api/locations/?page_size=2&page=2",
+    "status": 200,
+    "content_type": "application/json",
+    "auth": "admin"
+  },
+  "errors/pagination__collections_page_size_1.json": {
+    "method": "GET",
+    "path": "/api/collections/?page_size=1",
+    "status": 200,
+    "content_type": "application/json",
+    "auth": "admin"
+  },
+  "errors/404__pagination_page_out_of_range.json": {
+    "method": "GET",
+    "path": "/api/locations/?page_size=2&page=99",
+    "status": 404,
+    "content_type": "application/json",
+    "auth": "admin"
+  },
+  "openapi/swagger.json": {
+    "method": "GET",
+    "path": "/docs/?format=openapi",
+    "status": 200,
+    "content_type": "application/openapi+json; charset=utf-8",
+    "auth": "admin"
+  }
+}

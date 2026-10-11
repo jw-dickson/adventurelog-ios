@@ -1,0 +1,10 @@
+{
+  "status": 201,
+  "body": {
+    "id": "ef1499ba-48ef-4e6f-97eb-a78ec761a72a",
+    "name": "viewpoint",
+    "display_name": "Viewpoint",
+    "icon": "🔭",
+    "num_locations": 0
+  }
+}

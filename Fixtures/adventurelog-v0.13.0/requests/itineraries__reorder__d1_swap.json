@@ -1,0 +1,38 @@
+{
+  "method": "POST",
+  "path": "/api/itineraries/reorder/",
+  "body": {
+    "items": [
+      {
+        "id": "665930fb-c669-44c7-890c-945964e3be69",
+        "date": "2027-03-07",
+        "order": 0
+      },
+      {
+        "id": "2bf7506e-763f-4d2f-a788-ceecd680a57b",
+        "date": "2027-03-07",
+        "order": 1
+      },
+      {
+        "id": "3ba80fce-5fd6-4a81-ab61-3c146de94225",
+        "date": "2027-03-07",
+        "order": 2
+      },
+      {
+        "id": "000ed5f4-6cad-48c5-8a1e-f5b61e5d9f1a",
+        "date": "2027-03-07",
+        "order": 3
+      },
+      {
+        "id": "fe98924d-84da-475e-8775-78456cef198a",
+        "date": "2027-03-07",
+        "order": 4
+      },
+      {
+        "id": "96b0757e-149c-4fb5-a533-2f489ffef3a6",
+        "date": "2027-03-07",
+        "order": 5
+      }
+    ]
+  }
+}

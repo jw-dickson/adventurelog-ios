@@ -1,0 +1,10 @@
+{
+  "method": "POST",
+  "path": "/api/itinerary-days/",
+  "body": {
+    "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+    "date": "2027-03-07",
+    "name": "D1 · Hobart",
+    "description": "Land early, recover, gentle city day."
+  }
+}

@@ -1,0 +1,11 @@
+// AdventureLog for iOS — shared build settings.
+//
+// Signing is personal: copy Signing.xcconfig.example to Signing.xcconfig (gitignored) and set
+// your own team and bundle id. Simulator builds need neither.
+
+AL_BUNDLE_ID = app.adventurelog.ios.dev
+AL_BUILD_NUMBER = 1
+CODE_SIGN_STYLE = Automatic
+DEVELOPMENT_TEAM =
+
+#include? "Signing.xcconfig"

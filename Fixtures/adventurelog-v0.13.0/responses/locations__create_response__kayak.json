@@ -1,0 +1,57 @@
+{
+  "status": 201,
+  "body": {
+    "id": "78978dcd-a7bf-4d10-9aa8-6cb373ba8544",
+    "name": "Harbour kayak tour",
+    "description": "45-minute paddle along the waterfront.",
+    "rating": null,
+    "tags": [
+      "outdoor",
+      "water"
+    ],
+    "location": "Brooke Street Pier, Hobart",
+    "is_public": false,
+    "collections": [
+      "4b2dbaf2-bdda-4b57-950f-386189c5d813"
+    ],
+    "created_at": "2026-10-11T04:48:46.460027Z",
+    "updated_at": "2026-10-11T04:48:46.472921Z",
+    "images": [],
+    "link": "https://example.com/kayak",
+    "longitude": 147.3343,
+    "latitude": -42.8846,
+    "visits": [],
+    "is_visited": false,
+    "category": {
+      "id": "9fc86c0a-4c22-4d2e-a904-158e252c3efe",
+      "name": "activity",
+      "display_name": "Activity",
+      "icon": "🛶",
+      "num_locations": 1
+    },
+    "attachments": [],
+    "user": {
+      "profile_pic": null,
+      "uuid": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+      "public_profile": true,
+      "username": "admin",
+      "first_name": "Alex",
+      "last_name": "Example",
+      "date_joined": "2026-10-11T01:01:09.939778Z",
+      "is_staff": true,
+      "disable_password": false,
+      "measurement_system": "metric",
+      "default_currency": "USD",
+      "map_style": "default",
+      "has_password": true,
+      "shared_collection_count": 0,
+      "pending_collection_invite_count": 0
+    },
+    "city": null,
+    "country": null,
+    "region": null,
+    "trails": [],
+    "price": "95.00",
+    "price_currency": "AUD"
+  }
+}

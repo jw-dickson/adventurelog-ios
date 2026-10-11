@@ -1,0 +1,17 @@
+{
+  "profile_pic": null,
+  "uuid": "59c8debf-a44f-4bba-8f9a-012ef338fd67",
+  "public_profile": true,
+  "username": "admin",
+  "first_name": "Alex",
+  "last_name": "Example",
+  "date_joined": "2026-10-11T01:01:09.939778Z",
+  "is_staff": true,
+  "disable_password": false,
+  "measurement_system": "metric",
+  "default_currency": "USD",
+  "map_style": "default",
+  "has_password": true,
+  "shared_collection_count": 0,
+  "pending_collection_invite_count": 0
+}

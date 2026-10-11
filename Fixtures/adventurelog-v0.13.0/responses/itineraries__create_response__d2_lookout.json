@@ -1,0 +1,20 @@
+{
+  "status": 201,
+  "body": {
+    "id": "51d09ad6-3eeb-4835-94e6-d777247b84dc",
+    "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+    "content_type": 24,
+    "object_id": "9e20f3bd-847e-45fb-bb94-6921d7a64e3d",
+    "item": {
+      "id": "9e20f3bd-847e-45fb-bb94-6921d7a64e3d",
+      "type": "location"
+    },
+    "date": "2027-03-08",
+    "is_global": false,
+    "order": 4,
+    "start_datetime": null,
+    "end_datetime": null,
+    "created_at": "2026-10-11T04:48:52.854235Z",
+    "object_name": "location"
+  }
+}

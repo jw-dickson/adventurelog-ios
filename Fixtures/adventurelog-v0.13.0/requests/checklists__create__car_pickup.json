@@ -1,0 +1,28 @@
+{
+  "method": "POST",
+  "path": "/api/checklists/",
+  "body": {
+    "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+    "is_public": false,
+    "name": "Car pickup",
+    "date": "2027-03-08",
+    "items": [
+      {
+        "name": "Driver licences + IDP",
+        "is_checked": true
+      },
+      {
+        "name": "Photograph existing damage",
+        "is_checked": false
+      },
+      {
+        "name": "Check the spare tyre",
+        "is_checked": false
+      },
+      {
+        "name": "Download offline maps",
+        "is_checked": true
+      }
+    ]
+  }
+}

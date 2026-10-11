@@ -1,0 +1,39 @@
+{
+  "status": 200,
+  "body": [
+    {
+      "id": "fe98924d-84da-475e-8775-78456cef198a",
+      "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+      "content_type": 24,
+      "object_id": "b61b4c66-3813-4ae7-b2c5-a81553f5720b",
+      "item": {
+        "id": "b61b4c66-3813-4ae7-b2c5-a81553f5720b",
+        "type": "location"
+      },
+      "date": "2027-03-07",
+      "is_global": false,
+      "order": 3,
+      "start_datetime": null,
+      "end_datetime": null,
+      "created_at": "2026-10-11T04:48:51.301804Z",
+      "object_name": "location"
+    },
+    {
+      "id": "000ed5f4-6cad-48c5-8a1e-f5b61e5d9f1a",
+      "collection": "4b2dbaf2-bdda-4b57-950f-386189c5d813",
+      "content_type": 24,
+      "object_id": "78978dcd-a7bf-4d10-9aa8-6cb373ba8544",
+      "item": {
+        "id": "78978dcd-a7bf-4d10-9aa8-6cb373ba8544",
+        "type": "location"
+      },
+      "date": "2027-03-07",
+      "is_global": false,
+      "order": 4,
+      "start_datetime": null,
+      "end_datetime": null,
+      "created_at": "2026-10-11T04:48:51.500444Z",
+      "object_name": "location"
+    }
+  ]
+}
