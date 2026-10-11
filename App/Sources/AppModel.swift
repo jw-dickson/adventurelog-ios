@@ -61,14 +61,18 @@ final class AppModel {
 
     // MARK: Sign in and out
 
-    /// Validates the address and trimmed key, saves credentials, signs in, and refreshes trips.
-    /// - Throws: `APIError.badServerURL` for an unusable address, or errors from the user request
-    ///   or credential store. Trip refresh errors are recorded in `lastError` after sign-in.
+    /// Validates the address and trimmed key, clears any snapshots left by a previous session,
+    /// saves credentials, signs in, and refreshes trips.
+    /// - Throws: `APIError.badServerURL` for an unusable address, or errors from the user request,
+    ///   snapshot deletion or credential store. Snapshots are cleared here as well as on sign-out,
+    ///   so a failed sign-out cleanup can't show one account another account's cached trips.
+    ///   Trip refresh errors are recorded in `lastError` after sign-in.
     func signIn(server: String, apiKey: String) async throws {
         guard let url = AdventureLogClient.normalizedServerURL(server) else { throw APIError.badServerURL }
         let key = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         let client = AdventureLogClient(baseURL: url, apiKey: key)
         let user = try await client.currentUser()
+        try await snapshots.removeAll()
         let credentials = ServerCredentials(serverURL: url, apiKey: key, username: user.username, displayName: user.displayName)
         try credentialStore.save(credentials)
         self.client = client
