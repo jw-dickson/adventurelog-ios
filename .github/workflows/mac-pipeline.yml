@@ -8,7 +8,8 @@ name: mac-pipeline
 #   * It never checks out or runs pull request code; it only passes a commit SHA along.
 #   * `pull_request_target` runs the workflow as it is on main, whatever the PR changes.
 #   * Only people who can label a PR can start a run, and forks are ignored.
-#   * The token below can only start a workflow in the private repository (nothing else).
+#   * The token below can only start a workflow in the private repository (nothing else), and it lives in the
+#     `mac-dispatch` environment, which only runs from main.
 # Add the label only after reading the diff: the suite then runs that code on the maintainer's Mac.
 # A later push to the PR is not run; remove and re-add the label to run it again.
 on:
@@ -21,6 +22,7 @@ on:
       - 'LICENSE'
   pull_request_target:
     types: [labeled]
+  workflow_dispatch:          # manual, main only (see the job condition): checks the token and variable, starts nothing
 
 permissions: {}
 
@@ -29,11 +31,33 @@ jobs:
     if: >-
       github.repository == 'jw-dickson/adventurelog-ios' &&
       (github.event_name == 'push' ||
+       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
        (github.event.label.name == 'run-mac' && github.event.pull_request.head.repo.full_name == github.repository))
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    # The token is an environment secret, and the environment only accepts runs from main, so a workflow on any
+    # other branch cannot read it. No required reviewer: merges are meant to start the pipeline by themselves.
+    environment: mac-dispatch
     steps:
+      - name: Check the token and variable (manual runs only)
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ secrets.INFRA_DISPATCH_TOKEN }}
+          INFRA_REPO: ${{ vars.INFRA_REPO }}
+        run: |
+          # Prints only pass/fail facts, never the token.
+          [ -n "$INFRA_REPO" ] || { echo "::error::the INFRA_REPO variable is not set"; exit 1; }
+          [ -n "$GH_TOKEN" ] || { echo "::error::the INFRA_DISPATCH_TOKEN secret is not set"; exit 1; }
+          case "$GH_TOKEN" in github_pat_*) echo "token prefix: ok";; *) echo "::error::the secret does not look like a fine-grained token (wrong prefix; a bad paste?)"; exit 1;; esac
+          [[ "$GH_TOKEN" =~ ^[A-Za-z0-9_]+$ ]] || { echo "::error::the secret contains characters a token never has (whitespace or a stray paste?)"; exit 1; }
+          echo "token length: ${#GH_TOKEN} characters"
+          STATE=$(gh api "repos/$INFRA_REPO/actions/workflows/pipeline.yml" --jq .state) \
+            || { echo "::error::the token cannot read the pipeline workflow in the private repo"; exit 1; }
+          echo "pipeline workflow in the private repo: $STATE"
+          echo "Token and variable work. Nothing was started." >> "$GITHUB_STEP_SUMMARY"
+
       - name: Start the Mac pipeline
+        if: github.event_name != 'workflow_dispatch'
         env:
           GH_TOKEN: ${{ secrets.INFRA_DISPATCH_TOKEN }}
           INFRA_REPO: ${{ vars.INFRA_REPO }}
