@@ -661,7 +661,12 @@ final class AppModel {
         let started = session
         do {
             try await companion.register(environment: Self.pushEnvironment, startToken: startToken)
-            guard session == started else { return }
+            // The address changed (or sign-out happened) while this was in flight: undo it, so a
+            // slower, older registration can't replace the current one.
+            guard session == started, self.companion?.baseURL == companion.baseURL else {
+                try? await companion.unregister()
+                return
+            }
             registeredCompanion = companion
             companionStatus = "Connected"
         } catch {
