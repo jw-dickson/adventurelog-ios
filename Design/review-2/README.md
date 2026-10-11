@@ -28,4 +28,8 @@ Not a review result; the checklist in [`../README.md`](../README.md) is still to
 - The floating tab bar sits over the last visible row of each scrolling screen; the content scrolls beneath it.
 - Mockup and snapshot differ in device size and in the data shown, so compare layout and components, not exact positions.
 
-Sign-off: pending.
+Sign-off: signed off 11 Oct 2026. Follow-ups for the next stages:
+
+- the time column truncating two-digit hours (issue 7);
+- at Dynamic Type XXL, the Overnight and booked badges truncating on Today, the tab bar covering the Next card's title, and the server address field cutting the address short on Sign in;
+- the car hire on Today showing its end date under the time, where the mockup shows a time only.
