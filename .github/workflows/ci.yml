@@ -67,7 +67,7 @@ jobs:
           HEAD: ${{ github.event.pull_request.head.sha }}
         run: |
           if [ "$EVENT" != "pull_request" ]; then echo "app=true" >> "$GITHUB_OUTPUT"; exit 0; fi
-          changed=$(git diff --name-only "$BASE...$HEAD")
+          changed=$(git diff --no-renames --name-only "$BASE...$HEAD")
           echo "$changed"
           if echo "$changed" | grep -qvE '^(docs/|Design/)|\.md$|^LICENSE$'; then
             echo "app=true" >> "$GITHUB_OUTPUT"
@@ -83,6 +83,8 @@ jobs:
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
 
       - name: Generate the project
         run: |
@@ -129,6 +131,8 @@ jobs:
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
 
       - name: Generate the project
         run: |
