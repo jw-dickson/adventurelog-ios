@@ -84,10 +84,11 @@ final class SignInUITests: XCTestCase {
         let app = launch(["-ALServerURL", server, "-ALAPIKey", key])
         app.buttons["signin.connect"].tap()
 
-        let trip = app.staticTexts["Tasmania Road Trip 2027"]
+        // Rows combine their texts for VoiceOver, so match on part of the label.
+        let trip = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", "Tasmania Road Trip 2027")).firstMatch
         XCTAssertTrue(trip.waitForExistence(timeout: 20), "Seed the server with Fixtures/adventurelog-v0.13.0/seed.py first")
         trip.tap()
-        // Outline rows combine their texts for VoiceOver, so match on part of the label.
+        // Before the trip starts it opens on its first day, with the overnight flight.
         let flight = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", "EX 7 LAX")).firstMatch
         XCTAssertTrue(flight.waitForExistence(timeout: 20))
     }
