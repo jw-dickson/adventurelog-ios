@@ -103,7 +103,18 @@ final class AppModel {
         didSet { defaults.set(reminderOfferDismissed, forKey: Keys.reminderOfferDismissed) }
     }
 
+    // Live Activities for flights and booked tours (Stage 4).
+    private let liveActivities = LiveActivityController()
+    /// On unless the person turns them off in Reminders; iOS has its own switch too.
+    var liveActivitiesEnabled: Bool {
+        didSet {
+            defaults.set(!liveActivitiesEnabled, forKey: Keys.liveActivitiesOff)
+            scheduleReminderUpdate()
+        }
+    }
+
     private enum Keys {
+        static let liveActivitiesOff = "al.liveActivitiesOff"
         static let remindersEnabled = "al.remindersEnabled"
         static let reminderSettings = "al.reminderSettings"
         static let reminderOfferDismissed = "al.reminderOfferDismissed"
@@ -143,6 +154,7 @@ final class AppModel {
         self.pinnedNow = now
         self.remindersEnabled = defaults.bool(forKey: Keys.remindersEnabled)
         self.reminderOfferDismissed = defaults.bool(forKey: Keys.reminderOfferDismissed)
+        self.liveActivitiesEnabled = !defaults.bool(forKey: Keys.liveActivitiesOff)
         self.reminderSettings = defaults.data(forKey: Keys.reminderSettings)
             .flatMap { try? JSONDecoder().decode(ReminderSettings.self, from: $0) } ?? ReminderSettings()
         if let saved = try? credentialStore.load() {
@@ -291,6 +303,7 @@ final class AppModel {
             Task.detached { try? await revoke.client.deleteAPIKey(id: revoke.id) }
         }
         await reminderScheduler.removeAll()
+        await liveActivities.endAll()
         await tracker.unwatchAll() // runs after any geofence change already under way
         await drainWrites()
         try? await tracks.removeAll()
@@ -552,14 +565,28 @@ final class AppModel {
 
     /// Recalculates reminders a moment after the last change, so a burst of changes costs one pass.
     private func scheduleReminderUpdate() {
-        guard remindersEnabled, credentials != nil else { return }
+        guard credentials != nil else { return }
         reminderTask?.cancel()
         let started = session
         reminderTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(1))
             guard !Task.isCancelled, let self, self.session == started else { return }
             await self.updateReminders()
+            await self.updateLiveActivities()
         }
+    }
+
+    /// Shows the flight or booked tour whose Live Activity window is open now, across listed trips.
+    func updateLiveActivities() async {
+        guard credentials != nil, liveActivitiesEnabled else {
+            await liveActivities.endAll()
+            return
+        }
+        let listed = Set((ownedTrips + sharedTrips).map(\.id))
+        let current = trips.filter { listed.contains($0.key) }
+            .compactMap { LiveActivityPlanner.current(for: $0.value.plan, now: now, skipped: skipped[$0.key] ?? []) }
+            .min { $0.end < $1.end }
+        await liveActivities.show(current)
     }
 
     /// Schedules the next reminders across every loaded trip, soonest first, within iOS's limit.
@@ -589,6 +616,7 @@ final class AppModel {
         guard credentials != nil else { return }
         await loadTrips()
         await updateReminders()
+        await updateLiveActivities()
     }
 
     /// Asks iOS for the next background refresh, a few hours out.
@@ -907,6 +935,7 @@ final class AppModel {
             await refreshOpenTrip()
             await refreshReminderPermission()
             await updateReminders()
+            await updateLiveActivities()
         }
         tracker.refreshAuthorization()
         updateTracking()

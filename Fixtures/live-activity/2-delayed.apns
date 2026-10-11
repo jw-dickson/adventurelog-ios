@@ -1,0 +1,17 @@
+{
+  "Simulator Target Bundle": "app.adventurelog.ios.dev",
+  "aps": {
+    "timestamp": 1804357800,
+    "event": "update",
+    "content-state": {
+      "phase": "upcoming",
+      "target": 1804362000,
+      "departure": 1804364700,
+      "note": "Delayed 25 min \u00b7 Gate 23"
+    },
+    "alert": {
+      "title": "EX 1501 delayed",
+      "body": "Now boards 06:40 from gate 23."
+    }
+  }
+}

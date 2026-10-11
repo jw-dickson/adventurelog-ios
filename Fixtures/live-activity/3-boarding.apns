@@ -1,0 +1,17 @@
+{
+  "Simulator Target Bundle": "app.adventurelog.ios.dev",
+  "aps": {
+    "timestamp": 1804362000,
+    "event": "update",
+    "content-state": {
+      "phase": "boarding",
+      "target": 1804362000,
+      "departure": 1804364700,
+      "note": "Gate 23"
+    },
+    "alert": {
+      "title": "EX 1501 is boarding",
+      "body": "Gate 23, departs 07:25."
+    }
+  }
+}

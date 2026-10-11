@@ -1,0 +1,17 @@
+{
+  "Simulator Target Bundle": "app.adventurelog.ios.dev",
+  "aps": {
+    "timestamp": 1804358000,
+    "event": "update",
+    "content-state": {
+      "phase": "cancelled",
+      "target": 1804360500,
+      "departure": 1804363200,
+      "note": "Cancelled: rebooked on EX 1503 at 09:30"
+    },
+    "alert": {
+      "title": "EX 1501 cancelled",
+      "body": "You're rebooked on EX 1503 at 09:30."
+    }
+  }
+}

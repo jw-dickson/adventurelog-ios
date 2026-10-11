@@ -2,6 +2,7 @@
 *.xcodeproj/
 *.xcworkspace/
 App/Info.plist
+Widgets/Info.plist
 
 # Build output
 build/
