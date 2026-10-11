@@ -2,9 +2,11 @@
 
 import AdventureLogKit
 import ALStore
+import BackgroundTasks
 import Foundation
 import Network
 import Observation
+import UserNotifications
 
 /// App-wide state: who is signed in, the trip list, the trips opened so far, and edits on their
 /// way to the server.
@@ -80,13 +82,45 @@ final class AppModel {
     private var pathMonitor: NWPathMonitor?
     private let pinnedNow: Date?
 
+    // Reminders: settings are per phone, in UserDefaults.
+    private let defaults: UserDefaults
+    private let reminderScheduler = ReminderScheduler()
+    private var reminderTask: Task<Void, Never>?
+    /// The person turned reminders on (and allowed notifications).
+    private(set) var remindersEnabled: Bool
+    private(set) var reminderPermission: UNAuthorizationStatus = .notDetermined
+    var reminderSettings: ReminderSettings {
+        didSet {
+            if let data = try? JSONEncoder().encode(reminderSettings) { defaults.set(data, forKey: Keys.reminderSettings) }
+            scheduleReminderUpdate()
+        }
+    }
+    /// "Not now" on Today's reminder offer.
+    var reminderOfferDismissed: Bool {
+        didSet { defaults.set(reminderOfferDismissed, forKey: Keys.reminderOfferDismissed) }
+    }
+
+    private enum Keys {
+        static let remindersEnabled = "al.remindersEnabled"
+        static let reminderSettings = "al.reminderSettings"
+        static let reminderOfferDismissed = "al.reminderOfferDismissed"
+    }
+
+    /// The background refresh that keeps the reminder window rolling and the trip fresh.
+    nonisolated static let refreshTaskID = "app.adventurelog.refresh"
+
     init(credentialStore: any CredentialStore, snapshots: TripSnapshotStore, images: ImageStore,
-         deviceState: DeviceStateStore, now: Date? = nil) {
+         deviceState: DeviceStateStore, defaults: UserDefaults = .standard, now: Date? = nil) {
         self.credentialStore = credentialStore
         self.snapshots = snapshots
         self.images = images
         self.deviceState = deviceState
+        self.defaults = defaults
         self.pinnedNow = now
+        self.remindersEnabled = defaults.bool(forKey: Keys.remindersEnabled)
+        self.reminderOfferDismissed = defaults.bool(forKey: Keys.reminderOfferDismissed)
+        self.reminderSettings = defaults.data(forKey: Keys.reminderSettings)
+            .flatMap { try? JSONDecoder().decode(ReminderSettings.self, from: $0) } ?? ReminderSettings()
         if let saved = try? credentialStore.load() {
             phase = .signedIn(saved)
             client = AdventureLogClient(baseURL: saved.serverURL, apiKey: saved.apiKey)
@@ -107,8 +141,10 @@ final class AppModel {
         if options.offlineSeed {
             Self.seed(options, credentials: credentials, directory: directory.appending(path: "Trips"))
         }
+        // A defaults suite of its own, so one test's reminder choices don't leak into the next.
+        let defaults = UserDefaults(suiteName: "uitest-\(UUID().uuidString)") ?? .standard
         return AppModel(credentialStore: credentials, snapshots: snapshots, images: ImageStore(directory: directory.appending(path: "Images")),
-                        deviceState: DeviceStateStore(directory: directory.appending(path: "Device")), now: options.now)
+                        deviceState: DeviceStateStore(directory: directory.appending(path: "Device")), defaults: defaults, now: options.now)
     }
 
     /// Writes the seed trips the way a previous session would have, and signs in to a server that
@@ -213,6 +249,7 @@ final class AppModel {
             // Best effort: offline, the key stays until it's revoked in AdventureLog's settings.
             Task.detached { try? await revoke.client.deleteAPIKey(id: revoke.id) }
         }
+        await reminderScheduler.removeAll()
         await drainWrites()
         try? await snapshots.removeAll()
         try? await images.removeAll()
@@ -224,6 +261,8 @@ final class AppModel {
         session += 1
         sendTask?.cancel()
         sendTask = nil
+        reminderTask?.cancel()
+        reminderTask = nil
         retryTask?.cancel()
         retryTask = nil
         refreshingClient = nil
@@ -364,6 +403,7 @@ final class AppModel {
         }
         let detail = saved.value.applying(outbox.visibleEdits(for: id))
         trips[id] = LoadedTrip(plan: TripPlan(detail), savedAt: saved.savedAt)
+        scheduleReminderUpdate()
     }
 
     // MARK: Editing
@@ -404,6 +444,72 @@ final class AppModel {
         if value { rows.insert(rowID) } else { rows.remove(rowID) }
         skipped[tripID] = rows.isEmpty ? nil : rows
         saveDeviceState()
+        scheduleReminderUpdate()
+    }
+
+    // MARK: Reminders
+
+    /// Turns reminders on (asking for notification permission) or off.
+    func setRemindersEnabled(_ on: Bool) async {
+        if on {
+            let allowed = await reminderScheduler.requestPermission()
+            await refreshReminderPermission()
+            guard allowed else {
+                remindersEnabled = false
+                defaults.set(false, forKey: Keys.remindersEnabled)
+                return
+            }
+        }
+        remindersEnabled = on
+        defaults.set(on, forKey: Keys.remindersEnabled)
+        if on {
+            await updateReminders()
+        } else {
+            await reminderScheduler.removeAll()
+        }
+    }
+
+    func refreshReminderPermission() async {
+        reminderPermission = await reminderScheduler.status()
+    }
+
+    /// Recalculates reminders a moment after the last change, so a burst of changes costs one pass.
+    private func scheduleReminderUpdate() {
+        guard remindersEnabled, credentials != nil else { return }
+        reminderTask?.cancel()
+        let started = session
+        reminderTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(1))
+            guard !Task.isCancelled, let self, self.session == started else { return }
+            await self.updateReminders()
+        }
+    }
+
+    /// Schedules the next reminders across every loaded trip, soonest first, within iOS's limit.
+    func updateReminders() async {
+        guard remindersEnabled, credentials != nil else { return }
+        let now = Date.now
+        var all: [Reminder] = []
+        for (id, trip) in trips {
+            all += ReminderPlanner.reminders(for: trip.plan, now: now, skipped: skipped[id] ?? [], settings: reminderSettings)
+        }
+        all.sort { ($0.fireDate, $0.id) < ($1.fireDate, $1.id) }
+        await reminderScheduler.replace(with: Array(all.prefix(ReminderPlanner.limit)))
+    }
+
+    /// The background refresh: fetch what changed, send waiting edits, roll the reminder window on.
+    func backgroundRefresh() async {
+        Self.scheduleBackgroundRefresh()
+        guard credentials != nil else { return }
+        await loadTrips()
+        await updateReminders()
+    }
+
+    /// Asks iOS for the next background refresh, a few hours out.
+    nonisolated static func scheduleBackgroundRefresh() {
+        let request = BGAppRefreshTaskRequest(identifier: refreshTaskID)
+        request.earliestBeginDate = Date(timeIntervalSinceNow: 3 * 3600)
+        try? BGTaskScheduler.shared.submit(request)
     }
 
     // MARK: Sync
@@ -553,7 +659,11 @@ final class AppModel {
     func becameActive() {
         guard credentials != nil else { return }
         syncNow()
-        Task { await refreshOpenTrip() }
+        Task {
+            await refreshOpenTrip()
+            await refreshReminderPermission()
+            await updateReminders()
+        }
     }
 
     // MARK: Device state

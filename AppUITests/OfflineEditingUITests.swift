@@ -46,6 +46,25 @@ final class OfflineEditingUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["today.next.title"].waitForExistence(timeout: 5))
     }
 
+    func testTodayOffersRemindersOnceAndSettingsOpen() throws {
+        let app = try OfflineBrowseUITests.launchOffline()
+        XCTAssertTrue(app.staticTexts["today.title"].waitForExistence(timeout: 15))
+        let offer = app.descendants(matching: .any)["reminders.offer"]
+        if !offer.waitForExistence(timeout: 3) { app.swipeUp() }
+        XCTAssertTrue(offer.waitForExistence(timeout: 5))
+        app.buttons["Not now"].tap()
+        XCTAssertTrue(offer.waitForNonExistence(timeout: 5))
+
+        // Settings, from the account menu; turning them on would ask for permission, so stop here.
+        let account = app.navigationBars["Today"].buttons["Account"]
+        XCTAssertTrue(account.waitForExistence(timeout: 5))
+        account.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        app.buttons["Reminders"].tap()
+        let toggle = app.switches["reminders.enabled"]
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5))
+        XCTAssertEqual(toggle.value as? String, "0")
+    }
+
     func testTickingAChecklistItemIsKeptUntilTheServerIsBack() throws {
         let app = try OfflineBrowseUITests.launchOffline()
         openTripDay(app)
