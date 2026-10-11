@@ -76,7 +76,8 @@ Every outside dependency comes through a protocol the tests replace: the network
 
 - `ci.yml` — GitHub-hosted macOS, no secrets.
   - Every pull request push and every push to main: tokens check and package tests.
-  - Pull requests with changes outside `docs/`, `Design/`, `*.md` or `LICENSE`: Simulator UI tests on one Simulator, in a job beside the package tests. (Two at once was tried: on the hosted runners each cloned Simulator took minutes per test.) A push to main skips them, because the pull request already ran them on that code.
+  - Every pull request and push: the companion service's tests, on Linux.
+  - Pull requests with changes outside `docs/`, `Design/`, `Companion/`, `*.md` or `LICENSE`: Simulator UI tests on one Simulator, in a job beside the package tests. (Two at once was tried: on the hosted runners each cloned Simulator took minutes per test.) A push to main skips them, because the pull request already ran them on that code.
   - The screenshot gallery (light, dark, XXL) runs only on request: Actions › ci › Run workflow with "Capture the screenshot gallery" ticked, or `make gallery` on a Mac.
 - Self-hosted work (nightly full Simulator suite against a live test server, and TestFlight uploads) lives in the maintainer's private repository, which checks out this one. Nothing here can trigger code on the maintainer's machine.
 

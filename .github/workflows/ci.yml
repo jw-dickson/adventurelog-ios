@@ -52,7 +52,25 @@ jobs:
           python3 scripts/ci-annotate.py build/packages.log $([ $status -ne 0 ] && echo --tail)
           exit $status
 
-  # Decides whether the app needs the Simulator: not for a pull request that only changes docs.
+  # The companion service (Python), on Linux: quick, so it runs every time.
+  companion:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Companion tests
+        working-directory: Companion
+        run: |
+          pip install -e '.[test]'
+          pytest -q
+
+  # Decides whether the app needs the Simulator: not for a pull request that only changes docs
+  # or the companion.
   changes:
     runs-on: ubuntu-latest
     outputs:
@@ -70,10 +88,10 @@ jobs:
           if [ "$EVENT" != "pull_request" ]; then echo "app=true" >> "$GITHUB_OUTPUT"; exit 0; fi
           changed=$(git diff --no-renames --name-only "$BASE...$HEAD")
           echo "$changed"
-          if echo "$changed" | grep -qvE '^(docs/|Design/)|\.md$|^LICENSE$'; then
+          if echo "$changed" | grep -qvE '^(docs/|Design/|Companion/)|\.md$|^LICENSE$'; then
             echo "app=true" >> "$GITHUB_OUTPUT"
           else
-            echo "Docs only: skipping the Simulator."
+            echo "Docs or the companion only: skipping the Simulator."
             echo "app=false" >> "$GITHUB_OUTPUT"
           fi
 
