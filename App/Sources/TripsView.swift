@@ -11,6 +11,7 @@ struct TripsView: View {
     @State private var showingTokens = false
 
     var body: some View {
+        @Bindable var model = model
         NavigationStack {
             List {
                 if !model.ownedTrips.isEmpty {
@@ -70,6 +71,11 @@ struct TripsView: View {
             }
             .sheet(isPresented: $showingTokens) {
                 NavigationStack { TokenGallery() }
+            }
+            .alert("Couldn't sign out", isPresented: $model.showingSignOutError) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(model.signOutError ?? "")
             }
         }
     }
