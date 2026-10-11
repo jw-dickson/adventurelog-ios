@@ -7,7 +7,8 @@ import SwiftUI
 /// Launch arguments used by UI tests and Simulator runs.
 ///
 /// - `-ALResetState YES` starts signed out with nothing saved (in-memory storage).
-/// - `-ALServerURL <url>` prefills the sign-in form; `-ALAPIKey <key>` also switches it to API-key sign-in.
+/// - `-ALServerURL <url>` prefills the sign-in form. With `-ALAPIKey <key>` too, the app signs
+///   straight in with that key: a test seam for a disposable server, not something the app offers.
 /// - `-ALNow <ISO-8601>` pins the app's clock, so "happening now" and done items are repeatable.
 /// - `-ALOfflineSeed YES` starts signed in to an unreachable server with the trips in the
 ///   `AL_SEED_LIST` and `AL_SEED_TRIP` environment variables (AdventureLog JSON) already saved:

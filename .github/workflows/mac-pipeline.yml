@@ -1,0 +1,60 @@
+name: mac-pipeline
+
+# Hands work to the maintainer's private repository, which runs it on a self-hosted Mac:
+#   push to main            -> full Simulator suite, then a TestFlight upload if it passed
+#   label `run-mac` on a PR -> full Simulator suite for that exact commit, result posted back as a commit status
+#
+# Why it is safe for a public repository:
+#   * It never checks out or runs pull request code; it only passes a commit SHA along.
+#   * `pull_request_target` runs the workflow as it is on main, whatever the PR changes.
+#   * Only people who can label a PR can start a run, and forks are ignored.
+#   * The token below can only start a workflow in the private repository (nothing else).
+# Add the label only after reading the diff: the suite then runs that code on the maintainer's Mac.
+# A later push to the PR is not run; remove and re-add the label to run it again.
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - 'Design/**'
+      - '**/*.md'
+      - 'LICENSE'
+  pull_request_target:
+    types: [labeled]
+
+permissions: {}
+
+jobs:
+  dispatch:
+    if: >-
+      github.repository == 'jw-dickson/adventurelog-ios' &&
+      (github.event_name == 'push' ||
+       (github.event.label.name == 'run-mac' && github.event.pull_request.head.repo.full_name == github.repository))
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Start the Mac pipeline
+        env:
+          GH_TOKEN: ${{ secrets.INFRA_DISPATCH_TOKEN }}
+          INFRA_REPO: ${{ vars.INFRA_REPO }}
+          EVENT: ${{ github.event_name }}
+          PUSH_SHA: ${{ github.sha }}
+          PR_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+        run: |
+          set -euo pipefail
+          if [ -z "$GH_TOKEN" ] || [ -z "$INFRA_REPO" ]; then
+            echo "::notice::INFRA_DISPATCH_TOKEN or the INFRA_REPO variable is not set, so nothing was started."
+            exit 0
+          fi
+          if [ "$EVENT" = push ]; then
+            MODE=ship; SHA="$PUSH_SHA"; PR=""
+            NOTES=$(printf '%s' "$COMMIT_MESSAGE" | head -n 1 | cut -c1-200)
+          else
+            MODE=simulator; SHA="$PR_SHA"; PR="$PR_NUMBER"; NOTES=""
+          fi
+          [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::not a commit SHA"; exit 1; }
+          gh api -X POST "repos/$INFRA_REPO/actions/workflows/pipeline.yml/dispatches" \
+            -f ref=main -f "inputs[ref]=$SHA" -f "inputs[mode]=$MODE" -f "inputs[pr]=$PR" -f "inputs[notes]=$NOTES"
+          echo "Started mode=$MODE for ${SHA:0:12}" >> "$GITHUB_STEP_SUMMARY"

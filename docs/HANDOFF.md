@@ -173,7 +173,7 @@ Append under "Results":
 - **The sign-in screen** asks for the server, then a username (or email) and password, with a code step when two-factor is on. It also shows a "Continue with …" button for each provider the server offers, such as Authentik.
 - **Provider sign-in** runs the server's own pages in an in-app web view, which keeps nothing once it closes. When the server's session appears, the app takes it.
 - **The key:** either way, the app then makes an API key named "AdventureLog iOS · <date>" with that session, ends the session, and keeps the key. Signing out revokes it.
-- **"Use an API key instead"** keeps the old way.
+- **"Use an API key instead"** kept the old way. Removed afterwards (issue #9): see Handoff 3b.
 - Endpoints and findings are in the fixtures README §2.
 
 ### Check on the Mac
@@ -207,6 +207,24 @@ Append under "Results":
 3. Leave the app in the background overnight, then open Settings › General › Background App Refresh and confirm AdventureLog is on. The next day's reminders should arrive without opening the app.
 
 ### Results
+
+---
+
+## Handoff 3b · Sign in only through the login flow (issue #9, 2026-10-11)
+
+**Branch:** `sign-in-login-flow` (off main). **Goal:** single sign-on works on a server behind a forward-auth proxy, and there is no way to paste a key.
+
+### What changed
+
+- **No API-key field.** The sign-in screen offers a password (where the server allows it) and single sign-on. The app still makes and keeps its own key after signing in. UI tests can still pass a key with `-ALServerURL` and `-ALAPIKey`, which signs straight in.
+- **"Sign in with single sign-on"** is always there when the server lists no providers. It opens the server's own address in the web sheet, so a sign-on proxy in front of it runs first, then AdventureLog's own provider sign-in, as in a browser. Listed providers still get their own "Continue with …" buttons.
+- **A proxy's login page isn't an error.** Behind forward auth, requests without a session or key are redirected to the proxy's login page. The app recognises a redirect to something that isn't JSON. Provider discovery then counts as "none listed", the password fields are hidden, and the screen says the server signs in through single sign-on. A password attempt that meets the proxy says the same instead of showing a parse error.
+
+### Check on a device (TestFlight)
+
+1. Enter the address of a server behind forward auth. The password fields should disappear and **Sign in with single sign-on** should be the main button, with no error.
+2. Tap it. The proxy's sign-on and then AdventureLog's should run in the sheet. When they finish, the sheet closes and the app opens on Today. AdventureLog's API keys page should list "AdventureLog iOS · <date>".
+3. Sign out and back in once more, to check that the second sign-in also completes.
 
 ---
 
