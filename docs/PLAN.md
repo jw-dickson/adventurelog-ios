@@ -67,6 +67,7 @@ Stage 4a runs on the phone alone; 4b adds the companion service in `Companion/` 
 - **When it starts and ends:** iOS only lets an app start a Live Activity while it's open. So it starts when AdventureLog is open, or running for tracking, inside the window. It updates, and ends at departure or at the tour's start, whenever the app runs, including background refresh. Push-to-start from the companion (4b) removes the need to open the app.
 - **Pushes:** the content state is `LiveActivityState`, with times as Unix seconds. A push can set a note ("Gate 23", "Delayed 25 min"), move the times, mark it cancelled, or end it. When the phone recalculates it keeps a pushed note, and it never lifts a cancellation. `Fixtures/live-activity/` has a payload for every state.
 - **Turning it off:** Reminders has a Live Activities switch, and iOS has its own in Settings.
+- **The companion (4b):** set its address in Reminders. The phone registers with the AdventureLog API key it already holds, plus iOS's push-to-start token, and hands over each activity's push token. Every five minutes the companion reads that person's current trips from AdventureLog and works out the same activity with a Python port of the planner (`Companion/companion/planner.py`); both versions are tested against the synthetic trip. It starts the activity by push when the window opens, so the app needn't be opened. It updates it when the times change or boarding starts, and ends it at departure. Sign-out unregisters the phone before the key is revoked. Setup is in `Companion/README.md`.
 
 ## Testing without a device
 
@@ -76,7 +77,8 @@ Every outside dependency comes through a protocol the tests replace: the network
 
 - `ci.yml` — GitHub-hosted macOS, no secrets.
   - Every pull request push and every push to main: tokens check and package tests.
-  - Pull requests with changes outside `docs/`, `Design/`, `*.md` or `LICENSE`: Simulator UI tests on one Simulator, in a job beside the package tests. (Two at once was tried: on the hosted runners each cloned Simulator took minutes per test.) A push to main skips them, because the pull request already ran them on that code.
+  - Every pull request and push: the companion service's tests, on Linux.
+  - Pull requests with changes outside `docs/`, `Design/`, `Companion/`, `*.md` or `LICENSE`: Simulator UI tests on one Simulator, in a job beside the package tests. (Two at once was tried: on the hosted runners each cloned Simulator took minutes per test.) A push to main skips them, because the pull request already ran them on that code.
   - The screenshot gallery (light, dark, XXL) runs only on request: Actions › ci › Run workflow with "Capture the screenshot gallery" ticked, or `make gallery` on a Mac.
 - Self-hosted work (nightly full Simulator suite against a live test server, and TestFlight uploads) lives in the maintainer's private repository, which checks out this one. Nothing here can trigger code on the maintainer's machine.
 

@@ -105,6 +105,30 @@ final class AppModel {
 
     // Live Activities for flights and booked tours (Stage 4).
     private let liveActivities = LiveActivityController()
+    /// The companion service's address (optional, Stage 4b): it starts, updates and ends Live
+    /// Activities by push.
+    var companionAddress: String {
+        didSet {
+            defaults.set(companionAddress, forKey: Keys.companionAddress)
+            // A moment after the typing stops, not on every keystroke.
+            companionTask?.cancel()
+            companionTask = Task { [weak self] in
+                try? await Task.sleep(for: .seconds(1))
+                guard !Task.isCancelled else { return }
+                await self?.connectCompanion()
+            }
+        }
+    }
+    private var companionTask: Task<Void, Never>?
+    /// The companion this phone last registered with, so a changed or cleared address (or
+    /// sign-out) unregisters it rather than leaving it with the key.
+    private var registeredCompanion: CompanionClient?
+    /// "Connected", or why not; nil when no companion is set.
+    private(set) var companionStatus: String?
+    private var startToken: Data?
+    /// Activity push tokens the companion hasn't accepted yet (e.g. one that came before the phone
+    /// was registered), by trip and item; sent again after each registration.
+    private var pendingActivityTokens: [String: (token: Data, tripID: String, rowID: String)] = [:]
     /// On unless the person turns them off in Reminders; iOS has its own switch too.
     var liveActivitiesEnabled: Bool {
         didSet {
@@ -115,6 +139,7 @@ final class AppModel {
 
     private enum Keys {
         static let liveActivitiesOff = "al.liveActivitiesOff"
+        static let companionAddress = "al.companionAddress"
         static let remindersEnabled = "al.remindersEnabled"
         static let reminderSettings = "al.reminderSettings"
         static let reminderOfferDismissed = "al.reminderOfferDismissed"
@@ -155,6 +180,7 @@ final class AppModel {
         self.remindersEnabled = defaults.bool(forKey: Keys.remindersEnabled)
         self.reminderOfferDismissed = defaults.bool(forKey: Keys.reminderOfferDismissed)
         self.liveActivitiesEnabled = !defaults.bool(forKey: Keys.liveActivitiesOff)
+        self.companionAddress = defaults.string(forKey: Keys.companionAddress) ?? ""
         self.reminderSettings = defaults.data(forKey: Keys.reminderSettings)
             .flatMap { try? JSONDecoder().decode(ReminderSettings.self, from: $0) } ?? ReminderSettings()
         if let saved = try? credentialStore.load() {
@@ -278,6 +304,8 @@ final class AppModel {
         try credentialStore.save(credentials)
         self.client = client
         phase = .signedIn(credentials)
+        startToken = nil
+        Task { await connectCompanion() }
         await refreshTrips()
     }
 
@@ -292,15 +320,22 @@ final class AppModel {
             signOutError = error.localizedDescription
             return
         }
-        // A key the app made at sign-in is revoked; one the person pasted stays theirs.
+        // A key the app made at sign-in is revoked; one the person pasted stays theirs. The
+        // companion is told first, while the key still works.
         let revoke = credentials?.apiKeyID.flatMap { id in client.map { (client: $0, id: id) } }
+        let companion = registeredCompanion ?? self.companion
+        registeredCompanion = nil
+        pendingActivityTokens = [:]
         resetSession()
         client = nil
         lastError = nil
         phase = .signedOut
-        if let revoke {
+        if revoke != nil || companion != nil {
             // Best effort: offline, the key stays until it's revoked in AdventureLog's settings.
-            Task.detached { try? await revoke.client.deleteAPIKey(id: revoke.id) }
+            Task.detached {
+                try? await companion?.unregister()
+                if let revoke { try? await revoke.client.deleteAPIKey(id: revoke.id) }
+            }
         }
         await reminderScheduler.removeAll()
         await liveActivities.endAll()
@@ -586,7 +621,96 @@ final class AppModel {
         let current = trips.filter { listed.contains($0.key) }
             .compactMap { LiveActivityPlanner.current(for: $0.value.plan, now: now, skipped: skipped[$0.key] ?? []) }
             .min { $0.end < $1.end }
-        await liveActivities.show(current)
+        var onToken: LiveActivityController.TokenHandler?
+        if companion != nil {
+            onToken = { [weak self] token, tripID, rowID in
+                await self?.receivedActivityToken(token, tripID: tripID, rowID: rowID)
+            }
+        }
+        await liveActivities.show(current, onToken: onToken)
+    }
+
+    // MARK: Companion service
+
+    /// The companion, when an HTTPS address is set and someone is signed in. Every request carries
+    /// the AdventureLog API key, so plain http is never used.
+    var companion: CompanionClient? {
+        guard let credentials, let url = AdventureLogClient.normalizedServerURL(companionAddress),
+              url.scheme?.lowercased() == "https" else { return nil }
+        return CompanionClient(baseURL: url, apiKey: credentials.apiKey)
+    }
+
+    /// Builds from Xcode get pushes through Apple's sandbox; TestFlight and the App Store don't.
+    nonisolated static var pushEnvironment: CompanionClient.Environment {
+        #if DEBUG
+        .sandbox
+        #else
+        .production
+        #endif
+    }
+
+    /// Registers this phone (again) with the companion, with the push-to-start token once iOS gives one.
+    func connectCompanion() async {
+        let companion = self.companion
+        // A different (or no) address: the old companion stops pushing and drops the key.
+        if let previous = registeredCompanion, previous.baseURL != companion?.baseURL {
+            registeredCompanion = nil
+            try? await previous.unregister()
+        }
+        guard let companion else {
+            let address = companionAddress.trimmingCharacters(in: .whitespacesAndNewlines)
+            companionStatus = address.isEmpty || credentials == nil ? nil : "Use an https:// address."
+            return
+        }
+        let started = session
+        do {
+            try await companion.register(environment: Self.pushEnvironment, startToken: startToken)
+            // The address changed (or sign-out happened) while this was in flight: undo it, so a
+            // slower, older registration can't replace the current one.
+            guard session == started, self.companion?.baseURL == companion.baseURL else {
+                try? await companion.unregister()
+                return
+            }
+            registeredCompanion = companion
+            companionStatus = "Connected"
+            await sendPendingActivityTokens()
+        } catch {
+            guard session == started else { return }
+            companionStatus = Self.describe(error)
+        }
+    }
+
+    /// For the signed-in session: passes the push tokens iOS hands out to the companion.
+    func watchLiveActivityTokens() async {
+        await liveActivities.watchTokens(onStartToken: { [weak self] token in
+            await self?.receivedStartToken(token)
+        }, onToken: { [weak self] token, tripID, rowID in
+            await self?.receivedActivityToken(token, tripID: tripID, rowID: rowID)
+        })
+    }
+
+    private func receivedStartToken(_ token: Data) async {
+        startToken = token
+        await connectCompanion()
+    }
+
+    private func receivedActivityToken(_ token: Data, tripID: String, rowID: String) async {
+        pendingActivityTokens[tripID + "/" + rowID] = (token, tripID, rowID)
+        await sendPendingActivityTokens()
+    }
+
+    /// Hands the companion every token it hasn't accepted yet; a failure keeps it for next time.
+    private func sendPendingActivityTokens() async {
+        guard let companion else { return }
+        for (key, pending) in pendingActivityTokens {
+            do {
+                try await companion.setActivityToken(pending.token, tripID: pending.tripID, rowID: pending.rowID)
+                // Only if a newer token for the same activity didn't arrive meanwhile.
+                if pendingActivityTokens[key]?.token == pending.token { pendingActivityTokens[key] = nil }
+            } catch {
+                continue
+            }
+        }
     }
 
     /// Schedules the next reminders across every loaded trip, soonest first, within iOS's limit.
