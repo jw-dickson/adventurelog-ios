@@ -57,10 +57,11 @@ jobs:
           python3 scripts/ci-annotate.py build/ui.log $([ $status -ne 0 ] && echo --tail)
           exit $status
 
+      # Always kept: the gallery test's light, dark and XXL screenshots live in here.
       - name: Keep the test results
-        if: failure()
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ui-tests-xcresult
           path: build/UITests.xcresult
-          retention-days: 7
+          retention-days: 14

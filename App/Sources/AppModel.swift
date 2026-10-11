@@ -5,7 +5,10 @@ import ALStore
 import Foundation
 import Observation
 
-/// App-wide state: who is signed in, and the trip list. Screens own their own loading.
+/// App-wide state: who is signed in, the trip list, and the trips opened so far.
+///
+/// Everything shows the saved copy first and then refreshes from the server when it can, so the
+/// app works the same with no signal.
 @MainActor
 @Observable
 final class AppModel {
@@ -14,23 +17,36 @@ final class AppModel {
         case signedIn(ServerCredentials)
     }
 
+    struct LoadedTrip {
+        var plan: TripPlan
+        var savedAt: Date
+    }
+
     private(set) var phase: Phase
     private(set) var ownedTrips: [CollectionSummary] = []
     private(set) var sharedTrips: [CollectionSummary] = []
     private(set) var tripListSavedAt: Date?
     private(set) var isRefreshing = false
+    /// Trips loaded so far this session, by id.
+    private(set) var trips: [String: LoadedTrip] = [:]
+    /// Why the last refresh failed, when it did. The saved copy is still shown.
     var lastError: String?
+    /// The trip the Trip and Map tabs show.
+    var selectedTripID: String?
 
     private let credentialStore: any CredentialStore
     let snapshots: TripSnapshotStore
+    let images: ImageStore
     private(set) var client: AdventureLogClient?
-    /// The client whose trip refresh is in flight; a new session's client can start its own.
+    /// The client whose trip-list refresh is in flight; a new session's client can start its own.
     private var refreshingClient: AdventureLogClient?
+    private let pinnedNow: Date?
 
-    /// Restores saved credentials without contacting the server; starts signed out if loading fails.
-    init(credentialStore: any CredentialStore, snapshots: TripSnapshotStore) {
+    init(credentialStore: any CredentialStore, snapshots: TripSnapshotStore, images: ImageStore, now: Date? = nil) {
         self.credentialStore = credentialStore
         self.snapshots = snapshots
+        self.images = images
+        self.pinnedNow = now
         if let saved = try? credentialStore.load() {
             phase = .signedIn(saved)
             client = AdventureLogClient(baseURL: saved.serverURL, apiKey: saved.apiKey)
@@ -39,13 +55,38 @@ final class AppModel {
         }
     }
 
-    /// Uses persistent storage normally; a reset launch uses in-memory credentials and a new temporary snapshot directory.
+    /// Real storage, or throwaway storage when UI tests ask for a clean start.
     static func forLaunch(_ options: LaunchOptions = .current) -> AppModel {
-        if options.resetState {
-            let directory = FileManager.default.temporaryDirectory.appending(path: "uitest-\(UUID().uuidString)")
-            return AppModel(credentialStore: InMemoryCredentialStore(), snapshots: TripSnapshotStore(directory: directory))
+        guard options.resetState else {
+            return AppModel(credentialStore: KeychainCredentialStore(), snapshots: TripSnapshotStore(), images: ImageStore(), now: options.now)
         }
-        return AppModel(credentialStore: KeychainCredentialStore(), snapshots: TripSnapshotStore())
+        let directory = FileManager.default.temporaryDirectory.appending(path: "uitest-\(UUID().uuidString)")
+        let credentials = InMemoryCredentialStore()
+        let snapshots = TripSnapshotStore(directory: directory.appending(path: "Trips"))
+        if options.offlineSeed {
+            Self.seed(options, credentials: credentials, directory: directory.appending(path: "Trips"))
+        }
+        return AppModel(credentialStore: credentials, snapshots: snapshots, images: ImageStore(directory: directory.appending(path: "Images")), now: options.now)
+    }
+
+    /// Writes the seed trips the way a previous session would have, and signs in to a server that
+    /// is never reachable (the discard port on loopback).
+    private static func seed(_ options: LaunchOptions, credentials: InMemoryCredentialStore, directory: URL) {
+        let decoder = ALCoding.decoder()
+        let encoder = ALCoding.encoder()
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let savedAt = Date(timeIntervalSinceNow: -3_600)
+        if let data = options.seedList, let owned = try? decoder.decode([CollectionSummary].self, from: data),
+           let list = try? encoder.encode(TripSnapshotStore.TripList(owned: owned, shared: [], savedAt: savedAt)) {
+            try? list.write(to: directory.appending(path: "trip-list.json"))
+        }
+        if let data = options.seedTrip, let trip = try? decoder.decode(CollectionDetail.self, from: data),
+           let snapshot = try? encoder.encode(TripSnapshotStore.Snapshot(value: trip, savedAt: savedAt)) {
+            let safe = String(trip.id.unicodeScalars.filter { CharacterSet.alphanumerics.contains($0) || $0 == "-" })
+            try? snapshot.write(to: directory.appending(path: "trip-\(safe).json"))
+        }
+        let offline = ServerCredentials(serverURL: URL(string: "http://127.0.0.1:9")!, apiKey: "al_offline", username: "offline", displayName: "Offline test")
+        try? credentials.save(offline)
     }
 
     var credentials: ServerCredentials? {
@@ -53,11 +94,17 @@ final class AppModel {
         return nil
     }
 
+    // MARK: Clock
+
+    /// The current time, or the pinned time in tests and Simulator runs.
+    var now: Date { pinnedNow ?? .now }
+
+    /// Today's date where the phone is. On the road the phone is in the trip's zone.
+    var today: CalendarDate { CalendarDate(now, in: .autoupdatingCurrent) }
+
     // MARK: Sign in and out
 
-    /// Validates the address and trimmed key, saves credentials, signs in, and refreshes trips.
-    /// - Throws: `APIError.badServerURL` for an unusable address, or errors from the user request
-    ///   or credential store. Trip refresh errors are recorded in `lastError` after sign-in.
+    /// Validates the address and key against the server, then stores them.
     func signIn(server: String, apiKey: String) async throws {
         guard let url = AdventureLogClient.normalizedServerURL(server) else { throw APIError.badServerURL }
         let key = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -70,19 +117,25 @@ final class AppModel {
         await refreshTrips()
     }
 
-    /// Clears the signed-in state and trip list, and attempts to delete credentials and snapshots.
-    /// Storage deletion errors are ignored, so persisted data may remain.
     func signOut() async {
         try? credentialStore.clear()
         try? await snapshots.removeAll()
+        try? await images.removeAll()
         client = nil
         ownedTrips = []
         sharedTrips = []
+        trips = [:]
+        selectedTripID = nil
         tripListSavedAt = nil
+        lastError = nil
         phase = .signedOut
     }
 
-    // MARK: Trips
+    // MARK: Trip list
+
+    func sections(matching query: String = "") -> TripListSections {
+        TripListSections(owned: ownedTrips, shared: sharedTrips, today: today, matching: query)
+    }
 
     /// Shows the saved list immediately, then refreshes from the server when reachable.
     func loadTrips() async {
@@ -91,12 +144,10 @@ final class AppModel {
             sharedTrips = saved.shared
             tripListSavedAt = saved.savedAt
         }
+        if selectedTripID == nil { selectedTripID = sections().current?.id }
         await refreshTrips()
     }
 
-    /// Refreshes and sorts both trip lists, then attempts to save an offline copy.
-    /// Does nothing without a client or while this client is already refreshing. Request failures
-    /// preserve the current lists and set `lastError`; snapshot write failures are ignored.
     /// Results that arrive after a sign-out or a new sign-in are dropped.
     func refreshTrips() async {
         guard let client, refreshingClient !== client else { return }
@@ -113,15 +164,17 @@ final class AppModel {
             async let shared = client.sharedCollections()
             let (o, s) = try await (owned, shared)
             guard isCurrent(client) else { return }
-            ownedTrips = o.sorted(by: Self.tripOrder)
-            sharedTrips = s.sorted(by: Self.tripOrder)
+            ownedTrips = o
+            sharedTrips = s
             tripListSavedAt = .now
             lastError = nil
-            try? await snapshots.saveTripList(.init(owned: ownedTrips, shared: sharedTrips, savedAt: .now))
+            try? await snapshots.saveTripList(.init(owned: o, shared: s, savedAt: .now))
+            if selectedTripID == nil { selectedTripID = sections().current?.id }
         } catch {
-            guard isCurrent(client) else { return }
-            lastError = error.localizedDescription
+            if isCurrent(client) { lastError = Self.describe(error) }
+            return
         }
+        await saveForOffline()
     }
 
     /// Whether `client` still belongs to the signed-in session, so its results may be shown or saved.
@@ -129,13 +182,50 @@ final class AppModel {
         credentials != nil && self.client === client
     }
 
-    /// Trips with dates first, soonest first; undated collections after, by name.
-    nonisolated static func tripOrder(_ a: CollectionSummary, _ b: CollectionSummary) -> Bool {
-        switch (a.startDate, b.startDate) {
-        case let (x?, y?): return x == y ? a.name < b.name : x < y
-        case (.some, nil): return true
-        case (nil, .some): return false
-        case (nil, nil): return a.name.localizedStandardCompare(b.name) == .orderedAscending
+    /// Keeps every trip that is happening now or coming up, with its photos, on the phone.
+    func saveForOffline() async {
+        let sections = sections()
+        for summary in sections.happeningNow + sections.upcoming + sections.shared.filter({ $0.isTrip }) {
+            await loadTrip(id: summary.id)
         }
+    }
+
+    // MARK: Trips
+
+    func trip(_ id: String) -> LoadedTrip? { trips[id] }
+
+    /// The saved copy first, then the server's. Saves what comes back and fetches its photos.
+    func loadTrip(id: String) async {
+        if trips[id] == nil, let saved = await snapshots.trip(id: id) {
+            trips[id] = LoadedTrip(plan: TripPlan(saved.value), savedAt: saved.savedAt)
+        }
+        guard let client else { return }
+        do {
+            let detail = try await client.collection(id: id)
+            guard isCurrent(client) else { return }
+            trips[id] = LoadedTrip(plan: TripPlan(detail), savedAt: .now)
+            try? await snapshots.saveTrip(detail)
+            lastError = nil
+            let urls = ImageStore.imageURLs(in: detail)
+            let images = self.images
+            Task.detached(priority: .utility) {
+                await images.prefetch(urls) { try await client.media(at: $0) }
+            }
+        } catch {
+            if isCurrent(client) { lastError = Self.describe(error) }
+        }
+    }
+
+    /// Image bytes from the offline pack, downloading them if this is the first time.
+    func imageData(for url: URL) async -> Data? {
+        if let saved = await images.cachedData(for: url) { return saved }
+        guard let client else { return nil }
+        return try? await images.data(for: url) { try await client.media(at: $0) }
+    }
+
+    /// Says "offline" plainly instead of a URL error.
+    static func describe(_ error: any Error) -> String {
+        if let api = error as? APIError, case .transport = api { return "Can't reach your server. Showing the copy saved on this phone." }
+        return error.localizedDescription
     }
 }
