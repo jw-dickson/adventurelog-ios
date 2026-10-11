@@ -14,6 +14,7 @@ struct TripsView: View {
     @State private var openedCurrentTrip = false
 
     var body: some View {
+        @Bindable var model = model
         NavigationStack(path: $path) {
             let sections = model.sections(matching: query)
             ScrollView {
@@ -67,6 +68,11 @@ struct TripsView: View {
             }
             .sheet(isPresented: $showingTokens) {
                 NavigationStack { TokenGallery() }
+            }
+            .alert("Couldn't sign out", isPresented: $model.showingSignOutError) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(model.signOutError ?? "")
             }
             .onChange(of: model.selectedTripID, initial: true) { _, id in
                 // Open the trip that is happening now, once, when the list first knows about it.

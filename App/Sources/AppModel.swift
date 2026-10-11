@@ -31,6 +31,12 @@ final class AppModel {
     private(set) var trips: [String: LoadedTrip] = [:]
     /// Why the last refresh failed, when it did. The saved copy is still shown.
     var lastError: String?
+    /// Set when sign-out could not delete the saved credentials; the session stays signed in.
+    var signOutError: String?
+    var showingSignOutError: Bool {
+        get { signOutError != nil }
+        set { if !newValue { signOutError = nil } }
+    }
     /// The trip the Trip and Map tabs show.
     var selectedTripID: String?
 
@@ -110,6 +116,9 @@ final class AppModel {
         let key = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         let client = AdventureLogClient(baseURL: url, apiKey: key)
         let user = try await client.currentUser()
+        // Clear anything a previous session left behind, so one account never sees another's trips.
+        try await snapshots.removeAll()
+        try? await images.removeAll()
         let credentials = ServerCredentials(serverURL: url, apiKey: key, username: user.username, displayName: user.displayName)
         try credentialStore.save(credentials)
         self.client = client
@@ -117,11 +126,20 @@ final class AppModel {
         await refreshTrips()
     }
 
+    /// Deletes the saved credentials, ends the session, then deletes the offline copies. If the
+    /// credentials can't be deleted it stays signed in and sets `signOutError`, since the next launch
+    /// would otherwise restore them. The session ends before the first `await`, so a refresh still in
+    /// flight is no longer current and can't write anything back.
     func signOut() async {
-        try? credentialStore.clear()
-        try? await snapshots.removeAll()
-        try? await images.removeAll()
+        do {
+            try credentialStore.clear()
+        } catch {
+            signOutError = error.localizedDescription
+            return
+        }
         client = nil
+        refreshingClient = nil
+        isRefreshing = false
         ownedTrips = []
         sharedTrips = []
         trips = [:]
@@ -129,6 +147,8 @@ final class AppModel {
         tripListSavedAt = nil
         lastError = nil
         phase = .signedOut
+        try? await snapshots.removeAll()
+        try? await images.removeAll()
     }
 
     // MARK: Trip list
