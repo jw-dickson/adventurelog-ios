@@ -21,7 +21,7 @@ on:
       - 'LICENSE'
   pull_request_target:
     types: [labeled]
-  workflow_dispatch:          # manual: checks that the token and variable work, starts nothing
+  workflow_dispatch:          # manual, main only (see the job condition): checks the token and variable, starts nothing
 
 permissions: {}
 
@@ -29,7 +29,8 @@ jobs:
   dispatch:
     if: >-
       github.repository == 'jw-dickson/adventurelog-ios' &&
-      (github.event_name == 'push' || github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' ||
+       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
        (github.event.label.name == 'run-mac' && github.event.pull_request.head.repo.full_name == github.repository))
     runs-on: ubuntu-latest
     timeout-minutes: 5
