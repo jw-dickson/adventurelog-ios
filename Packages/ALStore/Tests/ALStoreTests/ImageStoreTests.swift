@@ -49,6 +49,31 @@ struct ImageStoreTests {
         #expect(await store.cachedData(for: good) == nil)
     }
 
+    @Test func downloadsThatOutliveACacheClearAreNotSaved() async throws {
+        let store = makeStore()
+        let url = try #require(URL(string: "https://adventurelog.example/media/old-account.jpg"))
+        // The cache is cleared (sign-out) while this download is still in flight.
+        let data = try await store.data(for: url) { _ in
+            try await store.removeAll()
+            return Data("old".utf8)
+        }
+        #expect(data == Data("old".utf8))
+        #expect(await store.cachedData(for: url) == nil)
+    }
+
+    @Test func prefetchStopsWhenTheCacheIsCleared() async throws {
+        let store = makeStore()
+        let first = try #require(URL(string: "https://adventurelog.example/media/1.jpg"))
+        let second = try #require(URL(string: "https://adventurelog.example/media/2.jpg"))
+        let added = await store.prefetch([first, second]) { url in
+            if url == first { try await store.removeAll() }
+            return Data("x".utf8)
+        }
+        #expect(added == 1, "the first call still returns its bytes, but nothing is saved after the clear")
+        #expect(await store.cachedData(for: first) == nil)
+        #expect(await store.cachedData(for: second) == nil)
+    }
+
     @Test func tripImagesAreCollectedOnce() throws {
         let data = try Data(contentsOf: ALStoreTests.fixtures.appending(path: "collections__detail.json"))
         let trip = try ALCoding.decoder().decode(CollectionDetail.self, from: data)

@@ -11,6 +11,9 @@ public actor ImageStore {
 
     private let directory: URL
     private var inFlight: [URL: Task<Data, any Error>] = [:]
+    /// Bumped by `removeAll()`. A download that started before the bump is not saved, so an
+    /// account's photos can't reappear after sign-out cleared them.
+    private var generation = 0
 
     /// - Parameter directory: defaults to `Application Support/AdventureLog/Images`.
     public init(directory: URL? = nil) {
@@ -38,11 +41,14 @@ public actor ImageStore {
     public func data(for url: URL, fetch: @escaping Fetch) async throws -> Data {
         if let saved = cachedData(for: url) { return saved }
         if let running = inFlight[url] { return try await running.value }
+        let started = generation
         let task = Task { try await fetch(url) }
         inFlight[url] = task
-        defer { inFlight[url] = nil }
+        defer {
+            if generation == started { inFlight[url] = nil }
+        }
         let data = try await task.value
-        try save(data, for: url)
+        if generation == started { try save(data, for: url) }
         return data
     }
 
@@ -50,13 +56,18 @@ public actor ImageStore {
     @discardableResult
     public func prefetch(_ urls: [URL], fetch: @escaping Fetch) async -> Int {
         var added = 0
+        let started = generation
         for url in urls where cachedData(for: url) == nil {
+            guard generation == started else { break } // cleared mid-prefetch: stop
             if (try? await data(for: url, fetch: fetch)) != nil { added += 1 }
         }
         return added
     }
 
     public func removeAll() throws {
+        generation += 1
+        inFlight.values.forEach { $0.cancel() }
+        inFlight = [:]
         if FileManager.default.fileExists(atPath: directory.path()) {
             try FileManager.default.removeItem(at: directory)
         }

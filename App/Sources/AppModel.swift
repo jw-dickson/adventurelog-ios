@@ -46,6 +46,9 @@ final class AppModel {
     private(set) var client: AdventureLogClient?
     /// The client whose trip-list refresh is in flight; a new session's client can start its own.
     private var refreshingClient: AdventureLogClient?
+    /// Snapshot writes run one after another through this chain, so sign-out can wait for every
+    /// write queued before it and then delete. Actors alone don't promise that order.
+    private var snapshotWrites: Task<Void, Never>?
     private let pinnedNow: Date?
 
     init(credentialStore: any CredentialStore, snapshots: TripSnapshotStore, images: ImageStore, now: Date? = nil) {
@@ -117,8 +120,9 @@ final class AppModel {
         let client = AdventureLogClient(baseURL: url, apiKey: key)
         let user = try await client.currentUser()
         // Clear anything a previous session left behind, so one account never sees another's trips.
+        await drainSnapshotWrites()
         try await snapshots.removeAll()
-        try? await images.removeAll()
+        try await images.removeAll()
         let credentials = ServerCredentials(serverURL: url, apiKey: key, username: user.username, displayName: user.displayName)
         try credentialStore.save(credentials)
         self.client = client
@@ -147,6 +151,7 @@ final class AppModel {
         tripListSavedAt = nil
         lastError = nil
         phase = .signedOut
+        await drainSnapshotWrites()
         try? await snapshots.removeAll()
         try? await images.removeAll()
     }
@@ -188,7 +193,8 @@ final class AppModel {
             sharedTrips = s
             tripListSavedAt = .now
             lastError = nil
-            try? await snapshots.saveTripList(.init(owned: o, shared: s, savedAt: .now))
+            let store = snapshots
+            queueSnapshotWrite { _ = try? await store.saveTripList(.init(owned: o, shared: s, savedAt: .now)) }
             if selectedTripID == nil { selectedTripID = sections().current?.id }
         } catch {
             if isCurrent(client) { lastError = Self.describe(error) }
@@ -224,7 +230,8 @@ final class AppModel {
             let detail = try await client.collection(id: id)
             guard isCurrent(client) else { return }
             trips[id] = LoadedTrip(plan: TripPlan(detail), savedAt: .now)
-            try? await snapshots.saveTrip(detail)
+            let store = snapshots
+            queueSnapshotWrite { _ = try? await store.saveTrip(detail) }
             lastError = nil
             let urls = ImageStore.imageURLs(in: detail)
             let images = self.images
@@ -234,6 +241,23 @@ final class AppModel {
         } catch {
             if isCurrent(client) { lastError = Self.describe(error) }
         }
+    }
+
+    /// Queues a snapshot write behind the ones already queued. Call it with no `await` between the
+    /// `isCurrent` check and the call, so a write is only ever queued for the current session.
+    private func queueSnapshotWrite(_ write: @escaping @Sendable () async -> Void) {
+        let previous = snapshotWrites
+        snapshotWrites = Task {
+            await previous?.value
+            await write()
+        }
+    }
+
+    /// Waits for every queued snapshot write to finish.
+    private func drainSnapshotWrites() async {
+        let pending = snapshotWrites
+        snapshotWrites = nil
+        await pending?.value
     }
 
     /// Image bytes from the offline pack, downloading them if this is the first time.
