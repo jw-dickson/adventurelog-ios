@@ -5,7 +5,7 @@ PROJECT := AdventureLog.xcodeproj
 XCB_SIM = -project $(PROJECT) -scheme AdventureLog -destination "$$($(SIM) destination)" \
           -derivedDataPath build/DerivedData CODE_SIGN_IDENTITY=- CODE_SIGNING_ALLOWED=YES CODE_SIGNING_REQUIRED=NO
 
-.PHONY: help bootstrap generate tokens test test-packages test-ui build run clean
+.PHONY: help bootstrap generate tokens test test-packages test-ui gallery build run clean
 
 help:
 	@echo "make bootstrap      install XcodeGen if needed, generate tokens and the Xcode project"
@@ -14,6 +14,7 @@ help:
 	@echo "make test-packages  Swift package tests on macOS (fast, no Simulator)"
 	@echo "make test-ui        UI tests on the newest iPhone simulator"
 	@echo "                    end to end: AL_TEST_SERVER=http://127.0.0.1:8000 AL_TEST_API_KEY=al_… make test-ui"
+	@echo "make gallery        screenshots of every screen (light, dark, XXL) into build/gallery"
 	@echo "make run            build, install and launch in the Simulator"
 
 bootstrap:
@@ -36,6 +37,13 @@ test-packages:
 test-ui: generate
 	TEST_RUNNER_AL_TEST_SERVER="$(AL_TEST_SERVER)" TEST_RUNNER_AL_TEST_API_KEY="$(AL_TEST_API_KEY)" \
 	  xcodebuild test $(XCB_SIM) -resultBundlePath build/UITests-$$(date +%Y%m%d-%H%M%S).xcresult
+
+gallery: generate
+	rm -rf build/Gallery.xcresult build/gallery
+	xcodebuild test $(XCB_SIM) -only-testing:AdventureLogUITests/GalleryUITests -resultBundlePath build/Gallery.xcresult
+	mkdir -p build/gallery
+	xcrun xcresulttool export attachments --path build/Gallery.xcresult --output-path build/gallery
+	@echo "Screenshots in build/gallery (manifest.json maps files to names)"
 
 build: generate
 	xcodebuild build $(XCB_SIM) -quiet

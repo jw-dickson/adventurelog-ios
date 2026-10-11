@@ -4,8 +4,8 @@ import AdventureLogKit
 import Foundation
 
 /// The last good copy of each trip and of the trip list, as the server sent it, so the app opens
-/// and browses offline. Stage 1 replaces this with the SwiftData cache and outbox; the on-disk
-/// format is plain AdventureLog JSON so it stays readable and easy to migrate.
+/// and browses offline. The on-disk format is plain AdventureLog JSON so it stays readable and easy
+/// to migrate when Stage 2 adds the outbox.
 public actor TripSnapshotStore {
     public struct TripList: Codable, Sendable, Hashable {
         public var owned: [CollectionSummary]
@@ -22,6 +22,11 @@ public actor TripSnapshotStore {
     public struct Snapshot<Value: Codable & Sendable>: Codable, Sendable {
         public var value: Value
         public var savedAt: Date
+
+        public init(value: Value, savedAt: Date) {
+            self.value = value
+            self.savedAt = savedAt
+        }
     }
 
     private let directory: URL

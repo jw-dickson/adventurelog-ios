@@ -75,6 +75,11 @@ targets:
     platform: iOS
     sources:
       - path: AppUITests
+      # The seeded trip, for the offline browsing test and the screenshot gallery.
+      - path: Fixtures/adventurelog-v0.13.0/responses/collections__all.json
+        buildPhase: resources
+      - path: Fixtures/adventurelog-v0.13.0/responses/collections__detail.json
+        buildPhase: resources
     dependencies:
       - target: AdventureLog
     settings:
