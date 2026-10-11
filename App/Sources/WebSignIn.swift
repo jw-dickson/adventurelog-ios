@@ -12,16 +12,23 @@ import WebKit
 /// It runs in an in-app web view rather than Safari because the app needs the session the server
 /// sets at the end, and Safari's cookies are out of its reach. The web view keeps nothing: its
 /// cookies live only in memory and go with the sheet.
-struct WebSignInSheet: View {
-    let provider: SocialProvider
+/// Where a web sign-in starts and which server's session it is waiting for.
+struct WebSignInTarget: Identifiable, Hashable {
+    let title: String
+    let start: URL
     let server: URL
+    var id: String { start.absoluteString }
+}
+
+struct WebSignInSheet: View {
+    let target: WebSignInTarget
     let onSignedIn: (String) -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var isLoading = true
 
     var body: some View {
         NavigationStack {
-            WebSignInView(start: provider.startURL(on: server), server: server, isLoading: $isLoading) { token in
+            WebSignInView(start: target.start, server: target.server, isLoading: $isLoading) { token in
                 dismiss()
                 onSignedIn(token)
             }
@@ -29,7 +36,7 @@ struct WebSignInSheet: View {
             .overlay {
                 if isLoading { ProgressView().controlSize(.large) }
             }
-            .navigationTitle(provider.name)
+            .navigationTitle(target.title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
@@ -76,6 +83,27 @@ private struct WebSignInView: UIViewRepresentable {
 
         func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
             parent.isLoading = true
+        }
+
+        // Credentials are typed in this sheet, so every page and redirect must be HTTPS. The one
+        // exception is the server's own address when the person typed it as http (a test server
+        // or one on the home network): a downgrade anywhere else on the way is refused.
+        func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction) async -> WKNavigationActionPolicy {
+            Self.allows(navigationAction.request.url, server: parent.server) ? .allow : .cancel
+        }
+
+        func webView(_ webView: WKWebView, decidePolicyFor navigationResponse: WKNavigationResponse) async -> WKNavigationResponsePolicy {
+            Self.allows(navigationResponse.response.url, server: parent.server) ? .allow : .cancel
+        }
+
+        nonisolated static func allows(_ url: URL?, server: URL) -> Bool {
+            guard let url, let scheme = url.scheme?.lowercased() else { return false }
+            switch scheme {
+            case "https", "about": return true
+            case "http":
+                return server.scheme?.lowercased() == "http" && url.host()?.lowercased() == server.host()?.lowercased()
+            default: return false
+            }
         }
 
         func webView(_ webView: WKWebView, didReceiveServerRedirectForProvisionalNavigation navigation: WKNavigation!) {

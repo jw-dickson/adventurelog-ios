@@ -72,6 +72,32 @@ private final class AllauthProtocol: URLProtocol, @unchecked Sendable {
     }
 }
 
+/// A server behind a single sign-on proxy (forward auth): requests that carry a session token
+/// reach AdventureLog; the rest are redirected to the proxy's login page and get HTML.
+private final class SignOnProxyProtocol: URLProtocol, @unchecked Sendable {
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+    override func stopLoading() {}
+
+    override func startLoading() {
+        let url = request.url!
+        if request.value(forHTTPHeaderField: "X-Session-Token") == "t1" {
+            let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: "HTTP/1.1",
+                                           headerFields: ["Content-Type": "application/json"])!
+            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            client?.urlProtocol(self, didLoad: Data(#"{"status":200,"meta":{"is_authenticated":true}}"#.utf8))
+        } else {
+            // What URLSession hands back after following the proxy's 302.
+            let login = URL(string: "https://sso.example/flows/default-authentication-flow/?next=\(url.path())")!
+            let response = HTTPURLResponse(url: login, statusCode: 200, httpVersion: "HTTP/1.1",
+                                           headerFields: ["Content-Type": "text/html; charset=utf-8"])!
+            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            client?.urlProtocol(self, didLoad: Data("<!doctype html><title>Sign in</title>".utf8))
+        }
+        client?.urlProtocolDidFinishLoading(self)
+    }
+}
+
 @Suite("Signing in with an account")
 struct AccountClientTests {
     let account: AccountClient = {
@@ -130,6 +156,33 @@ struct AccountClientTests {
         let request = account.request("GET", "auth/app/v1/auth/session", token: "t")
         #expect(request.value(forHTTPHeaderField: "X-Session-Token") == "t")
         #expect(request.httpShouldHandleCookies == false)
+    }
+
+    /// Issue #9: behind a sign-on proxy, discovery and password sign-in meet its login page.
+    @Test func aSignOnProxyIsRecognisedNotMisread() async throws {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [SignOnProxyProtocol.self]
+        let proxied = AccountClient(baseURL: URL(string: "https://adventurelog.example/")!, session: URLSession(configuration: configuration))
+        await #expect(throws: AccountError.singleSignOn) { try await proxied.socialProviders() }
+        await #expect(throws: AccountError.singleSignOn) { try await proxied.config() }
+        await #expect(throws: AccountError.singleSignOn) { try await proxied.logIn("alex", password: "right") }
+        // With the session from the web sheet, AdventureLog itself answers.
+        #expect(await proxied.isSignedIn(sessionToken: "t1"))
+        #expect(await proxied.isSignedIn(sessionToken: "nope") == false)
+    }
+
+    /// A proxy that sends the login page back on the same path, only adding a query.
+    @Test func aRedirectThatOnlyAddsAQueryIsStillTheProxy() {
+        let asked = URLRequest(url: URL(string: "https://adventurelog.example/auth/social-providers/")!)
+        let page = Data("<!doctype html><title>Sign in</title>".utf8)
+        let sameWithQuery = HTTPURLResponse(url: URL(string: "https://adventurelog.example/auth/social-providers/?login=1")!,
+                                            statusCode: 200, httpVersion: nil, headerFields: nil)!
+        #expect(AccountClient.isSignOnPage(sameWithQuery, data: page, for: asked))
+        // No redirect at all: a wrong address, not a proxy.
+        let same = HTTPURLResponse(url: asked.url!, statusCode: 404, httpVersion: nil, headerFields: nil)!
+        #expect(AccountClient.isSignOnPage(same, data: page, for: asked) == false)
+        // Redirected but answered with JSON (a trailing-slash redirect): AdventureLog, not a proxy.
+        #expect(AccountClient.isSignOnPage(sameWithQuery, data: Data("[]".utf8), for: asked) == false)
     }
 
     @Test func oldServersSayWhy() {
