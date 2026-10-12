@@ -16,7 +16,7 @@ A flight's Live Activity knows only what is typed into AdventureLog: the schedul
 | | FlightAware AeroAPI | AeroDataBox | Aviationstack | Free ADS-B (OpenSky) | Flighty |
 | --- | --- | --- | --- | --- | --- |
 | What it gives | Scheduled, estimated and actual gate and runway times, delays, status, gates and terminals, codeshares | Scheduled, revised and predicted times, status, gate, terminal, check-in desk, baggage belt | Status and schedules | Live positions only: no schedules, gates or delays | An app, not a data source |
-| Cost to a self-hoster | Personal tier: no minimum, up to $5 a month free, then per result set. A forum post from Nov 2025 says flight lookups were billed at $0.005 each, against $0.001 in the docs | Free (RapidAPI, 400 units a month, non-commercial, attribution); Pro about $8 a month for 5,000 units; endpoints cost 1, 2 or 6 units by tier | Free 100 requests a month (non-commercial); then $49.99 a month | Free, non-commercial | — |
+| Cost to a self-hoster | Personal tier: no minimum, up to $5 a month free, then per result set. A forum post from Nov 2025 says flight lookups were billed at $0.005 each, against $0.001 in the docs | Free Basic plan, 400 units a month (free indefinitely on RapidAPI, a 7-day trial on API.Market; non-commercial, attribution); Pro about $8 a month for 5,000 units; endpoints cost 1, 2 or 6 units by tier | Free 100 requests a month (non-commercial); then $49.99 a month | Free, non-commercial | — |
 | Terms | Personal tier: "personal or academic purposes only". Alerts (pushed changes) need Standard, at a $100 a month minimum | Caching for 7 days on lower plans; no reselling | Free plan for personal use | Non-commercial | No API. Calendar Export keeps a calendar event's time and gate up to date |
 | Fit | Best data, free in practice for one person | Cheapest paid option; gate data depends on the airport | Too dear for what it adds | Could show "in the air" later; not needed now | See below |
 
@@ -45,11 +45,11 @@ Cache results by `(provider, flight number, local date)`, so two people on the s
 | 3 h before departure (window opens) | 1 h before | 15 min |
 | 1 h before | estimated departure | 5 min |
 
-If the answer hasn't changed three times running, double the gap, but never past 15 minutes in the last hour. Stop at departure (when the activity ends) or when the flight is cancelled. `FLIGHT_STATUS_MONTHLY_LIMIT` (300 by default) caps lookups. At 90% of the cap only the last hour is polled, and at 100% nothing is.
+If the answer hasn't changed three times running, double the gap, but never past 15 minutes in the last hour. Stop at departure (when the activity ends) or when the flight is cancelled. The caps count what the provider bills, not lookups: AeroAPI result sets, or AeroDataBox units (a flight-status lookup is 2 units, and 4 on some plans when the answer includes a flight plan, so the companion asks without one). There is a monthly cap and a daily one, so one bad day can't spend the month. At 90% of either, only the last hour before departure is polled; at 100%, nothing is.
 
 **Volume:** about 8 + 12 = 20 lookups a flight, fewer with back-off. A trip with six flights is about 120 lookups.
 - **AeroAPI:** at the $0.005 billed in that forum post, about $0.60, inside the free $5.
-- **AeroDataBox:** the flight-status endpoint's tier isn't stated on its pricing page. At 2 units a lookup it would be about 240 units: inside the free 400 for one trip a month, and comfortably inside Pro.
+- **AeroDataBox:** at 2 units a lookup, about 240 units. That fits the free 400 for one such trip a month, with the default cap keeping it under; more travel needs Pro (5,000 units).
 
 ### What changes on the Live Activity
 
@@ -78,7 +78,8 @@ If the answer hasn't changed three times running, double the gap, but never past
 | --- | --- |
 | `FLIGHT_STATUS_PROVIDER` | `aeroapi` or `aerodatabox`. Unset: no lookups. |
 | `FLIGHT_STATUS_API_KEY` | The provider's key (AeroAPI's `x-apikey`, or AeroDataBox's RapidAPI or direct key). |
-| `FLIGHT_STATUS_MONTHLY_LIMIT` | Lookups a month, 300 by default. |
+| `FLIGHT_STATUS_MONTHLY_UNITS` | What the provider may bill in a month: AeroAPI result sets (800 by default, about $4 at $0.005), or AeroDataBox units (360 by default, under the free 400). Set it from your plan. |
+| `FLIGHT_STATUS_DAILY_UNITS` | The same for one day; a quarter of the monthly cap by default. |
 
 `GET /healthz` gains `"flightStatus": true`, so Reminders can say what the companion adds.
 
