@@ -222,6 +222,8 @@ jobs:
     if: github.event_name == 'workflow_dispatch' && inputs.gallery
     runs-on: macos-15
     timeout-minutes: 40
+    permissions:
+      contents: write # the gallery branch
     steps:
       - uses: actions/checkout@v5
         with:
@@ -254,3 +256,23 @@ jobs:
           name: gallery-xcresult
           path: build/Gallery.xcresult
           retention-days: 30
+
+      # The same screenshots as PNGs on the `gallery` branch (one commit, replaced each run), so a
+      # review can be put together without a Mac. Only the synthetic seed is ever on screen.
+      - name: Put the screenshots on the gallery branch
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_SHA: ${{ github.sha }}
+          SOURCE_REF: ${{ github.ref_name }}
+        run: |
+          [ -d build/Gallery.xcresult ] || exit 0
+          xcrun xcresulttool export attachments --path build/Gallery.xcresult --output-path build/gallery
+          python3 scripts/gallery-names.py build/gallery build/gallery-named
+          cd build/gallery-named
+          printf 'Gallery from %s (%s).\n' "$SOURCE_REF" "$SOURCE_SHA" > README.md
+          git init -q -b gallery
+          git add .
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -q -m "Gallery from $SOURCE_REF ($SOURCE_SHA)"
+          git push -q --force "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" gallery

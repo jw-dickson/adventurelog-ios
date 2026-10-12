@@ -2,8 +2,8 @@
 
 import XCTest
 
-/// Screenshots of every Stage 1–3 screen in light, dark and the largest accessibility text size,
-/// kept in the test results for design review 2 (they sit beside Design/review-1).
+/// Screenshots of every screen in light, dark and the largest accessibility text size, kept in the
+/// test results for the design reviews (they sit beside Design/review-1 and Design/editing).
 ///
 /// These check that each screen renders and holds its key content at every size; the pictures are
 /// for people. Extract them with `make gallery`.
@@ -28,6 +28,27 @@ final class GalleryUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["today.next.title"].waitForExistence(timeout: 5))
         keep(app, "02-today-\(variant)")
 
+        // Replan (review-1, 08), 45 minutes late when the phone has no recent position.
+        let replan = app.buttons["today.replan"]
+        XCTAssertTrue(replan.waitForExistence(timeout: 5))
+        replan.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        XCTAssertTrue(app.staticTexts["replan.headline"].waitForExistence(timeout: 5))
+        let late = app.buttons["replan.late.45"]
+        if late.exists { late.tap() }
+        keep(app, "08-replan-\(variant)")
+        app.buttons["replan.close"].tap()
+        XCTAssertTrue(app.staticTexts["replan.headline"].waitForNonExistence(timeout: 5))
+
+        // Reminders and Live Activities settings, from the account menu.
+        let account = app.navigationBars["Today"].buttons["Account"]
+        XCTAssertTrue(account.waitForExistence(timeout: 5))
+        account.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        app.buttons["Reminders"].tap()
+        XCTAssertTrue(app.switches["reminders.enabled"].waitForExistence(timeout: 5))
+        keep(app, "10-reminders-\(variant)")
+        app.buttons["Done"].tap()
+        XCTAssertTrue(app.staticTexts["today.title"].waitForExistence(timeout: 5))
+
         app.tabBars.buttons["Trip"].tap()
         XCTAssertTrue(app.staticTexts["day.title"].waitForExistence(timeout: 15))
         keep(app, "03-trip-day-\(variant)")
@@ -37,7 +58,32 @@ final class GalleryUITests: XCTestCase {
         lookout.tap()
         XCTAssertTrue(app.staticTexts["item.title"].waitForExistence(timeout: 5))
         keep(app, "04-item-detail-\(variant)")
+
+        // Editing (Design/editing): a quick note, then the place's details.
+        app.buttons["item.addNote"].tap()
+        XCTAssertTrue(app.textViews["quickNote.text"].waitForExistence(timeout: 5))
+        keep(app, "e02-add-a-note-\(variant)")
+        app.buttons["Cancel"].tap()
+        XCTAssertTrue(app.textViews["quickNote.text"].waitForNonExistence(timeout: 5))
+        app.buttons["item.edit"].tap()
+        XCTAssertTrue(app.textFields["edit.name"].waitForExistence(timeout: 5))
+        keep(app, "e04-edit-place-\(variant)")
+        app.buttons["Cancel"].tap()
+        XCTAssertTrue(app.textFields["edit.name"].waitForNonExistence(timeout: 5))
         app.navigationBars.buttons.element(boundBy: 0).tap()
+
+        // A new note on the day, from the add menu.
+        let add = app.buttons["trip.add"].firstMatch
+        XCTAssertTrue(add.waitForExistence(timeout: 5))
+        add.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        let newNote = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "New note on")).firstMatch
+        XCTAssertTrue(newNote.waitForExistence(timeout: 5))
+        keep(app, "e07-add-to-day-\(variant)")
+        newNote.tap()
+        XCTAssertTrue(app.textFields["newNote.title"].waitForExistence(timeout: 5))
+        keep(app, "e08-new-note-\(variant)")
+        app.buttons["Cancel"].tap()
+        XCTAssertTrue(app.textFields["newNote.title"].waitForNonExistence(timeout: 5))
 
         app.segmentedControls["trip.scope"].buttons.element(boundBy: 1).tap()
         keep(app, "03b-whole-trip-\(variant)")
