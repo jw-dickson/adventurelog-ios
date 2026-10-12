@@ -119,4 +119,11 @@ struct ClientTests {
         #expect(error.isTransient)
         #expect(error.errorDescription == "Server error 500: Internal Server Error")
     }
+
+    @Test func aCancelledRequestIsToldApartFromRealFailures() {
+        #expect(APIError.transport(code: URLError.cancelled.rawValue, description: "cancelled").isCancellation)
+        #expect(!APIError.transport(code: URLError.notConnectedToInternet.rawValue, description: "offline").isCancellation)
+        #expect(!APIError.transport(code: URLError.timedOut.rawValue, description: "timed out").isCancellation)
+        #expect(!APIError.badServerURL.isCancellation)
+    }
 }

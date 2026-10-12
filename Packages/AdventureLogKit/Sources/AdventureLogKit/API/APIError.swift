@@ -80,6 +80,13 @@ public enum APIError: Error, Sendable, Equatable, LocalizedError {
     /// The configured server address is not a usable URL.
     case badServerURL
 
+    /// Whether the request ended because the task running it was cancelled (a view went away, a new
+    /// session replaced it). That says nothing about the server, so it must not be reported as one.
+    public var isCancellation: Bool {
+        if case .transport(let code, _) = self { return code == URLError.cancelled.rawValue }
+        return false
+    }
+
     public var errorDescription: String? {
         switch self {
         case .unauthorized(let m), .subscriptionRequired(let m), .forbidden(let m), .notFound(let m), .invalid(let m):

@@ -152,7 +152,7 @@ final class AppModel {
 
     // Tracking: only on the days of a trip the person agreed to; the log never leaves the phone.
     let tracks: TrackStore
-    let tracker = LocationTracker()
+    let tracker: LocationTracker
     /// Trips whose route the person agreed to log, and trips they said no to.
     private(set) var trackingAllowed: Set<String> = []
     private(set) var trackingDeclined: Set<String> = []
@@ -181,6 +181,8 @@ final class AppModel {
         self.images = images
         self.deviceState = deviceState
         self.defaults = defaults
+        // Its crash-loop mark lives in the same defaults, so a UI test's launch never inherits an earlier one's.
+        self.tracker = LocationTracker(defaults: defaults)
         self.pinnedNow = now
         self.remindersEnabled = defaults.bool(forKey: Keys.remindersEnabled)
         self.reminderOfferDismissed = defaults.bool(forKey: Keys.reminderOfferDismissed)
@@ -464,6 +466,7 @@ final class AppModel {
             // A trip that left the list stops reminding even if nothing else reloads.
             scheduleReminderUpdate()
         } catch {
+            if Self.wasCancelled(error) { return } // abandoned, not failed: keep what is shown
             if isCurrent(client) { lastError = Self.describe(error) }
             return
         }
@@ -522,6 +525,7 @@ final class AppModel {
                 await images.prefetch(urls) { try await client.media(at: $0) }
             }
         } catch {
+            if Self.wasCancelled(error) { return } // abandoned, not failed: keep what is shown
             if isCurrent(client) { lastError = Self.describe(error) }
         }
     }
@@ -1302,6 +1306,11 @@ final class AppModel {
     }
 
     /// Says "offline" plainly instead of a URL error.
+    /// Whether a fetch ended because the task running it was cancelled, which says nothing about the server.
+    static func wasCancelled(_ error: any Error) -> Bool {
+        error is CancellationError || (error as? APIError)?.isCancellation == true
+    }
+
     static func describe(_ error: any Error) -> String {
         if let api = error as? APIError, case .transport = api { return "Can't reach your server. Showing the copy saved on this phone." }
         return error.localizedDescription

@@ -24,6 +24,7 @@ final class LocationTracker {
     @ObservationIgnored var onTick: (() -> Void)?
 
     @ObservationIgnored private let manager = CLLocationManager()
+    @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private var updates: Task<Void, Never>?
     @ObservationIgnored private var currentRun: UUID?
     @ObservationIgnored private var session: CLServiceSession?
@@ -43,7 +44,8 @@ final class LocationTracker {
     /// Points less accurate than this are noise.
     static let maximumAccuracy: Double = 100
 
-    init() {
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
         authorization = manager.authorizationStatus
     }
 
@@ -133,8 +135,7 @@ final class LocationTracker {
     /// Watches exactly these places (iOS allows 20 per app; the caller sends the next few).
     func watch(_ places: [Place]) async {
         await serially { [self] in
-            guard isAuthorized || monitor != nil else { return }
-            let monitor = await ensureMonitor()
+            guard isAuthorized || monitor != nil, let monitor = await ensureMonitor() else { return }
             let wanted = Dictionary(places.map { ($0.rowID, $0) }, uniquingKeysWith: { first, _ in first })
             for id in watched where wanted[id] == nil {
                 await monitor.remove(id)
@@ -151,8 +152,7 @@ final class LocationTracker {
     /// Stops watching everything, including places a previous launch left registered.
     func unwatchAll() async {
         await serially { [self] in
-            guard isAuthorized || monitor != nil else { return }
-            let monitor = await ensureMonitor()
+            guard isAuthorized || monitor != nil, let monitor = await ensureMonitor() else { return }
             for id in watched { await monitor.remove(id) }
             watched = []
         }
@@ -168,10 +168,24 @@ final class LocationTracker {
         await task.value
     }
 
-    /// The monitor, created once. Its conditions outlive the app, so start from what it holds.
-    private func ensureMonitor() async -> CLMonitor {
+    /// Written (with the build number) just before the monitor is created and removed once it exists. Still
+    /// there at the next launch of the same build means creating it killed the app, so it is left alone
+    /// rather than crashing every launch again. A new build clears it.
+    private static let creatingKey = "al.geofenceMonitorCreating"
+
+    private var currentBuild: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?"
+    }
+
+    /// The monitor, created once, or nil when making it already killed this build. Its conditions outlive the
+    /// app, so start from what it holds.
+    private func ensureMonitor() async -> CLMonitor? {
         if let monitor { return monitor }
-        let created = await CLMonitor("AdventureLog stops")
+        if defaults.string(forKey: Self.creatingKey) == currentBuild { return nil }
+        defaults.set(currentBuild, forKey: Self.creatingKey)
+        defaults.synchronize() // the process may be about to abort: get the mark onto disk first
+        let created = await CLMonitor(GeofenceMonitor.name)
+        defaults.removeObject(forKey: Self.creatingKey)
         if let monitor { return monitor } // another call won the race while this one waited
         monitor = created
         watched = Set(await created.identifiers)
