@@ -10,41 +10,52 @@ import SwiftUI
 // asks for a day to be undone. Nothing here touches a photo itself.
 
 extension AppModel {
+    // Each call notes the session and companion it asked; a reply that comes back after
+    // sign-out or a new companion address is dropped rather than shown for the wrong account.
+
     func loadTripPhotos(_ tripID: String) async {
-        guard let service = photoService else { return }
+        guard let service = photoService, let key = photoSourceKey else { return }
         do {
-            tripPhotos[tripID] = try await service.photos(tripID: tripID)
+            let photos = try await service.photos(tripID: tripID)
+            guard photoSourceKey == key else { return }
+            tripPhotos[tripID] = photos
             tripPhotosProblem[tripID] = nil
         } catch {
+            guard photoSourceKey == key else { return }
             tripPhotosProblem[tripID] = Self.photoProblem(error)
         }
     }
 
     /// Shown at once, sent after; put back if the companion refuses.
     func setTripPhotos(_ tripID: String, enabled: Bool, cameraOffsetMinutes: Int) async {
-        guard let service = photoService else { return }
+        guard let service = photoService, let key = photoSourceKey else { return }
         let before = tripPhotos[tripID]
         var shown = before ?? TripPhotos(enabled: enabled)
         shown.enabled = enabled
         shown.cameraOffsetMinutes = cameraOffsetMinutes
         tripPhotos[tripID] = shown
         do {
-            tripPhotos[tripID] = try await service.setPhotos(tripID: tripID, enabled: enabled, cameraOffsetMinutes: cameraOffsetMinutes)
+            let photos = try await service.setPhotos(tripID: tripID, enabled: enabled, cameraOffsetMinutes: cameraOffsetMinutes)
+            guard photoSourceKey == key else { return }
+            tripPhotos[tripID] = photos
             tripPhotosProblem[tripID] = nil
         } catch {
+            guard photoSourceKey == key else { return }
             tripPhotos[tripID] = before
             tripPhotosProblem[tripID] = Self.photoProblem(error)
         }
     }
 
     func undoTripPhotos(_ tripID: String, date: CalendarDate) async -> TripPhotos.Undo? {
-        guard let service = photoService else { return nil }
+        guard let service = photoService, let key = photoSourceKey else { return nil }
         do {
             let undo = try await service.undoPhotos(tripID: tripID, date: date)
+            guard photoSourceKey == key else { return nil }
             tripPhotos[tripID] = undo.photos
             tripPhotosProblem[tripID] = nil
             return undo
         } catch {
+            guard photoSourceKey == key else { return nil }
             tripPhotosProblem[tripID] = Self.photoProblem(error)
             return nil
         }

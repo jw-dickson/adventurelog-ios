@@ -686,6 +686,14 @@ final class AppModel {
     /// A stand-in for the companion in UI tests (`AL_SEED_PHOTOS`).
     var seededPhotos: (any TripPhotosService)?
 
+    /// Which session and photo source a photo request was made for: a reply is only used while
+    /// both are still current (not after sign-out, or once the companion address changed).
+    var photoSourceKey: String? {
+        guard photoService != nil else { return nil }
+        let source = seededPhotos != nil ? "seed" : (registeredCompanion ?? companion)?.baseURL.absoluteString ?? ""
+        return "\(session)|\(source)"
+    }
+
     /// Where trip photos come from: the companion, when it says it has photos set up.
     var photoService: (any TripPhotosService)? {
         if let seededPhotos { return seededPhotos }
@@ -830,6 +838,9 @@ final class AppModel {
         if let previous = registeredCompanion, previous.baseURL != companion?.baseURL {
             registeredCompanion = nil
             registeredStartToken = nil
+            // That companion's photo summaries aren't this one's.
+            tripPhotos = [:]
+            tripPhotosProblem = [:]
             try? await previous.unregister()
         }
         guard let companion else {
