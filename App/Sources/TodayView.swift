@@ -145,8 +145,12 @@ private struct TodayContent: View {
     }
 
     private func rows(_ entries: [TodayPlan.Entry]) -> some View {
-        VStack(spacing: 0) {
+        let shifts = ZoneShift.marks(entries.map(\.summary))
+        return VStack(spacing: 0) {
             ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
+                if let before = shifts[index].before {
+                    ZoneShiftRow(before.text)
+                }
                 NavigationLink(value: ItemRoute(tripID: tripID, itemID: entry.entry.item.id, day: entry.entry.row.date)) {
                     TimelineRow(entry.summary.timelineContent, state: entry.timelineState,
                                 isFirst: index == 0, isLast: index == entries.count - 1,
@@ -164,6 +168,9 @@ private struct TodayContent: View {
                         }
                     }
                     Button("Move to another day…", systemImage: "calendar") { moving = entry.entry }
+                }
+                if let within = shifts[index].within {
+                    ZoneShiftRow(within.text, continuesRail: index < entries.count - 1)
                 }
             }
         }

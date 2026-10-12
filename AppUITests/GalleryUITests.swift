@@ -56,6 +56,12 @@ final class GalleryUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["day.title"].waitForExistence(timeout: 15))
         keep(app, "03-trip-day-\(variant)")
 
+        // The travel day: Denver → Los Angeles → Sydney, with the clock changes on the timeline.
+        showDay(app, "2027-03-05", from: "2027-03-08")
+        XCTAssertTrue(app.descendants(matching: .any)["timeline.zoneShift"].firstMatch.waitForExistence(timeout: 5))
+        keep(app, "03c-travel-day-\(variant)")
+        showDay(app, "2027-03-08", from: "2027-03-05")
+
         let lookout = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", "Wineglass Bay Lookout")).firstMatch
         if !lookout.isHittable { app.swipeUp() }
         lookout.tap()
@@ -114,6 +120,17 @@ final class GalleryUITests: XCTestCase {
         XCTAssertTrue(signIn.descendants(matching: .any)["signin.server"].waitForExistence(timeout: 10))
         XCTAssertTrue(signIn.secureTextFields["signin.password"].exists)
         keep(signIn, "01-sign-in-\(variant)")
+    }
+
+    /// Taps a day in the date strip, scrolling the strip to it first if it's off screen.
+    private func showDay(_ app: XCUIApplication, _ date: String, from current: String) {
+        let tile = app.descendants(matching: .any)["day.\(date)"].firstMatch
+        let here = app.descendants(matching: .any)["day.\(current)"].firstMatch
+        for _ in 0..<4 where !tile.isHittable {
+            if date < current { here.swipeRight() } else { here.swipeLeft() }
+        }
+        tile.tap()
+        XCTAssertTrue(app.staticTexts["day.title"].waitForExistence(timeout: 5))
     }
 
     private func keep(_ app: XCUIApplication, _ name: String) {

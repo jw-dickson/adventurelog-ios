@@ -277,10 +277,15 @@ private struct EntryList: View {
                 .alCard()
         } else {
             // A list with no times in it (trip-wide notes) keeps a narrow time column.
-            let timed = entries.contains { $0.summary(in: plan).start != nil }
+            let summaries = entries.map { $0.summary(in: plan) }
+            let timed = summaries.contains { $0.start != nil }
+            let shifts = ZoneShift.marks(summaries)
             VStack(spacing: 0) {
                 ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
-                    let summary = entry.summary(in: plan)
+                    let summary = summaries[index]
+                    if let before = shifts[index].before {
+                        ZoneShiftRow(before.text, fitsTimes: timed)
+                    }
                     NavigationLink(value: ItemRoute(tripID: tripID, itemID: entry.item.id, day: entry.row.date)) {
                         TimelineRow(summary.timelineContent, state: summary.timelineStatus(at: now),
                                     isFirst: index == 0, isLast: index == entries.count - 1, fitsTimes: timed,
@@ -289,6 +294,9 @@ private struct EntryList: View {
                     .buttonStyle(.plain)
                     .contextMenu {
                         Button("Move to another day…", systemImage: "calendar") { moving = entry }
+                    }
+                    if let within = shifts[index].within {
+                        ZoneShiftRow(within.text, fitsTimes: timed, continuesRail: index < entries.count - 1)
                     }
                 }
             }

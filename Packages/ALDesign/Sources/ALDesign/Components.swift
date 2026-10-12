@@ -444,6 +444,57 @@ public struct TimelineRow: View {
     .background(ALColor.surface100)
 }
 
+/// A line in a timeline where the clock changes ("Now on Sydney time · clocks go forward 19 h"),
+/// on the rail between the rows it separates, so a shift in times reads as a shift in zone.
+public struct ZoneShiftRow: View {
+    private let text: String
+    private let fitsTimes: Bool
+    private let continuesRail: Bool
+    @ScaledMetric(relativeTo: .subheadline) private var timeWidth: CGFloat = 52
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    /// - Parameters:
+    ///   - fitsTimes: the same value the list's rows pass, so the rail lines up.
+    ///   - continuesRail: false after the list's last row, where the rail has ended.
+    public init(_ text: String, fitsTimes: Bool = true, continuesRail: Bool = true) {
+        self.text = text
+        self.fitsTimes = fitsTimes
+        self.continuesRail = continuesRail
+    }
+
+    public var body: some View {
+        if typeSize.isAccessibilitySize {
+            label.padding(.bottom, ALSpace.space2)
+        } else {
+            HStack(alignment: .center, spacing: ALSpace.space2) {
+                TimeText(nil, alignment: .trailing, fitsTimes: fitsTimes)
+                    .frame(minWidth: timeWidth, alignment: .trailing)
+                    .accessibilityHidden(true)
+                Rectangle()
+                    .fill(ALColor.hairline)
+                    .frame(width: 2)
+                    .frame(maxHeight: .infinity)
+                    .frame(width: 20)
+                    .opacity(continuesRail ? 1 : 0)
+                label
+                    .padding(.top, ALSpace.space1)
+                    .padding(.bottom, ALSpace.space3)
+            }
+        }
+    }
+
+    private var label: some View {
+        Label(text, systemImage: "clock.arrow.2.circlepath")
+            .font(ALFont.footnote)
+            .foregroundStyle(ALColor.secondaryText)
+            .padding(.horizontal, ALSpace.space3)
+            .padding(.vertical, ALSpace.space1)
+            .background(ALColor.surface200, in: Capsule())
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("timeline.zoneShift")
+    }
+}
+
 /// A time in a column of times: as wide as the widest time this locale writes ("10:58 PM" or
 /// "22:58"), the same on every row, so no time is cut short and the column doesn't wobble.
 /// Anything wider than a time ("All day") shrinks to fit.
