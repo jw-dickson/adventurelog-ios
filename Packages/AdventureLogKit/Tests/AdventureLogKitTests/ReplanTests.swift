@@ -168,9 +168,9 @@ struct ReplanTests {
         let stops = [place("cruise", "Sunset cruise", (17, 0), (18, 30), at: honeymoon, booked: true)]
         let s = situation(stops, delay: 25)
         let proposal = ReplanPlanner.propose(s)
-        #expect(proposal.lateFor == "Sunset cruise")
-        #expect(proposal.lateMinutes == 35, "25 late plus the 10-minute buffer")
-        #expect(proposal.summary.contains("Even so, you'd reach Sunset cruise about 35 min late."))
+        #expect(proposal.lateFor == "Sunset cruise" && proposal.lateRowID == "row-cruise")
+        #expect(proposal.lateMinutes == 25, "minutes after it starts, not counting the buffer")
+        #expect(proposal.summary.contains("Even so, you'd reach Sunset cruise about 25 min late."))
         #expect(!proposal.changesSomething)
     }
 
@@ -233,6 +233,74 @@ struct ReplanTests {
         #expect(check(proposal, s).isEmpty)
     }
 
+    @Test func stopsAreTakenInTimeOrderWhateverTheRowOrder() {
+        // The booked dinner's row sits above the afternoon walk.
+        let stops = [place("dinner", "Dinner", (19, 0), (20, 30), at: honeymoon, booked: true),
+                     place("walk", "Cape Tourville walk", (15, 0), (16, 0), at: tourville)]
+        let s = situation(stops, delay: 20, now: time(15, 20))
+        let proposal = ReplanPlanner.propose(s)
+        #expect(times(proposal, "row-walk")?.start == time(15, 20))
+        #expect(proposal.lateFor == nil)
+        #expect(!proposal.changes.contains(.skip(rowID: "row-walk", reason: "No time left today")))
+    }
+
+    @Test func aBookedTourWithLunchInsideKeepsTheLunch() {
+        // A short place, then a booked day tour with a lunch stop inside it.
+        let stops = [place("cafe", "Coffee in Coles Bay", (8, 0), (8, 45), at: tourville),
+                     place("tour", "Day tour", (9, 0), (17, 0), at: tourBase, booked: true),
+                     place("lunch", "Lunch at the beach", (12, 0), (13, 0), at: honeymoon),
+                     place("bay", "Honeymoon Bay", (17, 30), (18, 30), at: honeymoon)]
+        let s = situation(stops, delay: 10, nextDay: nextDay)
+        let proposal = ReplanPlanner.propose(s)
+        #expect(times(proposal, "row-lunch") == nil, "lunch inside the tour keeps its time")
+        #expect(times(proposal, "row-bay") == nil)
+        #expect(proposal.lateFor == nil)
+        #expect(times(proposal, "row-cafe").map { $0.end <= time(8, 45) } == true, "coffee gives way for the tour")
+        #expect(check(proposal, s).isEmpty, "\(check(proposal, s))")
+    }
+
+    @Test func tightnessThePlanAlreadyHadIsntTheDelaysFault() {
+        // A morning walk 10 minutes late, and an evening that was already tight by the estimate:
+        // museum until 18:45, a booked dinner at 19:00 a 10-minute drive away.
+        let stops = [place("walk", "Cape Tourville walk", (10, 0), (11, 0), at: carPark),
+                     place("museum", "Museum", (18, 0), (18, 45), at: lookout),
+                     place("dinner", "Dinner", (19, 0), (20, 30), at: tourville, booked: true)]
+        let proposal = ReplanPlanner.propose(situation(stops, delay: 10))
+        #expect(times(proposal, "row-museum") == nil, "the museum isn't cut")
+        #expect(proposal.lateFor == nil)
+    }
+
+    @Test func aLateJourneyWithNothingToGiveWaySaysSoAndStillPasses() {
+        let drive = Replan.Stop(rowID: "row-drive", itemID: "drive", title: "Drive to Bicheno", kind: .transportation,
+                                start: time(17, 0), end: time(19, 0), zone: hobart, isBooked: false,
+                                coordinate: carPark, destination: ItemSummary.Coordinate(-41.87, 148.30))
+        let dinner = place("dinner", "Dinner in Bicheno", (20, 0), (21, 30), at: ItemSummary.Coordinate(-41.871, 148.301)!, booked: true)
+        let s = situation([drive, dinner], delay: 75)
+        let proposal = ReplanPlanner.propose(s)
+        #expect(times(proposal, "row-drive")?.start == time(18, 15))
+        #expect(proposal.lateRowID == "row-dinner" && proposal.lateMinutes == 15)
+        #expect(proposal.summary.contains("about 15 min late"))
+        #expect(!proposal.summary.contains("This keeps Dinner"))
+        #expect(check(proposal, s).isEmpty, "the late dinner's overlap is expected: \(check(proposal, s))")
+    }
+
+    @Test func sunsetIsOnTheRightDayFarEastOfGreenwich() throws {
+        // Tonga is UTC+13: noon there is still yesterday in UTC.
+        let tonga = TimeZone(identifier: "Pacific/Tongatapu")!
+        let sunset = try #require(SunTimes.sunset(on: day, latitude: -21.14, longitude: -175.2, zone: tonga))
+        #expect(TripTime.localDate(of: sunset, in: tonga) == day)
+        let clock = TripTime.clock(of: sunset, in: tonga)
+        #expect(clock.hour == 19 && (0...7).contains(clock.minute))
+    }
+
+    @Test func dayEndFollowsDaylightSaving() {
+        // 5 Apr 2026: Hobart goes back from AEDT to AEST at 03:00.
+        let changeover = CalendarDate("2026-04-05")!
+        let end = Replan.clock(23, on: changeover, in: hobart)
+        let clock = TripTime.clock(of: end, in: hobart)
+        #expect(clock.hour == 23 && clock.minute == 0)
+    }
+
     // MARK: The checker
 
     @Test func theCheckerRejectsMovingABookedItem() {
@@ -260,6 +328,21 @@ struct ReplanTests {
         #expect(problems.contains(.startsInThePast("Wineglass Bay Lookout")))
         #expect(problems.contains(.notALaterTripDay("Honeymoon Bay")))
         #expect(problems.contains(.blankTitle))
+    }
+
+    @Test func theCheckerHoldsJourneysAndTheDaysEnd() {
+        let drive = Replan.Stop(rowID: "row-drive", itemID: "drive", title: "Drive to Bicheno", kind: .transportation,
+                                start: time(15, 0), end: time(16, 0), zone: hobart, isBooked: false, coordinate: carPark)
+        let s = situation([drive] + afternoon, delay: 30, now: time(15, 0), nextDay: nextDay)
+        let shorter = Replan.Proposal(behindMinutes: 30, summary: "", changes: [
+            .retime(rowID: "row-drive", start: time(15, 30), end: time(16, 0), reason: nil)])
+        #expect(check(shorter, s) == [.changesJourney("Drive to Bicheno")])
+        let moved = Replan.Proposal(behindMinutes: 30, summary: "", changes: [
+            .move(rowID: "row-drive", date: nextDate, start: time(8, 0, on: nextDate), end: time(9, 0, on: nextDate), reason: nil)])
+        #expect(check(moved, s) == [.changesJourney("Drive to Bicheno")])
+        let late = Replan.Proposal(behindMinutes: 30, summary: "", changes: [
+            .retime(rowID: "row-bay", start: time(22, 45), end: time(23, 30), reason: nil)])
+        #expect(check(late, s) == [.endsTooLate("Honeymoon Bay")])
     }
 
     @Test func theCheckerRejectsOverlapsAndDuplicates() {
@@ -385,6 +468,17 @@ struct ReplanTests {
         let tomorrow = try #require(plan.day(for: nextDate))
         #expect(index >= 0 && index <= tomorrow.entries.count)
         #expect(actions[2] == .addNote(title: "Dinner", content: "", date: day))
+
+        // Two places moved to the same morning keep their order there.
+        let both = Replan.Proposal(behindMinutes: 90, summary: "", changes: [
+            .move(rowID: lookout.rowID, date: nextDate, start: time(8, 0, on: nextDate), end: time(9, 0, on: nextDate), reason: nil),
+            .move(rowID: cruise.rowID, date: nextDate, start: time(9, 15, on: nextDate), end: time(11, 15, on: nextDate), reason: nil),
+        ])
+        let indices = ReplanApply.actions(for: both, plan: plan, today: day).compactMap { action -> Int? in
+            if case .move(_, _, _, let index, _, _) = action { return index }
+            return nil
+        }
+        #expect(indices.count == 2 && indices[1] > indices[0], "the 09:15 place goes after the 08:00 one")
     }
 
     // MARK: Sun

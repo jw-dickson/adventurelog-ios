@@ -13,14 +13,18 @@ public enum ReplanCheck {
         case duplicate(String)
         /// A booked item would move, change or be left out.
         case changesBooked(String)
+        /// A journey would get shorter or longer, go to another day, or be left out: it joins two places.
+        case changesJourney(String)
         case endNotAfterStart(String)
         case startsInThePast(String)
         /// New times that aren't on today (a move is for other days).
         case notToday(String)
+        /// Something would end after 23:00.
+        case endsTooLate(String)
         /// A move or a new note on a date that isn't a later day of the trip.
         case notALaterTripDay(String)
         case blankTitle
-        /// Two things at once afterwards; the titles.
+        /// Two things at once afterwards that weren't before; the titles.
         case overlap(String, String)
 
         public var message: String {
@@ -29,9 +33,11 @@ public enum ReplanCheck {
             case .unknownRow(let title): return "It mentions something that isn't left today (\(title))."
             case .duplicate(let title): return "It changes \(title) twice."
             case .changesBooked(let title): return "It moves \(title), which is booked."
+            case .changesJourney(let title): return "It changes how \(title) goes; a journey only moves in time."
             case .endNotAfterStart(let title): return "It gives \(title) an end before its start."
             case .startsInThePast(let title): return "It starts \(title) in the past."
             case .notToday(let title): return "It moves \(title) off today without saying which day."
+            case .endsTooLate(let title): return "It runs \(title) past 23:00."
             case .notALaterTripDay(let title): return "It puts \(title) on a day that isn't a later day of the trip."
             case .blankTitle: return "It adds a note without a title."
             case .overlap(let a, let b): return "It puts \(a) and \(b) at the same time."
@@ -74,12 +80,18 @@ public enum ReplanCheck {
             case .retime(_, let start, let end, _):
                 if stop.isBooked { problems.append(.changesBooked(stop.title)); continue }
                 if end <= start { problems.append(.endNotAfterStart(stop.title)); continue }
+                if !stop.isPlace, abs(end.timeIntervalSince(start) - stop.end.timeIntervalSince(stop.start)) > 60 {
+                    problems.append(.changesJourney(stop.title))
+                }
                 if start < lateEnough { problems.append(.startsInThePast(stop.title)) }
                 if TripTime.localDate(of: start, in: stop.zone) != situation.date { problems.append(.notToday(stop.title)) }
+                let dayEnd = Replan.clock(Replan.latestEndHour, on: situation.date, in: stop.zone)
+                if end > dayEnd.addingTimeInterval(60), end > stop.end { problems.append(.endsTooLate(stop.title)) }
                 timeline[rowID] = (start, end)
                 changed.insert(rowID)
             case .move(_, let date, let start, let end, _):
                 if stop.isBooked { problems.append(.changesBooked(stop.title)); continue }
+                if !stop.isPlace { problems.append(.changesJourney(stop.title)); continue }
                 if end <= start { problems.append(.endNotAfterStart(stop.title)) }
                 if date <= situation.date || !tripDays.contains(date) || TripTime.localDate(of: start, in: stop.zone) != date {
                     problems.append(.notALaterTripDay(stop.title))
@@ -87,20 +99,27 @@ public enum ReplanCheck {
                 timeline[rowID] = nil
             case .skip:
                 if stop.isBooked { problems.append(.changesBooked(stop.title)); continue }
+                if !stop.isPlace { problems.append(.changesJourney(stop.title)); continue }
                 timeline[rowID] = nil
             }
         }
 
-        // Overlaps that the proposal causes (the plan's own overlaps aren't its fault).
-        let ordered = situation.stops.compactMap { stop in timeline[stop.rowID].map { (stop, $0.0, $0.1) } }
-            .sorted { $0.1 < $1.1 }
-        var latest: (stop: Replan.Stop, end: Date)?
-        for (stop, start, end) in ordered {
-            if let previous = latest, start < previous.end.addingTimeInterval(-60),
-               changed.contains(previous.stop.rowID) || changed.contains(stop.rowID) {
-                problems.append(.overlap(previous.stop.title, stop.title))
+        // Overlaps the proposal causes: a changed row against anything it didn't overlap before.
+        // The booked item the proposal already says you'll be late for doesn't count.
+        func overlaps(_ a: (Date, Date), _ b: (Date, Date)) -> Bool {
+            a.0 < b.1.addingTimeInterval(-60) && b.0 < a.1.addingTimeInterval(-60)
+        }
+        let ordered = situation.stops.filter { timeline[$0.rowID] != nil }
+        var reported: Set<[String]> = []
+        for stop in ordered where changed.contains(stop.rowID) {
+            guard let mine = timeline[stop.rowID] else { continue }
+            for other in ordered where other.rowID != stop.rowID && other.rowID != proposal.lateRowID {
+                guard let theirs = timeline[other.rowID], overlaps(mine, theirs),
+                      !overlaps((stop.start, stop.end), (other.start, other.end)) else { continue }
+                let pair = [stop, other].sorted { $0.start < $1.start }
+                guard reported.insert(pair.map(\.rowID)).inserted else { continue }
+                problems.append(.overlap(pair[0].title, pair[1].title))
             }
-            if latest == nil || end > latest!.end { latest = (stop, end) }
         }
         return problems
     }

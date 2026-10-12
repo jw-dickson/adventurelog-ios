@@ -4,17 +4,20 @@ import Foundation
 
 /// Works out a revised rest-of-today on the phone, with no network.
 ///
-/// Booked items stay put. Everything else is laid out again in the day's order from when you're
-/// free, with travel between stops (Today's straight-line estimate). Then, until the day works:
+/// Booked items stay put. Everything else is laid out again in time order from when you're free,
+/// with travel between stops (Today's straight-line estimate). Only lateness the delay causes
+/// counts: whatever the plan was already tight on (by this estimate) is its own business. Then,
+/// until the day works:
 ///
-/// 1. A place that would end after sunset, when it was planned for daylight, or after 23:00, or
-///    that would make you late for a booked item, makes room by shortening places before it
-///    (never below half their length or 15 minutes), the longest first.
+/// 1. A place that would end after sunset, when it was planned for daylight, or anything that would
+///    end after 23:00, or make you late for a booked item, makes room by shortening places before
+///    it (never below half their length or 15 minutes), the most spare first.
 /// 2. If that isn't enough, a place goes to the next trip day's morning (08:00, if it fits before
 ///    that day's first item), or is left out today. For a booked item the longest place before it
 ///    goes; for a place pushed too late, that place itself goes. Shortening starts again from the
 ///    planned lengths after each removal.
-/// 3. If nothing is left to change, the proposal says which booked item you'd still be late for.
+/// 3. What can't be fixed (a journey with nothing before it to give way, say) is left as it is, and
+///    the proposal says which booked item you'd still be late for.
 public enum ReplanPlanner {
     /// Below this you're on time and nothing changes.
     public static let onTimeMinutes = 5
@@ -22,20 +25,26 @@ public enum ReplanPlanner {
 
     public static func propose(_ situation: Replan.Situation, locale: Locale = .autoupdatingCurrent) -> Replan.Proposal {
         let delay = max(0, situation.delayMinutes)
-        let keeps = situation.stops.filter(\.isBooked).map { Replan.Change.keep(rowID: $0.rowID) }
-        guard delay >= onTimeMinutes, !situation.stops.isEmpty else {
+        let stops = Replan.inTimeOrder(situation.stops)
+        let keeps = stops.filter(\.isBooked).map { Replan.Change.keep(rowID: $0.rowID) }
+        guard delay >= onTimeMinutes, !stops.isEmpty else {
             return Replan.Proposal(behindMinutes: delay < onTimeMinutes ? 0 : delay,
                                    summary: "Nothing needs to change.", changes: keeps)
         }
 
-        var slots = situation.stops.map(Slot.init)
+        var slots = stops.map(Slot.init)
+        // How far over each stop already was with no delay at all.
+        var planned = slots
+        let baseline = Dictionary(layOut(&planned, situation, delay: 0, fromNow: false).map { ($0.index, $0.minutes) },
+                                  uniquingKeysWith: max)
         var morning = Morning(situation.nextDay)
-        var unresolved: (index: Int, minutes: Int)?
+        var accepted: Set<Int> = []
 
-        // Each pass shortens or removes something, and a removal undoes earlier shortening, so this
-        // ends well inside the cap.
+        // Each pass shortens, removes or gives up on something, and a removal undoes earlier
+        // shortening, so this ends well inside the cap.
         for _ in 0..<((slots.count + 1) * (slots.count + 2) * 4) {
-            guard let violation = layOut(&slots, situation) else { break }
+            let violations = layOut(&slots, situation, delay: delay, fromNow: true, baseline: baseline)
+            guard let violation = violations.first(where: { !accepted.contains($0.index) }) else { break }
             let candidates = helpful(slots, before: violation)
             if shorten(&slots, candidates: candidates, by: violation.minutes) { continue }
             let leaving: Int?
@@ -45,14 +54,16 @@ public enum ReplanPlanner {
                 leaving = slots[violation.index].stop.isPlace ? violation.index : candidates.last
             }
             guard let leaving else {
-                unresolved = violation.isBooked ? (violation.index, violation.minutes) : nil
-                break
+                accepted.insert(violation.index)
+                continue
             }
             slots[leaving].removal = morning.place(slots[leaving].stop).map { Removal.moved(date: $0.date, start: $0.start, end: $0.end) } ?? .skipped
             // With that out of the way, earlier shortening may not be needed any more.
             for index in slots.indices { slots[index].minutes = slots[index].stop.minutes }
         }
-        _ = layOut(&slots, situation) // the times after the last change
+        // The times after the last change, and the first booked item still out of reach.
+        let left = layOut(&slots, situation, delay: delay, fromNow: true, baseline: baseline)
+        let unresolved = left.first(where: \.isBooked)
 
         return proposal(slots: slots, keeps: keeps, delay: delay, unresolved: unresolved, situation: situation, locale: locale)
     }
@@ -85,8 +96,11 @@ public enum ReplanPlanner {
 
     struct Violation {
         let index: Int
+        /// Over by this much, beyond what the plan already was.
         let minutes: Int
         let isBooked: Bool
+        /// When you'd get there (booked items).
+        let arrive: Date
     }
 
     /// The next day's free morning, filled one moved place at a time.
@@ -96,11 +110,11 @@ public enum ReplanPlanner {
 
         init(_ day: Replan.NextDay?) {
             self.day = day
-            self.free = day.map { $0.date.startOfDay(in: $0.zone).addingTimeInterval(Double(Replan.morningHour * 3600)) }
+            self.free = day.map { Replan.clock(Replan.morningHour, on: $0.date, in: $0.zone) }
         }
 
         mutating func place(_ stop: Replan.Stop) -> (date: CalendarDate, start: Date, end: Date)? {
-            guard let day, let start = free else { return nil }
+            guard let day, let start = free, stop.isPlace else { return nil }
             let end = start.addingTimeInterval(Double(stop.minutes * 60))
             if let first = day.firstStart, end.addingTimeInterval(15 * 60) > first { return nil }
             free = end.addingTimeInterval(15 * 60)
@@ -108,14 +122,17 @@ public enum ReplanPlanner {
         }
     }
 
-    /// Lays every active stop out from when you're free; returns the first one that doesn't fit.
-    static func layOut(_ slots: inout [Slot], _ situation: Replan.Situation) -> Violation? {
-        guard let first = slots.first?.stop else { return nil }
-        var violation: Violation?
-        let delay = Double(max(0, situation.delayMinutes) * 60)
+    /// Lays every active stop out from when you're free; returns every stop that doesn't fit, in order.
+    /// - Parameters:
+    ///   - fromNow: nothing starts before now (off for the plan's own baseline).
+    ///   - baseline: how far over each stop already was; only more than that counts.
+    static func layOut(_ slots: inout [Slot], _ situation: Replan.Situation, delay: Int, fromNow: Bool,
+                       baseline: [Int: Int] = [:]) -> [Violation] {
+        guard let first = slots.first?.stop else { return [] }
+        var violations: [Violation] = []
         var at = situation.position ?? first.coordinate
-        var free = max(situation.now,
-                       first.start.addingTimeInterval(delay - Double(Replan.travelMinutes(from: at, to: first.coordinate) * 60)))
+        var free = first.start.addingTimeInterval(Double(delay * 60 - Replan.travelMinutes(from: at, to: first.coordinate) * 60))
+        if fromNow { free = max(free, situation.now) }
         for index in slots.indices where slots[index].isActive {
             let stop = slots[index].stop
             let arrive = free.addingTimeInterval(Double(Replan.travelMinutes(from: at, to: stop.coordinate) * 60))
@@ -124,31 +141,42 @@ public enum ReplanPlanner {
                 let end = start.addingTimeInterval(Double(slots[index].minutes * 60))
                 slots[index].start = start
                 slots[index].end = end
-                let latest = latestEnd(for: stop, situation)
-                if end > latest, violation == nil {
-                    violation = Violation(index: index, minutes: minutes(from: latest, to: end), isBooked: false)
-                }
+                let over = minutes(from: latestEnd(for: stop, situation), to: end) - (baseline[index] ?? 0)
+                if over > 0 { violations.append(Violation(index: index, minutes: over, isBooked: false, arrive: arrive)) }
+                free = end
+                at = stop.exit ?? at
             } else {
                 let needed = stop.start.addingTimeInterval(-Double(Replan.buffer(before: stop) * 60))
-                if arrive > needed.addingTimeInterval(60), violation == nil {
-                    violation = Violation(index: index, minutes: minutes(from: needed, to: arrive), isBooked: true)
+                let over = minutes(from: needed, to: arrive) - (baseline[index] ?? 0)
+                if over > 0 { violations.append(Violation(index: index, minutes: over, isBooked: true, arrive: arrive)) }
+                // A booked tour or hire with other rows inside it: you're there from its start, and
+                // the rows inside follow; otherwise you're free when it ends.
+                let nextStart = slots[(index + 1)...].first(where: \.isActive)?.stop.start
+                if let nextStart, nextStart < stop.end {
+                    free = max(arrive, stop.start)
+                    at = stop.coordinate ?? at
+                } else {
+                    free = stop.end
+                    at = stop.exit ?? at
                 }
             }
-            free = slots[index].end
-            at = stop.exit ?? at
         }
-        return violation
+        return violations
     }
 
-    /// 23:00 that day, or sunset for something planned to be over before dark.
+    /// 23:00 that day in the stop's zone, or sunset for a place planned to be over before dark.
     static func latestEnd(for stop: Replan.Stop, _ situation: Replan.Situation) -> Date {
-        var latest = situation.dayEnd
-        let place = stop.exit ?? situation.position
-        if let place, let sunset = SunTimes.sunset(on: situation.date, latitude: place.latitude, longitude: place.longitude, zone: stop.zone),
+        var latest = dayEnd(for: stop, situation)
+        if stop.isPlace, let place = stop.coordinate ?? situation.position,
+           let sunset = SunTimes.sunset(on: situation.date, latitude: place.latitude, longitude: place.longitude, zone: stop.zone),
            stop.end <= sunset.addingTimeInterval(5 * 60) {
             latest = min(latest, sunset)
         }
         return latest
+    }
+
+    static func dayEnd(for stop: Replan.Stop, _ situation: Replan.Situation) -> Date {
+        Replan.clock(Replan.latestEndHour, on: situation.date, in: stop.zone)
     }
 
     /// Places whose shortening or removal would reach the violation: active, flexible, at or before
@@ -185,19 +213,20 @@ public enum ReplanPlanner {
         return changed
     }
 
+    /// Whole minutes from `a` to `b`, rounded up; negative when `b` is earlier.
     static func minutes(from a: Date, to b: Date) -> Int {
-        max(1, Int((b.timeIntervalSince(a) / 60).rounded(.up)))
+        Int((b.timeIntervalSince(a) / 60).rounded(.up))
     }
 
     // MARK: The proposal
 
-    static func proposal(slots: [Slot], keeps: [Replan.Change], delay: Int, unresolved: (index: Int, minutes: Int)?,
+    static func proposal(slots: [Slot], keeps: [Replan.Change], delay: Int, unresolved: Violation?,
                          situation: Replan.Situation, locale: Locale) -> Replan.Proposal {
         var changes = keeps
         var moved: [String] = []
         var skipped: [String] = []
         var beforeSunset: String?
-        for slot in slots where !slot.stop.isBooked && slot.stop.isFlexible {
+        for slot in slots where slot.stop.isFlexible {
             switch slot.removal {
             case .moved(let date, let start, let end):
                 let reason = situation.nextDay?.firstTitle.map { "Before \($0)" }
@@ -210,13 +239,11 @@ public enum ReplanPlanner {
                 guard slot.start != slot.stop.start || slot.end != slot.stop.end else { continue }
                 changes.append(.retime(rowID: slot.stop.rowID, start: slot.start, end: slot.end, reason: nil))
                 // The last daylight place of the day is the one to name.
-                if latestEnd(for: slot.stop, situation) < situation.dayEnd { beforeSunset = slot.stop.title }
+                if latestEnd(for: slot.stop, situation) < dayEnd(for: slot.stop, situation) { beforeSunset = slot.stop.title }
             }
         }
 
-        let kept = situation.stops.indices
-            .filter { situation.stops[$0].isBooked && $0 != unresolved?.index }
-            .map { situation.stops[$0].title }
+        let kept = slots.indices.filter { slots[$0].stop.isBooked && $0 != unresolved?.index }.map { slots[$0].stop.title }
         var sentences: [String] = []
         switch (kept.isEmpty, beforeSunset) {
         case (false, let sunset?): sentences.append("This keeps \(list(kept)), and gets you to \(sunset) before sunset.")
@@ -226,26 +253,33 @@ public enum ReplanPlanner {
         }
         if !moved.isEmpty {
             let when = situation.nextDay.map { day in
-                day.date == situation.date.adding(days: 1) ? "tomorrow" : "to " + dayName(day.date, locale: locale)
+                day.date == situation.date.adding(days: 1) ? "to tomorrow" : "to " + dayName(day.date, locale: locale)
             } ?? "later"
-            sentences.append("\(list(moved)) \(moved.count == 1 ? "moves" : "move") \(when == "tomorrow" ? "to tomorrow" : when).")
+            sentences.append("\(list(moved)) \(moved.count == 1 ? "moves" : "move") \(when).")
         }
         if !skipped.isEmpty {
             sentences.append("\(list(skipped)) \(skipped.count == 1 ? "is" : "are") left out today.")
         }
-        var lateFor: String?
-        var lateMinutes: Int?
+        var proposal = Replan.Proposal(behindMinutes: delay, summary: "", changes: changes)
         if let unresolved {
-            let title = situation.stops[unresolved.index].title
-            lateFor = title
-            lateMinutes = unresolved.minutes
-            sentences.append("Even so, you'd reach \(title) about \(ItemSummary.durationText(minutes: unresolved.minutes)) late.")
+            let stop = slots[unresolved.index].stop
+            let late = minutes(from: stop.start, to: unresolved.arrive)
+            proposal.lateFor = stop.title
+            proposal.lateRowID = stop.rowID
+            proposal.lateMinutes = max(0, late)
+            if late > 0 {
+                sentences.append("Even so, you'd reach \(stop.title) about \(ItemSummary.durationText(minutes: late)) late.")
+            } else {
+                let spare = -late
+                sentences.append(spare == 0 ? "Even so, you'd reach \(stop.title) just in time."
+                                            : "Even so, you'd reach \(stop.title) with only \(ItemSummary.durationText(minutes: spare)) to spare.")
+            }
         }
         if changes.count == keeps.count && unresolved == nil {
             sentences = ["There's enough slack in the plan: nothing needs to change."]
         }
-        return Replan.Proposal(behindMinutes: delay, summary: sentences.joined(separator: " "), changes: changes,
-                               lateFor: lateFor, lateMinutes: lateMinutes)
+        proposal.summary = sentences.joined(separator: " ")
+        return proposal
     }
 
     /// "A", "A and B", "A, B and C".

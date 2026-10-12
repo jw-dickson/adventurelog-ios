@@ -20,11 +20,11 @@ public enum SunTimes {
     }
 
     static func times(on date: CalendarDate, latitude: Double, longitude: Double, zone: TimeZone) -> (sunrise: Date, sunset: Date)? {
-        // Solar noon on that local date is near local noon; measure from it so the date is right in
-        // any zone, east or west of Greenwich.
+        // The solar day whose noon falls on that local date: measured from local noon and corrected
+        // by longitude, so it's right in any zone (UTC+13 and +14 included).
         let localNoon = date.startOfDay(in: zone).addingTimeInterval(12 * 3600)
         let julianDay = localNoon.timeIntervalSince1970 / 86_400 + 2_440_587.5
-        let n = (julianDay - 2_451_545.0 + 0.0008).rounded()
+        let n = (julianDay - 2_451_545.0 + 0.0008 + longitude / 360).rounded()
         let meanNoon = n - longitude / 360
         let meanAnomaly = (357.5291 + 0.98560028 * meanNoon).truncatingRemainder(dividingBy: 360)
         let m = meanAnomaly * .pi / 180

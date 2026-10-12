@@ -10,10 +10,12 @@ extension Replan.Situation {
 
     /// Today's situation from the plan, the clock and what the phone recorded.
     ///
-    /// - Rows the log shows visited, and rows skipped on this phone, are behind you.
+    /// - Rows the log shows visited, and rows skipped on this phone, are behind you. While recording,
+    ///   a place whose planned end passed in the last 30 minutes with no visit is still ahead: you
+    ///   may well be on the way.
     /// - With a recent position, the delay is how late you'd reach the first stop setting off now.
-    ///   If you're at that stop already, you're there until its planned end and the next stop is the
-    ///   one that counts.
+    ///   If you're at that stop already, you're there until its planned end (for a journey, at its
+    ///   far end) and the next stop is the one that counts.
     /// - Without one, the delay is `reportedDelay` (what the person says), or none.
     /// - Returns: `nil` when today isn't a day of the trip or nothing timed is left.
     public static func current(plan: TripPlan, today: CalendarDate, now: Date, skipped: Set<String> = [],
@@ -26,21 +28,30 @@ extension Replan.Situation {
             }
         })
         var stops = stops(in: todayPlan, now: now).filter { !visited.contains($0.rowID) }
+        if log != nil {
+            let recentlyMissed = todayPlan.entries.filter { entry in
+                entry.status == .done && entry.summary.kind == .location && !visited.contains(entry.rowID)
+                    && (entry.summary.end.map { $0 >= now.addingTimeInterval(-30 * 60) } ?? false)
+            }.compactMap(Replan.Stop.init)
+            stops = Replan.inTimeOrder(recentlyMissed + stops)
+        }
         guard !stops.isEmpty else { return nil }
 
         let position = lastPoint.flatMap { point -> ItemSummary.Coordinate? in
             now.timeIntervalSince(point.time) <= freshPosition ? ItemSummary.Coordinate(point.latitude, point.longitude) : nil
         }
         var delay = reportedDelay ?? 0
+        var startingPoint = position
         if reportedDelay == nil, let position {
             let first = stops[0]
             if let at = first.coordinate, LeaveBy.kilometres(from: position, to: at) * 1000 <= atStopMetres,
                now >= first.start.addingTimeInterval(-15 * 60) {
-                // At it: free when it ends (or now, if you've stayed on).
+                // At it: free when it ends (or now, if you've stayed on), wherever it ends.
                 stops.removeFirst()
+                startingPoint = first.exit ?? position
                 if let next = stops.first {
                     let free = max(now, first.end)
-                    let arrive = free.addingTimeInterval(Double(Replan.travelMinutes(from: position, to: next.coordinate) * 60))
+                    let arrive = free.addingTimeInterval(Double(Replan.travelMinutes(from: startingPoint, to: next.coordinate) * 60))
                     delay = max(0, Int((arrive.timeIntervalSince(next.start) / 60).rounded(.up)))
                 }
             } else {
@@ -49,17 +60,23 @@ extension Replan.Situation {
         }
         guard !stops.isEmpty else { return nil }
         return Replan.Situation(date: today, now: now, stops: stops, delayMinutes: delay,
-                                position: reportedDelay == nil ? position : nil,
+                                position: reportedDelay == nil ? startingPoint : nil,
                                 nextDay: nextDay(after: today, in: plan), zone: plan.timeZone)
     }
 
-    /// The trip's next day after `date`, with its first timed item.
+    /// The trip's next day after `date`, with its first timed place or journey that starts that day
+    /// (a stay checked in earlier doesn't count), in that item's zone.
     public static func nextDay(after date: CalendarDate, in plan: TripPlan) -> Replan.NextDay? {
         guard let day = plan.days.first(where: { $0.date > date }) else { return nil }
         let first = day.entries.map { $0.summary(in: plan) }
-            .filter { $0.start != nil && !$0.isAllDay && TodayPlan.isPlace($0.kind) }
+            .filter { summary in
+                guard let start = summary.start, !summary.isAllDay, summary.kind == .location || summary.kind == .transportation
+                else { return false }
+                return TripTime.localDate(of: start, in: summary.startZone) == day.date
+            }
             .min { $0.start! < $1.start! }
-        return Replan.NextDay(date: day.date, firstStart: first?.start, firstTitle: first?.title, zone: plan.timeZone)
+        return Replan.NextDay(date: day.date, firstStart: first?.start, firstTitle: first?.title,
+                              zone: first?.startZone ?? plan.timeZone)
     }
 }
 
@@ -84,8 +101,9 @@ public enum ReplanText {
             case .keep(let id):
                 guard let stop = stops[id] else { return nil }
                 var detail = "Booked · stays at \(time(stop.start, stop))"
-                if proposal.lateFor == stop.title, let late = proposal.lateMinutes {
-                    detail += " · about \(ItemSummary.durationText(minutes: late)) late"
+                if proposal.lateRowID == stop.rowID {
+                    let late = proposal.lateMinutes ?? 0
+                    detail += late > 0 ? " · about \(ItemSummary.durationText(minutes: late)) late" : " · little time to spare"
                 }
                 return Line(id: id, mark: .locked, title: stop.title, detail: detail)
             case .retime(let id, let start, let end, let reason):
@@ -131,6 +149,8 @@ public enum ReplanApply {
     public static func actions(for proposal: Replan.Proposal, plan: TripPlan, today: CalendarDate) -> [Action] {
         let entries = plan.day(for: today)?.entries ?? []
         func entry(_ rowID: String) -> TripPlan.Entry? { entries.first { $0.row.id == rowID } }
+        // Rows already moved onto a day, with their starts: each later move goes after the earlier ones.
+        var placed: [CalendarDate: [Date]] = [:]
         return proposal.changes.compactMap { change -> Action? in
             switch change {
             case .keep:
@@ -145,7 +165,9 @@ public enum ReplanApply {
                     let summary = other.summary(in: plan)
                     return summary.start.map { $0 > start && !summary.isAllDay } ?? false
                 } ?? target.count
-                return .move(entry: entry, item: entry.item, date: date, index: index, start: start, end: end)
+                let before = placed[date, default: []].filter { $0 <= start }.count
+                placed[date, default: []].append(start)
+                return .move(entry: entry, item: entry.item, date: date, index: index + before, start: start, end: end)
             case .skip(let id, _):
                 return entry(id) == nil ? nil : .skip(rowID: id)
             case .add(let title, let content, let date, _):

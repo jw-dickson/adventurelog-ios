@@ -117,9 +117,10 @@ public enum Replan {
         public var zone: TimeZone { TimeZone(identifier: zoneID) ?? .gmt }
         public var position: ItemSummary.Coordinate? { ItemSummary.Coordinate(latitude, longitude) }
 
-        /// Today's stops still ahead (or under way), from a Today plan: done and skipped rows are left out.
+        /// Today's stops still ahead (or under way), from a Today plan, in time order: done and
+        /// skipped rows are left out.
         public static func stops(in today: TodayPlan, now: Date) -> [Stop] {
-            today.entries.filter { $0.status == .upcoming || $0.status == .now }.compactMap(Stop.init)
+            Replan.inTimeOrder(today.entries.filter { $0.status == .upcoming || $0.status == .now }.compactMap(Stop.init))
         }
     }
 
@@ -211,17 +212,20 @@ public enum Replan {
         /// Booked items first, then the rest in the day's order.
         public var changes: [Change]
         public var source: Source
-        /// A booked item you'd still be late for, and by how much, when nothing could be moved to fit.
+        /// A booked item you'd still reach too late (or with less than its buffer to spare) when
+        /// nothing more could give way, and how many minutes after its start you'd get there.
         public var lateFor: String?
+        public var lateRowID: String?
         public var lateMinutes: Int?
 
         public init(behindMinutes: Int, summary: String, changes: [Change], source: Source = .phone,
-                    lateFor: String? = nil, lateMinutes: Int? = nil) {
+                    lateFor: String? = nil, lateRowID: String? = nil, lateMinutes: Int? = nil) {
             self.behindMinutes = behindMinutes
             self.summary = summary
             self.changes = changes
             self.source = source
             self.lateFor = lateFor
+            self.lateRowID = lateRowID
             self.lateMinutes = lateMinutes
         }
 
@@ -254,17 +258,24 @@ public enum Replan {
     /// A place moved to the next day starts here, local time.
     public static let morningHour = 8
 
+    /// Stops by start time; rows that start together keep their order in the day.
+    public static func inTimeOrder(_ stops: [Stop]) -> [Stop] {
+        stops.enumerated().sorted { $0.element.start != $1.element.start ? $0.element.start < $1.element.start : $0.offset < $1.offset }
+            .map(\.element)
+    }
+
+    /// `hour`:00 on `date` in `zone`, the right instant even on a daylight-saving changeover.
+    public static func clock(_ hour: Int, on date: CalendarDate, in zone: TimeZone) -> Date {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = zone
+        let components = DateComponents(year: date.year, month: date.month, day: date.day, hour: hour)
+        return calendar.date(from: components) ?? date.startOfDay(in: zone).addingTimeInterval(Double(hour * 3600))
+    }
+
     /// How late you are for `target` if you set off from `position` now: minutes after its planned
     /// start you'd arrive, never negative.
     public static func delay(now: Date, position: ItemSummary.Coordinate?, target: Stop) -> Int {
         let arrive = now.addingTimeInterval(Double(travelMinutes(from: position, to: target.coordinate) * 60))
         return max(0, Int((arrive.timeIntervalSince(target.start) / 60).rounded(.up)))
-    }
-}
-
-extension Replan.Situation {
-    /// End of the day for flexible plans, in the day's zone.
-    var dayEnd: Date {
-        date.startOfDay(in: zone).addingTimeInterval(Double(Replan.latestEndHour * 3600))
     }
 }
