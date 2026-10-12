@@ -387,7 +387,11 @@ struct SavedPhoto: View {
             }
         }
         .task(id: url) {
-            if let data = await model.imageData(for: url) { image = UIImage(data: data) }
+            // A new URL starts from the fill, so a photo that can't be loaded never leaves the old one up.
+            image = nil
+            let data = await model.imageData(for: url)
+            guard !Task.isCancelled else { return }
+            image = data.flatMap { UIImage(data: $0) }
         }
     }
 }
