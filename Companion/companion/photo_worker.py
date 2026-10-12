@@ -155,6 +155,11 @@ class SidecarWriter:
                 continue
             record = recorded.get(str(target))
             backup = record["backup"] if record else self._backup(asset_id, target, existing)
+            # Lightroom may have saved to it while this one was merging: then leave it for the
+            # next pass rather than write over that save. (This narrows the window; nothing on
+            # a shared folder can close it.)
+            if (target.read_bytes() if target.exists() else None) != existing:
+                raise OSError(f"{target.name} changed while it was being updated; left for the next pass")
             _write_atomically(target, merged)
             self.store.save_sidecar(self.user_id, self.trip_id, asset_id, str(target), backup, _hash(merged))
             changed += 1
@@ -229,6 +234,9 @@ async def run_trip(
     writer = SidecarWriter(settings, store, setting.user_id, setting.trip_id)
 
     written: list[str] = []
+    # Saved as done only once Immich has been told, so a failure there is retried next pass
+    # (writing a sidecar again changes nothing).
+    finished: list[PhotoAsset] = []
     for asset in await immich.photos_taken(after, before):
         if len(written) >= BATCH:
             break
@@ -261,9 +269,9 @@ async def run_trip(
         try:
             writer.write(asset_id, str(asset.get("originalPath") or ""), photos.update_for(found, latitude, longitude))
             written.append(asset_id)
+            finished.append(record)
         except (OSError, photos.SidecarError, UnicodeDecodeError) as error:
-            record = replace(record, state="failed", detail=str(error))
-        store.save_photo_asset(record)
+            store.save_photo_asset(replace(record, state="failed", detail=str(error)))
 
     album_id = setting.album_id
     if written:
@@ -271,6 +279,8 @@ async def run_trip(
         if not album_id or not await immich.album_exists(album_id):
             album_id = await immich.create_album(trip.name, "Photos matched to the trip by the AdventureLog companion.")
         await immich.add_to_album(album_id, written)
+    for record in finished:
+        store.save_photo_asset(record)
     await link_photos(setting, store, adventurelog, api_key, collection, settings.links_per_stop)
     return album_id
 
@@ -317,11 +327,15 @@ async def undo_day(
     settings: PhotoSettings,
 ) -> dict:
     """Puts a day's sidecars back, unlinks its photos from AdventureLog and the album. Photos
-    whose sidecar changed since are left as they are and counted."""
+    whose sidecar changed since are left as they are and counted.
+
+    The sidecars are the record: a photo is undone once its files are back. What follows (the
+    AdventureLog link, Immich's refresh and the album) is done again by the next undo of the
+    day if it fails, so asking again finishes the job."""
     setting = store.photo_trip(user_id, trip_id)
     api_key = store.api_key_for(user_id)
     writer = SidecarWriter(settings, store, user_id, trip_id)
-    restored: list[str] = []
+    restored = 0
     kept = 0
     for asset in store.photo_assets(user_id, trip_id):
         if asset.day != day or asset.state not in ("done", "failed"):
@@ -329,18 +343,23 @@ async def undo_day(
         if not writer.restore(asset.asset_id):
             kept += 1
             continue
+        store.save_photo_asset(replace(asset, state="undone", detail=None))
+        restored += 1
+    undone = [a for a in store.photo_assets(user_id, trip_id) if a.day == day and a.state == "undone"]
+    for asset in undone:
         if asset.image_id and api_key:
             try:
                 await adventurelog.unlink_photo(api_key, asset.image_id)
             except AdventureLogError as error:
                 log.warning("unlinking %s: %s", asset.image_id, error)
-        store.save_photo_asset(replace(asset, state="undone", image_id=None, detail=None))
-        restored.append(asset.asset_id)
-    if restored and immich:
-        await immich.refresh_metadata(restored)
+                continue  # kept, so the next undo tries again
+            store.save_photo_asset(replace(asset, image_id=None))
+    if undone and immich:
+        ids = [a.asset_id for a in undone]
+        await immich.refresh_metadata(ids)
         if setting.album_id:
-            await immich.remove_from_album(setting.album_id, restored)
-    return {"restored": len(restored), "kept": kept}
+            await immich.remove_from_album(setting.album_id, ids)
+    return {"restored": restored, "kept": kept}
 
 
 def summary(store: Store, user_id: str, trip_id: str) -> dict:

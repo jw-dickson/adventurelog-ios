@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import contextlib
 from datetime import date, timedelta
 
 import httpx
@@ -10,6 +11,10 @@ import httpx
 
 class AdventureLogError(Exception):
     """The server refused the key or couldn't be reached."""
+
+
+class AdventureLogNotFound(AdventureLogError):
+    """The server has no such thing (or won't show it to this key)."""
 
 
 class AdventureLog:
@@ -32,6 +37,8 @@ class AdventureLog:
             raise AdventureLogError(f"AdventureLog can't be reached: {error}") from error
         if response.status_code in (401, 403):
             raise AdventureLogError("AdventureLog refused the API key.")
+        if response.status_code == 404:
+            raise AdventureLogNotFound(f"AdventureLog has nothing at {path}.")
         if response.status_code >= 400:
             raise AdventureLogError(f"AdventureLog answered {response.status_code} for {path}.")
         if response.status_code == 204 or not response.content:
@@ -76,4 +83,6 @@ class AdventureLog:
         return str((image or {}).get("id"))
 
     async def unlink_photo(self, api_key: str, image_id: str) -> None:
-        await self._send("DELETE", f"api/images/{image_id}/", api_key)
+        """Already gone (removed in AdventureLog by hand) counts as done."""
+        with contextlib.suppress(AdventureLogNotFound):
+            await self._send("DELETE", f"api/images/{image_id}/", api_key)

@@ -7,16 +7,17 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+from dataclasses import replace
 from pathlib import Path
 
 import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-from companion import photo_worker
+from companion import photo_worker, photos
 from companion.adventurelog import AdventureLog
 from companion.app import Settings, create_app
-from companion.immich import Immich
+from companion.immich import Immich, ImmichError
 from companion.photo_worker import PhotoSettings, PhotoSetupError
 from companion.store import Store
 from tests.test_worker import KEY, RESPONSES
@@ -64,6 +65,7 @@ ASSETS = [
 class FakeImmich:
     def __init__(self, assets: list[dict]):
         self.assets = assets
+        self.down = False
         self.refreshed: list[str] = []
         self.albums: dict[str, list[str]] = {}
         self.client = Immich("https://immich.example", "immich-key", transport=httpx.MockTransport(self.handle))
@@ -71,6 +73,8 @@ class FakeImmich:
     def handle(self, request: httpx.Request) -> httpx.Response:
         assert request.headers["x-api-key"] == "immich-key"
         path = request.url.path
+        if self.down and path != "/api/search/metadata":
+            return httpx.Response(503)
         body = json.loads(request.content) if request.content else {}
         if path == "/api/search/metadata":
             assert body["withExif"] is True
@@ -101,6 +105,7 @@ class FakeImmich:
 class FakeAdventureLog:
     def __init__(self):
         self.links: dict[str, tuple[str, str, str]] = {}
+        self.refusing_deletes = False
         self.client = AdventureLog("https://adventurelog.example", transport=httpx.MockTransport(self.handle))
 
     def handle(self, request: httpx.Request) -> httpx.Response:
@@ -117,7 +122,10 @@ class FakeAdventureLog:
             self.links[image_id] = (body["content_type"], body["object_id"], body["immich_id"])
             return httpx.Response(201, json={"id": image_id})
         if path.startswith("/api/images/") and request.method == "DELETE":
-            self.links.pop(path.split("/")[3], None)
+            if self.refusing_deletes:
+                return httpx.Response(500)
+            if self.links.pop(path.split("/")[3], None) is None:
+                return httpx.Response(404)
             return httpx.Response(204)
         return httpx.Response(404)
 
@@ -219,6 +227,66 @@ def test_undoing_a_day(tmp_path, library):
     assert summary["days"] == [{"date": "2027-03-08", "photos": 1, "undone": 5, "failed": 0, "stops": [
         {"title": "Wineglass Bay Lookout", "photos": 1}
     ]}]  # fmt: skip
+
+
+def test_when_immich_fails_the_photos_are_tried_again(tmp_path, library):
+    store, adventurelog, immich, config = setup(tmp_path, ASSETS[:2])
+    immich.down = True
+    run(photo_worker.run(store, adventurelog.client, immich.client, config))
+    assert "503" in store.photo_trip(USER, TRIP["id"]).last_error
+    assert store.photo_assets(USER, TRIP["id"]) == [], "not done until Immich has been told"
+    assert "Wineglass Bay Lookout" in (library / "DSC00002.xmp").read_text()
+
+    immich.down = False
+    run(photo_worker.run(store, adventurelog.client, immich.client, config))
+    assert sorted(immich.refreshed) == ["a1", "a2"] and immich.albums["album-1"] == ["a1", "a2"]
+    assert [a.state for a in store.photo_assets(USER, TRIP["id"])] == ["done", "done"]
+    assert len(list((tmp_path / "backups").rglob("*.xmp.*"))) == 1, "still only the one original kept"
+
+
+def test_an_undo_that_stops_part_way_finishes_when_asked_again(tmp_path, library):
+    store, adventurelog, immich, config = setup(tmp_path, ASSETS[:2])
+    run(photo_worker.run(store, adventurelog.client, immich.client, config))
+    assert len(adventurelog.links) == 2
+    adventurelog.refusing_deletes, immich.down = True, True
+
+    def undo():
+        return run(
+            photo_worker.undo_day(USER, TRIP["id"], "2027-03-08", store, adventurelog.client, immich.client, config)
+        )
+
+    with pytest.raises(ImmichError):
+        undo()
+    assert (library / "DSC00001.xmp").read_bytes() == LIGHTROOM, "the files are back regardless"
+    assert all(a.state == "undone" and a.image_id for a in store.photo_assets(USER, TRIP["id"]))
+
+    adventurelog.refusing_deletes, immich.down = False, False
+    assert undo() == {"restored": 0, "kept": 0}
+    assert adventurelog.links == {} and immich.albums["album-1"] == []
+    assert all(a.image_id is None for a in store.photo_assets(USER, TRIP["id"]))
+    # A link already removed in AdventureLog counts as unlinked.
+    store.save_photo_asset(replace(store.photo_assets(USER, TRIP["id"])[0], image_id="image-gone"))
+    undo()
+    assert store.photo_assets(USER, TRIP["id"])[0].image_id is None
+
+
+def test_a_lightroom_save_during_the_merge_wins(tmp_path, library, monkeypatch):
+    store, adventurelog, immich, config = setup(tmp_path, ASSETS[:1])
+    merge = photos.merge_sidecar
+
+    def merge_while_lightroom_saves(existing, update):
+        (library / "DSC00001.xmp").write_bytes(LIGHTROOM + b"\n<!-- saved by Lightroom -->")
+        return merge(existing, update)
+
+    monkeypatch.setattr(photos, "merge_sidecar", merge_while_lightroom_saves)
+    run(photo_worker.run(store, adventurelog.client, immich.client, config))
+    assert (library / "DSC00001.xmp").read_bytes().endswith(b"<!-- saved by Lightroom -->")
+    assert store.photo_assets(USER, TRIP["id"])[0].state == "failed"
+
+    monkeypatch.setattr(photos, "merge_sidecar", merge)
+    run(photo_worker.run(store, adventurelog.client, immich.client, config))
+    merged = (library / "DSC00001.xmp").read_bytes()
+    assert b"Wineglass Bay Lookout" in merged and b"saved by Lightroom" in merged
 
 
 def test_a_photo_outside_the_library_or_behind_a_link_is_left_alone(tmp_path, library):
