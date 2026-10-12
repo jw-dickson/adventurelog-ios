@@ -64,7 +64,10 @@ jobs:
         with:
           persist-credentials: false
       - name: Toolchain
-        run: swift --version
+        run: |
+          swift --version
+          # python3 for scripts/ci-annotate.py
+          apt-get update -qq && apt-get install -y -qq --no-install-recommends python3 >/dev/null
       - name: Kit tests on Linux
         working-directory: Packages/AdventureLogKit
         shell: bash
@@ -73,9 +76,7 @@ jobs:
           set +e
           swift test 2>&1 | tee ../../build/kit-linux.log
           status=${PIPESTATUS[0]}
-          if command -v python3 >/dev/null; then
-            python3 ../../scripts/ci-annotate.py ../../build/kit-linux.log $([ $status -ne 0 ] && echo --tail)
-          fi
+          python3 ../../scripts/ci-annotate.py ../../build/kit-linux.log $([ $status -ne 0 ] && echo --tail)
           exit $status
 
   # The companion service (Python), on Linux: quick, so it runs every time.
