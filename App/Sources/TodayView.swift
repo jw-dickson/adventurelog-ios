@@ -145,11 +145,13 @@ private struct TodayContent: View {
     }
 
     private func rows(_ entries: [TodayPlan.Entry]) -> some View {
-        VStack(spacing: 0) {
+        let notes = ZoneShift.notes(entries.map(\.summary))
+        return VStack(spacing: 0) {
             ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
                 NavigationLink(value: ItemRoute(tripID: tripID, itemID: entry.entry.item.id, day: entry.entry.row.date)) {
                     TimelineRow(entry.summary.timelineContent, state: entry.timelineState,
-                                isFirst: index == 0, isLast: index == entries.count - 1)
+                                isFirst: index == 0, isLast: index == entries.count - 1,
+                                thumbnail: entry.summary.timelineThumbnail, clockNote: notes[index])
                 }
                 .buttonStyle(.plain)
                 .contextMenu {
@@ -171,30 +173,49 @@ private struct TodayContent: View {
 
 private struct DayHeader: View {
     let today: TodayPlan
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
-        HStack(alignment: .top, spacing: ALSpace.space3) {
-            let parts = DayText.tileParts(today.day.date)
-            DateTile(weekday: parts.weekday, day: parts.day, month: parts.month, isSelected: true)
-            VStack(alignment: .leading, spacing: ALSpace.space1) {
-                Text(today.day.name ?? "Day \(today.day.number)")
-                    .font(ALFont.title2)
-                    .foregroundStyle(ALColor.ink)
-                    .accessibilityAddTraits(.isHeader)
-                    .accessibilityIdentifier("today.title")
-                Text(today.metaText)
-                    .font(ALFont.subheadline)
-                    .foregroundStyle(ALColor.inkMuted)
-                if today.hasOvernight || today.bookedCount > 0 {
-                    HStack(spacing: 6) {
-                        if today.hasOvernight { ALBadge("Overnight", style: .info) }
-                        if today.bookedCount > 0 { ALBadge.booked("\(today.bookedCount) booked") }
-                    }
-                    .padding(.top, 2)
+        if typeSize.isAccessibilitySize {
+            // At the largest sizes the date tile would squeeze the title into a narrow column, so
+            // the date joins the line under the title and the title gets the full width.
+            details(meta: DayText.long(today.day.date) + " · " + today.metaText)
+                .padding(.top, ALSpace.space1)
+        } else {
+            HStack(alignment: .top, spacing: ALSpace.space3) {
+                let parts = DayText.tileParts(today.day.date)
+                DateTile(weekday: parts.weekday, day: parts.day, month: parts.month, isSelected: true)
+                details(meta: today.metaText)
+            }
+            .padding(.top, ALSpace.space1)
+        }
+    }
+
+    private func details(meta: String) -> some View {
+        VStack(alignment: .leading, spacing: ALSpace.space1) {
+            Text(today.day.name ?? "Day \(today.day.number)")
+                .font(ALFont.title2)
+                .foregroundStyle(ALColor.ink)
+                .accessibilityAddTraits(.isHeader)
+                .accessibilityIdentifier("today.title")
+            Text(meta)
+                .font(ALFont.subheadline)
+                .foregroundStyle(ALColor.inkMuted)
+            if today.hasOvernight || today.bookedCount > 0 {
+                // Side by side when they fit, otherwise one under the other: never cut short.
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 6) { badges }
+                    VStack(alignment: .leading, spacing: 6) { badges }
                 }
+                .padding(.top, 2)
             }
         }
-        .padding(.top, ALSpace.space1)
+    }
+
+    @ViewBuilder
+    private var badges: some View {
+        if today.hasOvernight { ALBadge("Overnight", style: .info) }
+        if today.bookedCount > 0 { ALBadge.booked("\(today.bookedCount) booked") }
     }
 }
 

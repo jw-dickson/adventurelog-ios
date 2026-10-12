@@ -245,20 +245,27 @@ private struct LogRowView: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: ALSpace.space3) {
-            VStack(alignment: .leading, spacing: 2) {
+            // Wide enough for any time this locale writes, so "10:58 AM" isn't wrapped or cut.
+            // What happened on top, with the plan struck through under it when they differ; a row
+            // that hasn't happened yet shows only its planned time, muted.
+            TimeColumn(alignment: .leading) {
                 if let actual = row.actualStart {
-                    Text(TripTime.shortTime(actual, in: row.zone))
-                        .font(ALFont.time)
+                    TimeText(TripTime.shortTime(actual, in: row.zone))
                         .foregroundStyle(ALColor.ink)
-                }
-                if let planned = row.plannedStart, showsPlanned(planned) {
-                    Text(TripTime.shortTime(planned, in: row.zone))
-                        .font(ALFont.footnote)
-                        .strikethrough(row.actualStart != nil)
+                    if let planned = row.plannedStart, showsPlanned(planned) {
+                        Text(TripTime.shortTime(planned, in: row.zone))
+                            .font(ALFont.footnote)
+                            .strikethrough()
+                            .foregroundStyle(ALColor.inkMuted)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.75)
+                            .padding(.top, 2)
+                    }
+                } else {
+                    TimeText(row.plannedStart.map { TripTime.shortTime($0, in: row.zone) })
                         .foregroundStyle(ALColor.inkMuted)
                 }
             }
-            .frame(width: 56, alignment: .leading)
             VStack(alignment: .leading, spacing: 2) {
                 Text(row.title)
                     .font(ALFont.headline)

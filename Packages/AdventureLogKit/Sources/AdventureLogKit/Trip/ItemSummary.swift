@@ -110,7 +110,8 @@ public struct ItemSummary: Sendable, Hashable, Identifiable {
                from != to, !(leg.name.contains(from) && leg.name.contains(to)) {
                 parts.append("\(from) → \(to)")
             }
-            if let minutes = leg.travelDurationMinutes, minutes > 0 {
+            // A day or more (a car hire) reads better as the end date under the time than as "361 h".
+            if let minutes = leg.travelDurationMinutes, minutes > 0, minutes < 24 * 60 {
                 parts.append(ItemSummary.durationText(minutes: minutes))
             }
             if let km = leg.distance, km >= 1, leg.type != .plane {

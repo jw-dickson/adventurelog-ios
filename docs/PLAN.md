@@ -13,7 +13,7 @@ The app is built in stages. Each ends in something that runs in the Simulator an
 | **3 · Reminders and tracking** *(3a reminders, 3b tracking)* | Leave-by and heads-up reminders, rolling geofence window, background tracking, stop detection, plan vs actual on the phone (server write-back decided later), GPX capture, the Log tab | A replayed drive fires the right reminders in the trip's zone and detects the planned stops |
 | **4 · Companion service and Live Activities** *(optional module)* | Self-hosted companion: device registration, APNs, track ingest, fixed/flexible flags; Live Activities for connections and booked tours | `simctl push` payloads render every state; a server push reaches a TestFlight build |
 | **5 · Replan assistant** *(optional module; 5a on the phone, 5b asks through the companion)* | Proposes a revised day around booked items; the user accepts, edits or dismisses | Golden scenarios produce valid proposals; a UI test accepts one end to end |
-| **Design review 3, freeze** | Full-app review | Fixes only after this point |
+| **Design review 3, freeze** *([`Design/review-3`](../Design/review-3/README.md), waiting for sign-off)* | Full-app review | Fixes only after this point |
 | **6 · Photo export** *(optional module)* | Per-day GPX and XMP keywords for Lightroom Classic | Round-trip on a sample catalogue |
 
 ## How Stage 2 syncs
@@ -107,6 +107,6 @@ Every outside dependency comes through a protocol the tests replace: the network
   - Every pull request push and every push to main: tokens check and package tests.
   - Every pull request and push: the companion service's tests, on Linux.
   - Pull requests with changes outside `docs/`, `Design/`, `Companion/`, `*.md` or `LICENSE`: Simulator UI tests on one Simulator, in a job beside the package tests. (Two at once was tried: on the hosted runners each cloned Simulator took minutes per test.) A push to main skips them, because the pull request already ran them on that code.
-  - The screenshot gallery (light, dark, XXL) runs only on request: Actions › ci › Run workflow with "Capture the screenshot gallery" ticked, or `make gallery` on a Mac.
+  - The screenshot gallery (light, dark, XXL) runs only on request: Actions › ci › Run workflow with "Capture the screenshot gallery" ticked, or `make gallery` on a Mac. From Actions it also puts the named PNGs on the `gallery` branch, one commit replaced each run, so a review can be put together without a Mac. That job alone may push, and only to that branch.
 - Self-hosted work (nightly full Simulator suite against a live test server, and TestFlight uploads) lives in the maintainer's private repository, which checks out this one. Nothing here can trigger code on the maintainer's machine.
 

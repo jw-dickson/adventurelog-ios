@@ -34,6 +34,20 @@ struct DecodingTests {
         #expect(trip.itinerary.count == 16)
     }
 
+    @Test func coverPhotoIsTheChosenOneElseTheFirstPlacesPhoto() throws {
+        // The seed trip has no cover chosen; the museum is its only place with a photo.
+        let trip = try Fixture.decode(CollectionDetail.self, name: "collections__detail.json")
+        #expect(trip.primaryImage == nil)
+        let museum = try #require(trip.locations.first { $0.name == "Tasmanian Museum and Art Gallery" })
+        #expect(trip.coverImageURL == museum.primaryImage?.url)
+
+        // A chosen cover (the server's `primary_image`) wins.
+        var object = try #require(try JSONSerialization.jsonObject(with: Fixture.data("responses", "collections__detail.json")) as? [String: Any])
+        object["primary_image"] = ["id": "cover", "image": "https://adventurelog.example/media/images/cover.webp", "is_primary": true]
+        let chosen = try ALCoding.decoder().decode(CollectionDetail.self, from: JSONSerialization.data(withJSONObject: object))
+        #expect(chosen.coverImageURL == URL(string: "https://adventurelog.example/media/images/cover.webp"))
+    }
+
     @Test func nestedCollectionOmitsArrays() throws {
         let trip = try Fixture.decode(CollectionDetail.self, name: "collections__detail_nested.json")
         #expect(trip.transportations.isEmpty)

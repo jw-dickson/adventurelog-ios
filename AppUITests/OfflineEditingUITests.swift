@@ -76,8 +76,9 @@ final class OfflineEditingUITests: XCTestCase {
     func testTodayOffersRemindersOnceAndSettingsOpen() throws {
         let app = try OfflineBrowseUITests.launchOffline()
         XCTAssertTrue(app.staticTexts["today.title"].waitForExistence(timeout: 15))
+        // The offer is at the end of Today, which can be below the fold now that rows wrap more.
         let offer = app.descendants(matching: .any)["reminders.offer"]
-        if !offer.waitForExistence(timeout: 3) { app.swipeUp() }
+        for _ in 0..<4 where !offer.waitForExistence(timeout: 2) { app.swipeUp() }
         XCTAssertTrue(offer.waitForExistence(timeout: 5))
         app.buttons["Not now"].tap()
         XCTAssertTrue(offer.waitForNonExistence(timeout: 5))
@@ -213,6 +214,9 @@ final class OfflineEditingUITests: XCTestCase {
         title.typeText("Dinner change")
         app.buttons["newNote.add"].tap()
 
-        XCTAssertTrue(element(app, containing: "Dinner change").waitForExistence(timeout: 5))
+        // It goes at the end of the day, which can be below the fold in a lazily built list.
+        let note = element(app, containing: "Dinner change")
+        for _ in 0..<4 where !note.waitForExistence(timeout: 2) { app.swipeUp() }
+        XCTAssertTrue(note.waitForExistence(timeout: 5))
     }
 }

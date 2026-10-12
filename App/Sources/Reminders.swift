@@ -196,12 +196,14 @@ struct ReminderSettingsView: View {
                 } footer: {
                     Text("Reminders are worked out on this phone from the trip's plan, so they arrive with no signal. They follow the trip's time zones.")
                 }
+                .listRowBackground(ALColor.surface200)
                 Section {
                     Toggle("Live Activities", isOn: $model.liveActivitiesEnabled)
                         .accessibilityIdentifier("reminders.liveActivities")
                 } footer: {
                     Text("Flights and booked tours count down on the Lock Screen and in the Dynamic Island: a flight from three hours before departure, a tour from an hour before it starts.")
                 }
+                .listRowBackground(ALColor.surface200)
                 Section {
                     TextField("Companion address", text: $model.companionAddress, prompt: Text("companion.example.com"))
                         .textContentType(.URL)
@@ -219,6 +221,7 @@ struct ReminderSettingsView: View {
                 } footer: {
                     Text("Optional. With your self-hosted AdventureLog companion, Live Activities start and end on time without opening the app. It uses this phone's AdventureLog key.")
                 }
+                .listRowBackground(ALColor.surface200)
                 if model.remindersEnabled {
                     Section("Remind me") {
                         Toggle("When to leave", isOn: $model.reminderSettings.leaveBy)
@@ -235,6 +238,7 @@ struct ReminderSettingsView: View {
                             }
                         }
                     }
+                    .listRowBackground(ALColor.surface200)
                 }
             }
             .scrollContentBackground(.hidden)

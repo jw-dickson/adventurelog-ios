@@ -42,7 +42,7 @@ struct ItemSummaryTests {
         #expect(hire.startText(locale: gb)?.hasSuffix("9:00") == true) // "9:00" or "09:00" depending on ICU data
         #expect(hire.secondaryTimeText(locale: gb) == "23 Mar")
         #expect(hire.isBooked == false)
-        #expect(hire.detail?.contains("km") == false, "zero distance is not shown")
+        #expect(hire.detail == nil, "no zero distance, and no \"361 h\": the return date says it")
     }
 
     @Test func sameDayItemShowsItsEndTime() throws {

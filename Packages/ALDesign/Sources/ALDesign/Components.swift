@@ -275,44 +275,57 @@ public struct TimelineRow: View {
     private let state: Status
     private let isFirst: Bool
     private let isLast: Bool
+    private let fitsTimes: Bool
+    private let thumbnail: AnyView?
+    private let clockNote: String?
     @ScaledMetric(relativeTo: .subheadline) private var timeWidth: CGFloat = 52
+    @ScaledMetric(relativeTo: .body) private var thumbnailSize: CGFloat = 56
     @ScaledMetric(relativeTo: .body) private var iconSize: CGFloat = 28
     @Environment(\.dynamicTypeSize) private var typeSize
 
-    public init(_ content: Content, state: Status, isFirst: Bool = false, isLast: Bool = false) {
+    /// - Parameters:
+    ///   - fitsTimes: false for a list with no times in it (trip-wide notes), whose time column can
+    ///     then stay narrow; every row of a list passes the same value.
+    ///   - thumbnail: the item's photo, filled into a rounded square at the card's trailing edge
+    ///     (a strip across the top at the accessibility sizes). Nil for items without one.
+    ///   - clockNote: where the clock changes after this item ("Now on Sydney time · clocks go
+    ///     forward 19 h"), shown under the card on the rail, before the next row.
+    public init(_ content: Content, state: Status, isFirst: Bool = false, isLast: Bool = false, fitsTimes: Bool = true,
+                thumbnail: AnyView? = nil, clockNote: String? = nil) {
         self.content = content
         self.state = state
         self.isFirst = isFirst
         self.isLast = isLast
+        self.fitsTimes = fitsTimes
+        self.thumbnail = thumbnail
+        self.clockNote = clockNote
     }
 
     public var body: some View {
         if typeSize.isAccessibilitySize {
             // At the largest sizes the time moves into the card so titles keep their width.
-            card(showTime: true)
+            cardAndNote(showTime: true)
                 .padding(.bottom, ALSpace.space2)
                 .accessibilityElement(children: .combine)
         } else {
             HStack(alignment: .top, spacing: ALSpace.space2) {
-                VStack(alignment: .trailing, spacing: 0) {
-                    Text(content.time ?? "")
-                        .font(ALFont.time)
-                        .monospacedDigit()
+                TimeColumn(alignment: .trailing) {
+                    TimeText(content.time, alignment: .trailing, fitsTimes: fitsTimes)
+                        .frame(minWidth: timeWidth, alignment: .trailing)
                         .foregroundStyle(ALColor.ink)
                     if let secondary = content.secondaryTime {
                         Text(secondary)
                             .font(.caption)
                             .foregroundStyle(ALColor.inkMuted)
+                            .minimumScaleFactor(0.75)
                     }
                 }
                 .lineLimit(1)
-                .minimumScaleFactor(0.75)
-                .frame(width: timeWidth, alignment: .trailing)
                 .padding(.top, 14)
 
                 rail.frame(width: 20)
 
-                card(showTime: false).padding(.bottom, ALSpace.space2)
+                cardAndNote(showTime: false).padding(.bottom, ALSpace.space2)
             }
             .accessibilityElement(children: .combine)
         }
@@ -347,7 +360,38 @@ public struct TimelineRow: View {
         }
     }
 
+    private func cardAndNote(showTime: Bool) -> some View {
+        VStack(alignment: .leading, spacing: ALSpace.space2) {
+            card(showTime: showTime)
+            if let clockNote {
+                Label(clockNote, systemImage: "clock.arrow.2.circlepath")
+                    .font(ALFont.footnote)
+                    .foregroundStyle(ALColor.secondaryText)
+                    .padding(.horizontal, ALSpace.space3)
+                    .padding(.vertical, ALSpace.space1)
+                    .background(ALColor.surface200, in: Capsule())
+            }
+        }
+    }
+
     private func card(showTime: Bool) -> some View {
+        VStack(alignment: .leading, spacing: ALSpace.space2) {
+            if typeSize.isAccessibilitySize, let thumbnail {
+                // A strip across the top, so the title keeps the card's full width.
+                Color.clear
+                    .frame(height: thumbnailSize * 1.6)
+                    .frame(maxWidth: .infinity)
+                    .overlay { thumbnail }
+                    .clipShape(RoundedRectangle(cornerRadius: ALRadius.btn, style: .continuous))
+                    .accessibilityHidden(true)
+            }
+            cardRow(showTime: showTime)
+        }
+        .alCard()
+        .opacity(state == .done ? 0.72 : 1)
+    }
+
+    private func cardRow(showTime: Bool) -> some View {
         HStack(alignment: .top, spacing: ALSpace.space2) {
             Image(systemName: content.symbol)
                 .font(.system(size: iconSize * 0.5, weight: .semibold))
@@ -381,9 +425,14 @@ public struct TimelineRow: View {
                 }
             }
             Spacer(minLength: 0)
+            if !typeSize.isAccessibilitySize, let thumbnail {
+                Color.clear
+                    .frame(width: thumbnailSize, height: thumbnailSize)
+                    .overlay { thumbnail }
+                    .clipShape(RoundedRectangle(cornerRadius: ALRadius.btn, style: .continuous))
+                    .accessibilityHidden(true)
+            }
         }
-        .alCard()
-        .opacity(state == .done ? 0.72 : 1)
     }
 }
 
@@ -411,4 +460,72 @@ public struct TimelineRow: View {
         .padding()
     }
     .background(ALColor.surface100)
+}
+
+/// A time in a column of times: as wide as the widest time this locale writes ("10:58 PM" or
+/// "22:58"), the same on every row, so no time is cut short and the column doesn't wobble.
+/// Anything wider than a time ("All day") shrinks to fit.
+public struct TimeText: View {
+    private let text: String?
+    private let alignment: Alignment
+    private let fitsTimes: Bool
+
+    /// - Parameter fitsTimes: false to size to the text alone, in a column that holds no times.
+    public init(_ text: String?, alignment: Alignment = .leading, fitsTimes: Bool = true) {
+        self.text = text
+        self.alignment = alignment
+        self.fitsTimes = fitsTimes
+    }
+
+    public var body: some View {
+        ZStack(alignment: alignment) {
+            ForEach(fitsTimes ? Self.widestTimes : [], id: \.self) { Text($0).hidden().accessibilityHidden(true) }
+        }
+        .overlay(alignment: alignment) {
+            Text(text ?? "").minimumScaleFactor(0.6)
+        }
+        .font(ALFont.time)
+        .monospacedDigit()
+        .lineLimit(1)
+    }
+
+    /// The widest times the current locale writes: one before noon and one after, with two-digit hours.
+    static var widestTimes: [String] {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .gmt
+        let style = Date.FormatStyle(date: .omitted, time: .shortened, locale: .autoupdatingCurrent, calendar: calendar, timeZone: .gmt)
+        return [10, 22].compactMap { hour in
+            calendar.date(from: DateComponents(year: 2027, month: 3, day: 8, hour: hour, minute: 58)).map { $0.formatted(style) }
+        }
+    }
+}
+
+/// A column of times: as wide as its first view (usually a ``TimeText``); what's under it (an end
+/// time, a planned time, a date) gets that width and shrinks or is cut short rather than widening it.
+public struct TimeColumn: Layout {
+    private let alignment: HorizontalAlignment
+
+    public init(alignment: HorizontalAlignment = .leading) {
+        self.alignment = alignment
+    }
+
+    public func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        guard let first = subviews.first else { return .zero }
+        let width = first.sizeThatFits(.unspecified).width
+        let height = subviews.reduce(0) { $0 + $1.sizeThatFits(ProposedViewSize(width: width, height: nil)).height }
+        return CGSize(width: width, height: height)
+    }
+
+    public func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        guard let first = subviews.first else { return }
+        let width = first.sizeThatFits(.unspecified).width
+        let trailing = alignment == .trailing
+        var y = bounds.minY
+        for subview in subviews {
+            let size = ProposedViewSize(width: width, height: nil)
+            subview.place(at: CGPoint(x: trailing ? bounds.maxX : bounds.minX, y: y),
+                          anchor: trailing ? .topTrailing : .topLeading, proposal: size)
+            y += subview.sizeThatFits(size).height
+        }
+    }
 }

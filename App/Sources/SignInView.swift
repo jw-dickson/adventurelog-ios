@@ -13,6 +13,7 @@ import SwiftUI
 struct SignInView: View {
     @Environment(AppModel.self) private var model
     @State private var server = LaunchOptions.current.serverURL ?? ""
+    @Environment(\.dynamicTypeSize) private var typeSize
     @State private var login = ""
     @State private var password = ""
     @State private var code = ""
@@ -38,6 +39,16 @@ struct SignInView: View {
         return !login.trimmingCharacters(in: .whitespaces).isEmpty && !password.isEmpty && !signOnOnly
     }
 
+    /// The server address, one line however it's entered: a return in the wrapping field (largest
+    /// text sizes) moves on like the keyboard's Next instead of adding a line.
+    private var serverText: Binding<String> {
+        Binding(get: { server }, set: { text in
+            guard text.contains(where: \.isNewline) else { server = text; return }
+            server = text.filter { !$0.isNewline }
+            focus = signOnOnly ? nil : .login
+        })
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: ALSpace.space4) {
@@ -56,7 +67,9 @@ struct SignInView: View {
 
                 VStack(alignment: .leading, spacing: 18) {
                     field("Server address") {
-                        TextField("Server address", text: $server, prompt: Text("adventurelog.example.com"))
+                        // At the largest text sizes the address wraps instead of being cut short.
+                        TextField("Server address", text: serverText, prompt: Text("adventurelog.example.com"),
+                                  axis: typeSize.isAccessibilitySize ? .vertical : .horizontal)
                             .font(ALFont.body)
                             .textContentType(.URL)
                             .keyboardType(.URL)

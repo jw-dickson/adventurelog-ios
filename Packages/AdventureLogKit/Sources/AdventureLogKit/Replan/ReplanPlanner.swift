@@ -225,6 +225,7 @@ public enum ReplanPlanner {
         var changes = keeps
         var moved: [String] = []
         var skipped: [String] = []
+        var later: [String] = []
         var beforeSunset: String?
         for slot in slots where slot.stop.isFlexible {
             switch slot.removal {
@@ -238,6 +239,7 @@ public enum ReplanPlanner {
             case nil:
                 guard slot.start != slot.stop.start || slot.end != slot.stop.end else { continue }
                 changes.append(.retime(rowID: slot.stop.rowID, start: slot.start, end: slot.end, reason: nil))
+                if slot.start > slot.stop.start { later.append(slot.stop.title) }
                 // The last daylight place of the day is the one to name.
                 if latestEnd(for: slot.stop, situation) < dayEnd(for: slot.stop, situation) { beforeSunset = slot.stop.title }
             }
@@ -249,7 +251,11 @@ public enum ReplanPlanner {
         case (false, let sunset?): sentences.append("This keeps \(list(kept)), and gets you to \(sunset) before sunset.")
         case (false, nil): sentences.append("This keeps \(list(kept)).")
         case (true, let sunset?): sentences.append("This gets you to \(sunset) before sunset.")
-        case (true, nil): break
+        case (true, nil):
+            // Nothing booked or planned for daylight to name: say what moves.
+            if !later.isEmpty, moved.isEmpty, skipped.isEmpty {
+                sentences.append(later.count == 1 ? "\(later[0]) starts later." : "\(list(later)) start later.")
+            }
         }
         if !moved.isEmpty {
             let when = situation.nextDay.map { day in
