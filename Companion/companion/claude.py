@@ -17,6 +17,14 @@ import httpx
 API_VERSION = "2023-06-01"
 DEFAULT_MODEL = "claude-sonnet-5-5"
 CHANGE_TYPES = ("keep", "retime", "move", "skip", "add")
+# The fields each change needs for the phone to read it (Replan.Change).
+REQUIRED = {
+    "keep": ("rowID",),
+    "retime": ("rowID", "start", "end"),
+    "move": ("rowID", "date", "start", "end"),
+    "skip": ("rowID",),
+    "add": ("title", "date"),
+}
 
 SYSTEM = """You help a traveller who is running late rearrange the rest of today's trip plan.
 
@@ -123,6 +131,8 @@ def clean(proposal: object) -> dict:
         if not isinstance(change, dict) or change.get("type") not in CHANGE_TYPES:
             raise ClaudeError("Claude's answer had a change the app doesn't know.")
         tidy = {key: value.strip() for key, value in change.items() if isinstance(value, str) and value.strip()}
+        if any(key not in tidy for key in REQUIRED[tidy["type"]]):
+            raise ClaudeError(f"Claude's answer had a {tidy['type']} change without all its details.")
         for key in ("start", "end"):
             if key in tidy:
                 tidy[key] = utc(tidy[key])

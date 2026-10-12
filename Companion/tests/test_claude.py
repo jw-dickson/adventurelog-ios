@@ -176,6 +176,20 @@ def test_clean_refuses_unknown_changes_and_fixes_small_things():
     assert tidy == {"behindMinutes": 0, "summary": "", "changes": [{"type": "skip", "rowID": "r"}], "source": "claude"}
 
 
+def test_clean_refuses_changes_missing_what_the_phone_needs():
+    for change in (
+        {"type": "keep"},
+        {"type": "retime", "rowID": "r", "start": "2027-03-08T07:45:00Z"},
+        {"type": "move", "rowID": "r", "start": "2027-03-09T21:00:00Z", "end": "2027-03-09T22:00:00Z"},
+        {"type": "skip", "rowID": " "},
+        {"type": "add", "date": "2027-03-08"},
+    ):
+        with pytest.raises(ClaudeError, match="without all its details"):
+            clean({"changes": [change]})
+    tidy = clean({"changes": [{"type": "add", "title": "Dinner", "date": "2027-03-08"}]})
+    assert tidy["changes"] == [{"type": "add", "title": "Dinner", "date": "2027-03-08"}]
+
+
 def test_clean_puts_times_in_the_phones_form():
     tidy = clean(
         {

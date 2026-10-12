@@ -62,11 +62,11 @@ volumes:
 | `ANTHROPIC_API_KEY` | Optional. With it, replan asks go to Claude (Anthropic's API, billed to this key). Without it the phone hides the ask box; its own replan works either way. |
 | `ANTHROPIC_MODEL` | Optional; the default is `claude-sonnet-5-5`. |
 | `COMPANION_REPLAN_ASKS_PER_HOUR` | Optional; asks allowed per person per hour, 20 by default. |
+| `COMPANION_DB` | The SQLite file, `/data/companion.sqlite` by default. It holds each phone's API key: keep the volume private. |
+| `COMPANION_POLL_SECONDS` | How often it checks, 300 by default. |
 
 Replan asks send Anthropic the rest of that day's plan (titles, times, places, which items are
 booked) and the words typed. Nothing about the ask is stored on the companion.
-| `COMPANION_DB` | The SQLite file, `/data/companion.sqlite` by default. It holds each phone's API key: keep the volume private. |
-| `COMPANION_POLL_SECONDS` | How often it checks, 300 by default. |
 
 Builds from Xcode push through Apple's sandbox, and TestFlight and App Store builds through
 production. The app says which when it registers.
