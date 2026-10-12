@@ -101,7 +101,7 @@ class Scanner:
             patch = git("-c", "core.quotePath=false", "show", "--format=", "--no-color", "--unified=0",
                         "--no-renames", "--diff-merges=remerge", sha)
             in_header, current = False, None
-            for text in patch.splitlines():
+            for text in patch.split("\n"):  # not splitlines(): U+2028 and friends stay inside a line
                 if text.startswith("diff --git "):
                     in_header, current = True, None
                 elif in_header:
