@@ -29,10 +29,13 @@ generate: tokens
 
 test: test-packages test-ui
 
+# CI passes SWIFT_FLAGS="-Xswiftc -warnings-as-errors"; locally a warning stays a warning.
+SWIFT_FLAGS ?=
+
 test-packages:
-	cd Packages/AdventureLogKit && swift test
-	cd Packages/ALStore && swift test
-	cd Packages/ALDesign && swift test
+	cd Packages/AdventureLogKit && swift test $(SWIFT_FLAGS)
+	cd Packages/ALStore && swift test $(SWIFT_FLAGS)
+	cd Packages/ALDesign && swift test $(SWIFT_FLAGS)
 
 test-ui: generate
 	TEST_RUNNER_AL_TEST_SERVER="$(AL_TEST_SERVER)" TEST_RUNNER_AL_TEST_API_KEY="$(AL_TEST_API_KEY)" \

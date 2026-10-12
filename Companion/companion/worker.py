@@ -6,10 +6,12 @@
 - The activity is running and its times changed in AdventureLog (a moved flight): update it.
 - Its time came, or the item was skipped, deleted or moved out of the window: end it.
 """
+
 from __future__ import annotations
 
+import contextlib
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 
 from . import planner
@@ -34,7 +36,7 @@ def start_alert(plan: planner.Plan) -> dict:
 
 
 async def tick(store: Store, adventurelog: AdventureLog, apns: APNs | None, now: datetime | None = None) -> None:
-    now = now or datetime.now(timezone.utc)
+    now = now or datetime.now(UTC)
     for device in store.devices():
         # One phone's failure (AdventureLog down for that key, APNs refusing a push) is logged
         # and the pass goes on to the next phone.
@@ -44,7 +46,9 @@ async def tick(store: Store, adventurelog: AdventureLog, apns: APNs | None, now:
             log.exception("device %s", device.id)
 
 
-async def _tick_device(device: Device, store: Store, adventurelog: AdventureLog, apns: APNs | None, now: datetime) -> None:
+async def _tick_device(
+    device: Device, store: Store, adventurelog: AdventureLog, apns: APNs | None, now: datetime
+) -> None:
     try:
         trips = await adventurelog.current_trips(device.api_key, now.date())
     except AdventureLogError as error:
@@ -58,10 +62,8 @@ async def _tick_device(device: Device, store: Store, adventurelog: AdventureLog,
         if plan is not None and activity.key == plan.key:
             continue
         if activity.push_token and apns:
-            try:
+            with contextlib.suppress(TokenGone):
                 await apns.end(activity.push_token, device.environment, activity.last_state or {}, int(now.timestamp()))
-            except TokenGone:
-                pass
         store.mark_ended(activity)
 
     if plan is None:

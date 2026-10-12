@@ -1,9 +1,12 @@
 name: ci
 
-# Public lane: GitHub-hosted macOS, with no secrets, so anyone (including forks and a future
+# Public lane: GitHub-hosted runners, with one optional secret (the privacy denylist), so anyone (including forks and a future
 # upstream) gets the same checks.
 #
-# - Package tests run on every pull request push and on main.
+# - Package tests run on every pull request push and on main. Swift warnings fail the build here
+#   (and in the UI job), not on a Mac building locally or for TestFlight.
+# - `privacy` scans for secrets (gitleaks) and for anything on the maintainer's private denylist.
+# - The companion is linted and format-checked with ruff before its tests.
 # - Simulator UI tests run on pull requests that touch more than docs, on one Simulator (the
 #   hosted runners are too small for two: cloned Simulators made each test take minutes).
 #   A push to main skips them: the pull request already ran them on that code.
@@ -47,7 +50,7 @@ jobs:
         run: |
           mkdir -p build
           set +e
-          make test-packages 2>&1 | tee build/packages.log
+          make test-packages SWIFT_FLAGS="-Xswiftc -warnings-as-errors" 2>&1 | tee build/packages.log
           status=${PIPESTATUS[0]}
           python3 scripts/ci-annotate.py build/packages.log $([ $status -ne 0 ] && echo --tail)
           exit $status
@@ -63,11 +66,54 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-      - name: Companion tests
+      - name: Install
+        working-directory: Companion
+        run: pip install -e '.[test]' ruff==0.16.8
+      - name: Lint (ruff)
         working-directory: Companion
         run: |
-          pip install -e '.[test]'
-          pytest -q
+          ruff check --output-format github .
+          ruff format --check --diff .
+      - name: Companion tests
+        working-directory: Companion
+        run: pytest -q
+
+  # Secrets (gitleaks, default rules plus .gitleaks.toml) across the whole history, then the
+  # maintainer's denylist (scripts/privacy-scan.py) over the tree, the pull request's commits,
+  # title and body. The denylist is the PRIVACY_DENYLIST secret; forks don't get it and skip
+  # that step. Nothing a scan finds is printed, only where it was found.
+  privacy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Secrets (gitleaks)
+        env:
+          VERSION: 8.24.0
+          SHA256: cb49b7de5ee986510fe8666ca0273a6cc15eb82571f2f14832c9e8920751f3a4
+        run: |
+          curl -sSfL -o "$RUNNER_TEMP/gitleaks.tgz" \
+            "https://github.com/gitleaks/gitleaks/releases/download/v$VERSION/gitleaks_${VERSION}_linux_x64.tar.gz"
+          echo "$SHA256  $RUNNER_TEMP/gitleaks.tgz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/gitleaks.tgz" -C "$RUNNER_TEMP" gitleaks
+          "$RUNNER_TEMP/gitleaks" git --redact --no-banner --verbose .
+      - name: Private denylist
+        env:
+          PRIVACY_DENYLIST: ${{ secrets.PRIVACY_DENYLIST }}
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          if [ "$EVENT" = "pull_request" ]; then
+            python3 scripts/privacy-scan.py --commits "$BASE..$HEAD"
+          else
+            python3 scripts/privacy-scan.py
+          fi
 
   # Decides whether the app needs the Simulator: not for a pull request that only changes docs
   # or the companion.
@@ -118,7 +164,8 @@ jobs:
           mkdir -p build
           set +e
           xcodebuild build-for-testing -project AdventureLog.xcodeproj -scheme AdventureLog \
-            -destination "$DEST" -derivedDataPath build/DerivedData CODE_SIGNING_ALLOWED=NO 2>&1 | tee build/build.log
+            -destination "$DEST" -derivedDataPath build/DerivedData CODE_SIGNING_ALLOWED=NO \
+            SWIFT_TREAT_WARNINGS_AS_ERRORS=YES 2>&1 | tee build/build.log
           status=${PIPESTATUS[0]}
           python3 scripts/ci-annotate.py build/build.log $([ $status -ne 0 ] && echo --tail)
           exit $status

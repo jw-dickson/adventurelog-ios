@@ -1,5 +1,6 @@
 # AdventureLog for iOS — Copyright (C) 2026 the AdventureLog iOS contributors. GPL-3.0-or-later.
 """The few AdventureLog calls the companion makes, with the API key the phone registered."""
+
 from __future__ import annotations
 
 from datetime import date, timedelta
@@ -14,8 +15,9 @@ class AdventureLogError(Exception):
 class AdventureLog:
     def __init__(self, base_url: str, transport: httpx.AsyncBaseTransport | None = None):
         self.base_url = base_url.rstrip("/") + "/"
-        self._client = httpx.AsyncClient(base_url=self.base_url, transport=transport, timeout=20,
-                                         headers={"Accept": "application/json"})
+        self._client = httpx.AsyncClient(
+            base_url=self.base_url, transport=transport, timeout=20, headers={"Accept": "application/json"}
+        )
 
     async def close(self) -> None:
         await self._client.aclose()

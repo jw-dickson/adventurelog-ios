@@ -6,7 +6,9 @@ from tests.test_worker import KEY, fake_adventurelog
 
 
 def client(tmp_path) -> TestClient:
-    settings = Settings({"ADVENTURELOG_URL": "https://adventurelog.example", "COMPANION_DB": str(tmp_path / "c.sqlite")})
+    settings = Settings(
+        {"ADVENTURELOG_URL": "https://adventurelog.example", "COMPANION_DB": str(tmp_path / "c.sqlite")}
+    )
     return TestClient(create_app(settings, adventurelog=fake_adventurelog(), run_worker=False))
 
 
@@ -22,7 +24,10 @@ def test_registration_needs_a_key_adventurelog_accepts(tmp_path):
         # The app is told whether activities can start while it's closed (#24); a later
         # registration without a token keeps the one already held.
         assert first.json()["canStart"] is True
-        assert api.post("/v1/devices", json={"environment": "sandbox"}, headers={"X-API-Key": KEY}).json()["canStart"] is True
+        assert (
+            api.post("/v1/devices", json={"environment": "sandbox"}, headers={"X-API-Key": KEY}).json()["canStart"]
+            is True
+        )
 
 
 def test_a_phone_without_a_start_token_is_told_so(tmp_path):

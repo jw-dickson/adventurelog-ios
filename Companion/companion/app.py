@@ -4,6 +4,7 @@
 The phone authenticates with the AdventureLog API key it already holds (`X-API-Key`); the companion
 checks it against the AdventureLog server it is configured for, so there are no separate accounts.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -36,8 +37,12 @@ class Settings:
         self.apns = None
         if key_path and env.get("APNS_KEY_ID") and env.get("APNS_TEAM_ID") and env.get("APNS_BUNDLE_ID"):
             with open(key_path) as handle:
-                self.apns = APNsConfig(key_id=env["APNS_KEY_ID"], team_id=env["APNS_TEAM_ID"],
-                                       private_key=handle.read(), bundle_id=env["APNS_BUNDLE_ID"])
+                self.apns = APNsConfig(
+                    key_id=env["APNS_KEY_ID"],
+                    team_id=env["APNS_TEAM_ID"],
+                    private_key=handle.read(),
+                    bundle_id=env["APNS_BUNDLE_ID"],
+                )
 
 
 class Registration(BaseModel):
@@ -51,8 +56,12 @@ class ActivityToken(BaseModel):
     push_token: str = Field(alias="pushToken")
 
 
-def create_app(settings: Settings | None = None, adventurelog: AdventureLog | None = None,
-               apns: APNs | None = None, run_worker: bool = True) -> FastAPI:
+def create_app(
+    settings: Settings | None = None,
+    adventurelog: AdventureLog | None = None,
+    apns: APNs | None = None,
+    run_worker: bool = True,
+) -> FastAPI:
     settings = settings or Settings()
     store = Store(settings.database)
     adventurelog = adventurelog or AdventureLog(settings.adventurelog_url)
