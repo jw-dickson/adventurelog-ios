@@ -398,3 +398,25 @@ A build from Xcode registers as `sandbox`, and TestFlight builds as `production`
 
 ### Results
 
+## Handoff 11 · Stage 5b, asking Claude for a different plan (2026-10-11)
+
+**Branch:** `stage-5b-claude`. **Goal:** "Ask for a different plan…" on the replan sheet reaches Claude through the companion, and only a plan that passes the phone's checks is shown.
+
+### What changed
+
+- **Companion:** `POST /v1/replan` and `companion/claude.py`. It needs `ANTHROPIC_API_KEY`; `ANTHROPIC_MODEL` and `COMPANION_REPLAN_ASKS_PER_HOUR` are optional. See `Companion/README.md`.
+- **Phone:** `CompanionClient.health()` and `replan()`. The sheet shows the ask box when the companion says it can.
+
+### 1. Companion
+
+1. Add `ANTHROPIC_API_KEY` to the companion's environment and restart it. `GET /healthz` should include `"replan": true`.
+
+### 2. On a phone (TestFlight)
+
+1. With the companion address set in Reminders, open Replan today. The ask box should be at the bottom.
+2. Pick a delay, then ask something specific ("keep the lookout, drop something else"). Within a minute, a plan marked "Suggested by Claude" should replace the phone's. **Use the phone's plan** goes back.
+3. Ask for something that breaks a rule ("move the booked tour to 22:00"): the sheet should say Claude's plan didn't fit and keep the phone's.
+4. Apply Claude's plan offline, then go online: the edits should reach AdventureLog like the phone's.
+
+### Results
+
