@@ -149,7 +149,8 @@ private struct TodayContent: View {
             ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
                 NavigationLink(value: ItemRoute(tripID: tripID, itemID: entry.entry.item.id, day: entry.entry.row.date)) {
                     TimelineRow(entry.summary.timelineContent, state: entry.timelineState,
-                                isFirst: index == 0, isLast: index == entries.count - 1)
+                                isFirst: index == 0, isLast: index == entries.count - 1,
+                                thumbnail: entry.summary.timelineThumbnail)
                 }
                 .buttonStyle(.plain)
                 .contextMenu {

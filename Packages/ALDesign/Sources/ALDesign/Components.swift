@@ -276,18 +276,25 @@ public struct TimelineRow: View {
     private let isFirst: Bool
     private let isLast: Bool
     private let fitsTimes: Bool
+    private let thumbnail: AnyView?
     @ScaledMetric(relativeTo: .subheadline) private var timeWidth: CGFloat = 52
+    @ScaledMetric(relativeTo: .body) private var thumbnailSize: CGFloat = 56
     @ScaledMetric(relativeTo: .body) private var iconSize: CGFloat = 28
     @Environment(\.dynamicTypeSize) private var typeSize
 
-    /// - Parameter fitsTimes: false for a list with no times in it (trip-wide notes), whose time
-    ///   column can then stay narrow; every row of a list passes the same value.
-    public init(_ content: Content, state: Status, isFirst: Bool = false, isLast: Bool = false, fitsTimes: Bool = true) {
+    /// - Parameters:
+    ///   - fitsTimes: false for a list with no times in it (trip-wide notes), whose time column can
+    ///     then stay narrow; every row of a list passes the same value.
+    ///   - thumbnail: the item's photo, filled into a rounded square at the card's trailing edge
+    ///     (a strip across the top at the accessibility sizes). Nil for items without one.
+    public init(_ content: Content, state: Status, isFirst: Bool = false, isLast: Bool = false, fitsTimes: Bool = true,
+                thumbnail: AnyView? = nil) {
         self.content = content
         self.state = state
         self.isFirst = isFirst
         self.isLast = isLast
         self.fitsTimes = fitsTimes
+        self.thumbnail = thumbnail
     }
 
     public var body: some View {
@@ -350,6 +357,23 @@ public struct TimelineRow: View {
     }
 
     private func card(showTime: Bool) -> some View {
+        VStack(alignment: .leading, spacing: ALSpace.space2) {
+            if typeSize.isAccessibilitySize, let thumbnail {
+                // A strip across the top, so the title keeps the card's full width.
+                Color.clear
+                    .frame(height: thumbnailSize * 1.6)
+                    .frame(maxWidth: .infinity)
+                    .overlay { thumbnail }
+                    .clipShape(RoundedRectangle(cornerRadius: ALRadius.btn, style: .continuous))
+                    .accessibilityHidden(true)
+            }
+            cardRow(showTime: showTime)
+        }
+        .alCard()
+        .opacity(state == .done ? 0.72 : 1)
+    }
+
+    private func cardRow(showTime: Bool) -> some View {
         HStack(alignment: .top, spacing: ALSpace.space2) {
             Image(systemName: content.symbol)
                 .font(.system(size: iconSize * 0.5, weight: .semibold))
@@ -383,9 +407,14 @@ public struct TimelineRow: View {
                 }
             }
             Spacer(minLength: 0)
+            if !typeSize.isAccessibilitySize, let thumbnail {
+                Color.clear
+                    .frame(width: thumbnailSize, height: thumbnailSize)
+                    .overlay { thumbnail }
+                    .clipShape(RoundedRectangle(cornerRadius: ALRadius.btn, style: .continuous))
+                    .accessibilityHidden(true)
+            }
         }
-        .alCard()
-        .opacity(state == .done ? 0.72 : 1)
     }
 }
 

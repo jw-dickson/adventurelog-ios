@@ -3,6 +3,7 @@
 import AdventureLogKit
 import ALDesign
 import SwiftUI
+import UIKit
 
 /// Where an item row leads.
 struct ItemRoute: Hashable {
@@ -119,6 +120,9 @@ struct TripView: View {
                         DayView(plan: plan, day: day, tripID: tripID, now: model.now, moving: $moving)
                     }
                 case .wholeTrip:
+                    if let cover = plan.collection.coverImageURL {
+                        TripCover(url: cover)
+                    }
                     EntryList(plan: plan, entries: plan.tripWide, tripID: tripID, now: model.now,
                               empty: "Nothing for the whole trip. Notes and checklists that aren't tied to a day go here.",
                               moving: $moving)
@@ -279,7 +283,8 @@ private struct EntryList: View {
                     let summary = entry.summary(in: plan)
                     NavigationLink(value: ItemRoute(tripID: tripID, itemID: entry.item.id, day: entry.row.date)) {
                         TimelineRow(summary.timelineContent, state: summary.timelineStatus(at: now),
-                                    isFirst: index == 0, isLast: index == entries.count - 1, fitsTimes: timed)
+                                    isFirst: index == 0, isLast: index == entries.count - 1, fitsTimes: timed,
+                                    thumbnail: summary.timelineThumbnail)
                     }
                     .buttonStyle(.plain)
                     .contextMenu {
@@ -309,7 +314,8 @@ private struct UnscheduledList: View {
                     let summary = ItemSummary(item, day: nil, tripZone: plan.timeZone)
                     NavigationLink(value: ItemRoute(tripID: tripID, itemID: item.id, day: nil)) {
                         TimelineRow(summary.timelineContent, state: summary.timelineStatus(at: now),
-                                    isFirst: index == 0, isLast: index == plan.unscheduled.count - 1, fitsTimes: false)
+                                    isFirst: index == 0, isLast: index == plan.unscheduled.count - 1, fitsTimes: false,
+                                    thumbnail: summary.timelineThumbnail)
                     }
                     .buttonStyle(.plain)
                 }
@@ -331,6 +337,11 @@ extension ItemSummary {
             detail: detail,
             isBooked: isBooked
         )
+    }
+
+    /// The item's photo for its timeline card, from the offline pack; nil when it has none.
+    var timelineThumbnail: AnyView? {
+        imageURL.map { AnyView(SavedPhoto(url: $0)) }
     }
 
     func timelineStatus(at now: Date) -> TimelineRow.Status {
@@ -356,5 +367,42 @@ enum DayText {
         let style = Date.FormatStyle(locale: locale, calendar: Calendar(identifier: .gregorian), timeZone: utc)
             .weekday(.abbreviated).day().month(.abbreviated)
         return date.startOfDay(in: utc).formatted(style)
+    }
+}
+
+// MARK: Photos
+
+/// A photo from the offline pack, filling whatever frame it's given. A quiet fill stands in while
+/// it loads, or if it was never saved and the server can't be reached.
+struct SavedPhoto: View {
+    let url: URL
+    @Environment(AppModel.self) private var model
+    @State private var image: UIImage?
+
+    var body: some View {
+        ZStack {
+            ALColor.surface300
+            if let image {
+                Image(uiImage: image).resizable().scaledToFill()
+            }
+        }
+        .task(id: url) {
+            if let data = await model.imageData(for: url) { image = UIImage(data: data) }
+        }
+    }
+}
+
+/// The trip's cover photo at the top of Whole trip.
+private struct TripCover: View {
+    let url: URL
+    @ScaledMetric private var height: CGFloat = 180
+
+    var body: some View {
+        Color.clear
+            .frame(height: height)
+            .frame(maxWidth: .infinity)
+            .overlay { SavedPhoto(url: url) }
+            .clipShape(RoundedRectangle(cornerRadius: ALRadius.box, style: .continuous))
+            .accessibilityHidden(true)
     }
 }

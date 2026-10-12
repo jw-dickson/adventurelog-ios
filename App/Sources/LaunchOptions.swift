@@ -13,7 +13,8 @@ import SwiftUI
 /// - `-ALOfflineSeed YES` starts signed in to an unreachable server with the trips in the
 ///   `AL_SEED_LIST` and `AL_SEED_TRIP` environment variables (AdventureLog JSON) already saved:
 ///   the offline browsing test. Needs `-ALResetState YES`. `AL_SEED_TRACK` (JSON lines of
-///   `TrackPoint`) adds a recorded route to the seed trip, for the Log tab.
+///   `TrackPoint`) adds a recorded route to the seed trip, for the Log tab. `AL_SEED_IMAGES` (a JSON
+///   object of image URL → base64 data) saves photos in the offline pack, for the gallery.
 /// - `-ALAppearance light|dark` forces an appearance for screenshot runs.
 struct LaunchOptions: Sendable {
     var resetState = false
@@ -24,6 +25,7 @@ struct LaunchOptions: Sendable {
     var seedList: Data?
     var seedTrip: Data?
     var seedTrack: Data?
+    var seedImages: Data?
     /// "light" or "dark"; nil follows the system.
     var appearance: String?
 
@@ -39,6 +41,7 @@ struct LaunchOptions: Sendable {
         options.seedList = env["AL_SEED_LIST"].map { Data($0.utf8) }
         options.seedTrip = env["AL_SEED_TRIP"].map { Data($0.utf8) }
         options.seedTrack = env["AL_SEED_TRACK"].map { Data($0.utf8) }
+        options.seedImages = env["AL_SEED_IMAGES"].map { Data($0.utf8) }
         options.appearance = defaults.string(forKey: "ALAppearance")
         return options
     }

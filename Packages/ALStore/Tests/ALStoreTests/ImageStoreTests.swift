@@ -81,4 +81,21 @@ struct ImageStoreTests {
         #expect(urls.count == Set(urls).count)
         #expect(urls.count == trip.locations.flatMap(\.images).count + trip.lodging.flatMap(\.images).count + trip.transportations.flatMap(\.images).count)
     }
+
+    @Test func theTripsCoverIsSavedToo() throws {
+        let data = try Data(contentsOf: ALStoreTests.fixtures.appending(path: "collections__detail.json"))
+        var trip = try ALCoding.decoder().decode(CollectionDetail.self, from: data)
+        let cover = try #require(URL(string: "https://adventurelog.example/media/images/cover.webp"))
+        trip.primaryImage = try ALCoding.decoder().decode(ContentImage.self, from: Data(#"{"id": "cover", "image": "\#(cover.absoluteString)", "is_primary": true}"#.utf8))
+        #expect(ImageStore.imageURLs(in: trip).first == cover)
+    }
+
+    @Test func aSeedWritesWhereTheStoreLooks() async throws {
+        let directory = FileManager.default.temporaryDirectory.appending(path: "images-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = try #require(URL(string: "https://adventurelog.example/media/images/a.jpg"))
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try Data("photo".utf8).write(to: directory.appending(path: ImageStore.fileName(for: url)))
+        #expect(await ImageStore(directory: directory).cachedData(for: url) == Data("photo".utf8))
+    }
 }

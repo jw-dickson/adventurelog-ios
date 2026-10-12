@@ -26,9 +26,10 @@ public actor ImageStore {
         }
     }
 
-    /// Every image URL a trip uses: locations, stays and transport legs.
+    /// Every image URL a trip uses: its cover, locations, stays and transport legs.
     public nonisolated static func imageURLs(in trip: CollectionDetail) -> [URL] {
-        let images = trip.locations.flatMap(\.images) + trip.lodging.flatMap(\.images) + trip.transportations.flatMap(\.images)
+        let images = [trip.primaryImage].compactMap { $0 } + trip.locations.flatMap(\.images)
+            + trip.lodging.flatMap(\.images) + trip.transportations.flatMap(\.images)
         var seen = Set<URL>()
         return images.compactMap(\.url).filter { seen.insert($0).inserted }
     }
@@ -74,9 +75,13 @@ public actor ImageStore {
     }
 
     private func file(for url: URL) -> URL {
+        directory.appending(path: Self.fileName(for: url))
+    }
+
+    /// The name a URL's saved copy has in the directory, so a test seed can write one directly.
+    public nonisolated static func fileName(for url: URL) -> String {
         let digest = SHA256.hash(data: Data(url.absoluteString.utf8))
-        let name = digest.map { String(format: "%02x", $0) }.joined()
-        return directory.appending(path: name)
+        return digest.map { String(format: "%02x", $0) }.joined()
     }
 
     private func save(_ data: Data, for url: URL) throws {

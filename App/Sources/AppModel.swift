@@ -222,6 +222,9 @@ final class AppModel {
         if options.offlineSeed, let data = options.seedTrack, let tripID = options.seedTripID {
             Self.seedTrack(data, tripID: tripID, directory: directory.appending(path: "Tracks"))
         }
+        if options.offlineSeed, let data = options.seedImages {
+            Self.seedImages(data, directory: directory.appending(path: "Images"))
+        }
         return AppModel(credentialStore: credentials, snapshots: snapshots, images: ImageStore(directory: directory.appending(path: "Images")),
                         deviceState: DeviceStateStore(directory: directory.appending(path: "Device")), tracks: tracks,
                         defaults: defaults, now: options.now)
@@ -245,6 +248,16 @@ final class AppModel {
         }
         let offline = ServerCredentials(serverURL: URL(string: "http://127.0.0.1:9")!, apiKey: "al_offline", username: "offline", displayName: "Offline test")
         try? credentials.save(offline)
+    }
+
+    /// Saves photos the way the offline pack would have (a JSON object of URL → base64 data).
+    private static func seedImages(_ data: Data, directory: URL) {
+        guard let images = try? JSONDecoder().decode([String: String].self, from: data) else { return }
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        for (address, base64) in images {
+            guard let url = URL(string: address), let bytes = Data(base64Encoded: base64) else { continue }
+            try? bytes.write(to: directory.appending(path: ImageStore.fileName(for: url)))
+        }
     }
 
     /// Writes a recorded route the way the tracker would have (JSON lines of `TrackPoint`).

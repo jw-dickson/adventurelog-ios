@@ -22,7 +22,7 @@ final class GalleryUITests: XCTestCase {
     }
 
     private func capture(variant: String, _ arguments: [String]) throws {
-        let app = try OfflineBrowseUITests.launchOffline(arguments, track: true)
+        let app = try OfflineBrowseUITests.launchOffline(arguments, track: true, photos: true)
 
         XCTAssertTrue(app.staticTexts["today.title"].waitForExistence(timeout: 15))
         XCTAssertTrue(app.staticTexts["today.next.title"].waitForExistence(timeout: 5))

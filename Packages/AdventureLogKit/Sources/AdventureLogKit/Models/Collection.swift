@@ -22,6 +22,8 @@ public struct CollectionSummary: Codable, Sendable, Hashable, Identifiable {
     public var daysUntilStart: Int?
     public var createdAt: Date?
     public var updatedAt: Date?
+    /// The trip's cover photo, when one was chosen in AdventureLog.
+    public var primaryImage: ContentImage?
 
     public var isTrip: Bool { startDate != nil && endDate != nil }
 }
@@ -52,6 +54,14 @@ public struct CollectionDetail: Codable, Sendable, Hashable, Identifiable {
     /// Placement rows. Only present on `retrieve`; PATCH responses omit it, so re-GET after edits.
     @DefaultEmpty public var itinerary: [ItineraryRow]
     @DefaultEmpty public var itineraryDays: [ItineraryDayMeta]
+    /// The trip's cover photo, when one was chosen in AdventureLog.
+    public var primaryImage: ContentImage?
+
+    /// The photo for the top of the trip: the chosen cover, or else the first place with a photo
+    /// (what AdventureLog's own trip list shows).
+    public var coverImageURL: URL? {
+        primaryImage?.url ?? locations.lazy.compactMap { $0.primaryImage?.url }.first
+    }
 
     public var owner: Collaborator? { collaborators.first(where: { $0.isOwner == true }) }
     public var currentUserIsOwner: Bool { collaborators.first(where: { $0.isCurrentUser == true })?.isOwner ?? true }
