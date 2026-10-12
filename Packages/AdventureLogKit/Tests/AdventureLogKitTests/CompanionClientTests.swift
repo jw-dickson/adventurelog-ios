@@ -28,7 +28,9 @@ private final class CompanionProtocol: URLProtocol, @unchecked Sendable {
         Self.seen.append((request.httpMethod ?? "", request.url?.path() ?? "", body))
         let ok = request.value(forHTTPHeaderField: "X-API-Key") == "al_synthetic_key"
         let status = ok ? (request.httpMethod == "POST" ? 200 : 204) : 401
-        let reply = ok ? (status == 200 ? #"{"id":"d1"}"# : "") : #"{"detail":"AdventureLog refused the API key."}"#
+        // Like the companion: it can start activities once it holds a push-to-start token.
+        let registered = body["startToken"] != nil ? #"{"id":"d1","canStart":true}"# : #"{"id":"d1","canStart":false}"#
+        let reply = ok ? (status == 200 ? registered : "") : #"{"detail":"AdventureLog refused the API key."}"#
         client?.urlProtocol(self, didReceive: HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: nil, headerFields: nil)!,
                             cacheStoragePolicy: .notAllowed)
         client?.urlProtocol(self, didLoad: Data(reply.utf8))
@@ -47,7 +49,8 @@ struct CompanionClientTests {
 
     @Test func registersSendsTokensAndUnregisters() async throws {
         CompanionProtocol.seen = []
-        try await client().register(environment: .sandbox, startToken: Data([0x0a, 0xff]))
+        let canStart = try await client().register(environment: .sandbox, startToken: Data([0x0a, 0xff]))
+        #expect(canStart == true)
         try await client().setActivityToken(Data([0x01, 0x02]), tripID: "trip", rowID: "row")
         try await client().unregister()
         let seen = CompanionProtocol.seen
@@ -55,6 +58,10 @@ struct CompanionClientTests {
         #expect(seen.map(\.path) == ["/v1/devices", "/v1/activities", "/v1/devices"])
         #expect(seen[0].body == ["environment": "sandbox", "startToken": "0aff"])
         #expect(seen[1].body == ["tripID": "trip", "rowID": "row", "pushToken": "0102"])
+    }
+
+    @Test func withoutAStartTokenTheCompanionCantStartActivities() async throws {
+        #expect(try await client().register(environment: .production, startToken: nil) == false)
     }
 
     @Test func aRefusedKeyIsUnauthorized() async {

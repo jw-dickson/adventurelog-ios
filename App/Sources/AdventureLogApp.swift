@@ -66,7 +66,10 @@ struct MainView: View {
         }
         .task { await model.loadTrips() }
         .task { await model.connectCompanion() }
-        .task { await model.watchLiveActivityTokens() }
+        .task {
+            model.registerForPushes()
+            await model.watchLiveActivityTokens()
+        }
         .task {
             // Pick up changes made on other phones while the app is open.
             while !Task.isCancelled {

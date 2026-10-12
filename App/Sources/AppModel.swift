@@ -7,6 +7,8 @@ import CoreLocation
 import Foundation
 import Network
 import Observation
+import os
+import UIKit
 import UserNotifications
 
 /// App-wide state: who is signed in, the trip list, the trips opened so far, and edits on their
@@ -126,6 +128,9 @@ final class AppModel {
     /// "Connected", or why not; nil when no companion is set.
     private(set) var companionStatus: String?
     private var startToken: Data?
+    /// The start token the companion last accepted. A token that failed to register differs from
+    /// it, so the next callback or foregrounding tries again.
+    private var registeredStartToken: Data?
     /// Activity push tokens the companion hasn't accepted yet (e.g. one that came before the phone
     /// was registered), by trip and item; sent again after each registration.
     private var pendingActivityTokens: [String: (token: Data, tripID: String, rowID: String)] = [:]
@@ -305,6 +310,7 @@ final class AppModel {
         self.client = client
         phase = .signedIn(credentials)
         startToken = nil
+        registeredStartToken = nil
         Task { await connectCompanion() }
         await refreshTrips()
     }
@@ -325,6 +331,7 @@ final class AppModel {
         let revoke = credentials?.apiKeyID.flatMap { id in client.map { (client: $0, id: id) } }
         let companion = registeredCompanion ?? self.companion
         registeredCompanion = nil
+        registeredStartToken = nil
         pendingActivityTokens = [:]
         resetSession()
         client = nil
@@ -548,6 +555,33 @@ final class AppModel {
         perform(.moveRow(.init(rowID: entry.row.id, title: entry.item.title, toDate: date, toIndex: index)), in: tripID)
     }
 
+    /// Saves edited fields of a place, journey or stay. `item` is the item as shown, so a second
+    /// edit builds on the first.
+    func editItem(_ item: TripPlan.Item, values: [ItemField: FieldValue], tripID: String) {
+        guard let edit = TripEdit.EditItem(item: item, visitID: item.editableVisit?.id, values: values) else { return }
+        perform(.editItem(edit), in: tripID)
+    }
+
+    /// Adds a timestamped line under an item's notes. The time is shown in the item's zone.
+    func appendNote(_ text: String, to item: TripPlan.Item, zone: TimeZone, tripID: String) {
+        guard let kind = TripEdit.EditItem.editableKind(item), FieldValue.clean(text) != nil else { return }
+        let line = TripEdit.AppendNote.line(text, at: now, in: zone)
+        perform(.appendNote(.init(kind: kind, itemID: item.id, visitID: item.editableVisit?.id, title: item.title, line: line)), in: tripID)
+    }
+
+    /// Adds a note at the end of a day, or trip-wide when `date` is nil.
+    func addNote(name: String, content: String, date: CalendarDate?, tripID: String) {
+        var add = TripEdit.AddNote(name: name, content: content, date: date)
+        // Twins already shown, including notes still on their way, tell this note from older ones.
+        add.occurrence = trips[tripID]?.plan.collection.notes.filter(add.isTwin).count ?? 0
+        perform(.addNote(add), in: tripID)
+    }
+
+    /// Takes a row off its day. The item stays in the trip, under Not on a day.
+    func removeFromDay(_ entry: TripPlan.Entry, tripID: String) {
+        perform(.removeRow(.init(rowID: entry.row.id, title: entry.item.title, date: entry.row.date)), in: tripID)
+    }
+
     private func perform(_ edit: TripEdit, in tripID: String) {
         guard credentials != nil else { return }
         outbox.enqueue(edit, tripID: tripID, at: .now)
@@ -651,10 +685,12 @@ final class AppModel {
 
     /// Registers this phone (again) with the companion, with the push-to-start token once iOS gives one.
     func connectCompanion() async {
+        if startToken == nil, let current = liveActivities.startToken { startToken = current }
         let companion = self.companion
         // A different (or no) address: the old companion stops pushing and drops the key.
         if let previous = registeredCompanion, previous.baseURL != companion?.baseURL {
             registeredCompanion = nil
+            registeredStartToken = nil
             try? await previous.unregister()
         }
         guard let companion else {
@@ -664,7 +700,10 @@ final class AppModel {
         }
         let started = session
         do {
-            try await companion.register(environment: Self.pushEnvironment, startToken: startToken)
+            let sending = startToken
+            let sentToken = sending != nil
+            let canStart = try await companion.register(environment: Self.pushEnvironment, startToken: sending)
+            Self.companionLog.info("Registered with the companion; start token sent: \(sentToken, privacy: .public), companion can start: \(String(describing: canStart), privacy: .public)")
             // The address changed (or sign-out happened) while this was in flight: undo it, so a
             // slower, older registration can't replace the current one.
             guard session == started, self.companion?.baseURL == companion.baseURL else {
@@ -672,8 +711,13 @@ final class AppModel {
                 return
             }
             registeredCompanion = companion
-            companionStatus = "Connected"
+            if let sending { registeredStartToken = sending }
+            // An older companion doesn't say; a newer one says whether it can start activities.
+            companionStatus = canStart == false ? "Connected · activities start when you open the app" : "Connected"
             await sendPendingActivityTokens()
+            // A newer token arrived while this was in flight (or this older request finished last):
+            // register again so the companion ends up with the newest one.
+            if let latest = startToken, latest != sending { await connectCompanion() }
         } catch {
             guard session == started else { return }
             companionStatus = Self.describe(error)
@@ -690,9 +734,21 @@ final class AppModel {
     }
 
     private func receivedStartToken(_ token: Data) async {
+        Self.companionLog.info("iOS issued a push-to-start token (\(token.count, privacy: .public) bytes)")
+        guard token != registeredStartToken || registeredCompanion == nil else { return }
         startToken = token
         await connectCompanion()
     }
+
+    /// Lets iOS issue Live Activity push tokens: some versions only issue a push-to-start token once
+    /// the app has registered for remote notifications (#24). The device token itself isn't used.
+    func registerForPushes() {
+        guard liveActivitiesEnabled else { return }
+        UIApplication.shared.registerForRemoteNotifications()
+    }
+
+    /// Private to the device's log (Console.app), so a test run shows which side drops a token.
+    nonisolated static let companionLog = Logger(subsystem: "AdventureLog", category: "companion")
 
     private func receivedActivityToken(_ token: Data, tripID: String, rowID: String) async {
         pendingActivityTokens[tripID + "/" + rowID] = (token, tripID, rowID)
@@ -922,8 +978,16 @@ final class AppModel {
     /// Keeps this phone's version of a note that was also changed elsewhere.
     func keepMine(_ id: UUID) { changeOutbox { $0.keepMine(id) } }
 
-    /// Drops this phone's edit. For a conflicting note, shows the server's version straight away.
+    /// Drops this phone's edit. For a conflicting note or field, shows the server's version straight away.
     func discard(_ id: UUID) {
+        if let entry = outbox.entries.first(where: { $0.id == id }), case .fieldConflict(let conflict) = entry.state,
+           case .editItem(let edit) = entry.edit, var saved = savedTrips[entry.tripID] {
+            ItemValues.write(conflict.clashes.map { ($0.field, $0.server) }, kind: edit.kind, itemID: edit.itemID,
+                             visitID: edit.visitID, in: &saved.value)
+            savedTrips[entry.tripID] = saved
+            let tripID = entry.tripID
+            Task { await loadTrip(id: tripID) }
+        }
         if let entry = outbox.entries.first(where: { $0.id == id }), case .conflict(let conflict) = entry.state,
            case .editNote(let edit) = entry.edit, var saved = savedTrips[entry.tripID],
            let note = saved.value.notes.firstIndex(where: { $0.id == edit.noteID }) {
@@ -973,10 +1037,14 @@ final class AppModel {
         var touched = Set<String>()
         while session == started, isCurrent(client), let entry = outbox.next(at: .now) {
             isSyncing = true
+            outbox.markSending(entry.id)
             let outcome = await sender.send(entry.edit, tripID: entry.tripID)
             guard session == started, isCurrent(client) else { return }
             outbox.record(outcome, for: entry.id, sent: entry.edit, at: .now)
             if outcome == .done { settle(entry.edit, in: entry.tripID) }
+            if case .added(let noteID, let rowID) = outcome, case .addNote(let add) = entry.edit {
+                settle(add, noteID: noteID, rowID: rowID, in: entry.tripID)
+            }
             tripRevisions[entry.tripID, default: 0] += 1
             touched.insert(entry.tripID)
             show(entry.tripID)
@@ -1004,6 +1072,18 @@ final class AppModel {
     private func settle(_ edit: TripEdit, in tripID: String) {
         guard var saved = savedTrips[tripID] else { return }
         edit.apply(to: &saved.value)
+        keepSaved(saved, for: tripID)
+    }
+
+    /// A note made on the phone is on the server: the saved copy gets it under the server's ids,
+    /// which edits queued for it now use.
+    private func settle(_ add: TripEdit.AddNote, noteID: String, rowID: String, in tripID: String) {
+        guard var saved = savedTrips[tripID] else { return }
+        add.apply(to: &saved.value, noteID: noteID, rowID: rowID)
+        keepSaved(saved, for: tripID)
+    }
+
+    private func keepSaved(_ saved: TripSnapshotStore.Snapshot<CollectionDetail>, for tripID: String) {
         savedTrips[tripID] = saved
         let detail = saved.value
         let savedAt = saved.savedAt
@@ -1055,6 +1135,9 @@ final class AppModel {
     func becameActive() {
         guard credentials != nil else { return }
         syncNow()
+        if let current = liveActivities.startToken, current != registeredStartToken {
+            Task { await receivedStartToken(current) }
+        }
         Task {
             await refreshOpenTrip()
             await refreshReminderPermission()

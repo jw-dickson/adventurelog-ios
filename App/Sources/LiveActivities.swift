@@ -61,6 +61,9 @@ struct LiveActivityController: Sendable {
     func watchTokens(onStartToken: @escaping @Sendable (Data) async -> Void, onToken: @escaping TokenHandler) async {
         await withDiscardingTaskGroup { group in
             group.addTask {
+                // The stream may not replay a token iOS issued before it was observed (#24), so the
+                // current one is read first.
+                if let token = Activity<TripActivityAttributes>.pushToStartToken { await onStartToken(token) }
                 for await token in Activity<TripActivityAttributes>.pushToStartTokenUpdates { await onStartToken(token) }
             }
             group.addTask {
@@ -76,6 +79,9 @@ struct LiveActivityController: Sendable {
             }
         }
     }
+
+    /// iOS's current push-to-start token, if it has issued one.
+    var startToken: Data? { Activity<TripActivityAttributes>.pushToStartToken }
 
     /// Ends everything, e.g. on sign-out.
     func endAll() async {
