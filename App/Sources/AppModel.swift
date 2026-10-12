@@ -128,6 +128,9 @@ final class AppModel {
     /// "Connected", or why not; nil when no companion is set.
     private(set) var companionStatus: String?
     private var startToken: Data?
+    /// The start token the companion last accepted. A token that failed to register differs from
+    /// it, so the next callback or foregrounding tries again.
+    private var registeredStartToken: Data?
     /// Activity push tokens the companion hasn't accepted yet (e.g. one that came before the phone
     /// was registered), by trip and item; sent again after each registration.
     private var pendingActivityTokens: [String: (token: Data, tripID: String, rowID: String)] = [:]
@@ -307,6 +310,7 @@ final class AppModel {
         self.client = client
         phase = .signedIn(credentials)
         startToken = nil
+        registeredStartToken = nil
         Task { await connectCompanion() }
         await refreshTrips()
     }
@@ -327,6 +331,7 @@ final class AppModel {
         let revoke = credentials?.apiKeyID.flatMap { id in client.map { (client: $0, id: id) } }
         let companion = registeredCompanion ?? self.companion
         registeredCompanion = nil
+        registeredStartToken = nil
         pendingActivityTokens = [:]
         resetSession()
         client = nil
@@ -658,6 +663,7 @@ final class AppModel {
         // A different (or no) address: the old companion stops pushing and drops the key.
         if let previous = registeredCompanion, previous.baseURL != companion?.baseURL {
             registeredCompanion = nil
+            registeredStartToken = nil
             try? await previous.unregister()
         }
         guard let companion else {
@@ -667,8 +673,9 @@ final class AppModel {
         }
         let started = session
         do {
-            let sentToken = startToken != nil
-            let canStart = try await companion.register(environment: Self.pushEnvironment, startToken: startToken)
+            let sending = startToken
+            let sentToken = sending != nil
+            let canStart = try await companion.register(environment: Self.pushEnvironment, startToken: sending)
             Self.companionLog.info("Registered with the companion; start token sent: \(sentToken, privacy: .public), companion can start: \(String(describing: canStart), privacy: .public)")
             // The address changed (or sign-out happened) while this was in flight: undo it, so a
             // slower, older registration can't replace the current one.
@@ -677,6 +684,7 @@ final class AppModel {
                 return
             }
             registeredCompanion = companion
+            if let sending { registeredStartToken = sending }
             // An older companion doesn't say; a newer one says whether it can start activities.
             companionStatus = canStart == false ? "Connected · activities start when you open the app" : "Connected"
             await sendPendingActivityTokens()
@@ -697,7 +705,7 @@ final class AppModel {
 
     private func receivedStartToken(_ token: Data) async {
         Self.companionLog.info("iOS issued a push-to-start token (\(token.count, privacy: .public) bytes)")
-        guard token != startToken || registeredCompanion == nil else { return }
+        guard token != registeredStartToken || registeredCompanion == nil else { return }
         startToken = token
         await connectCompanion()
     }
@@ -1073,7 +1081,7 @@ final class AppModel {
     func becameActive() {
         guard credentials != nil else { return }
         syncNow()
-        if let current = liveActivities.startToken, current != startToken {
+        if let current = liveActivities.startToken, current != registeredStartToken {
             Task { await receivedStartToken(current) }
         }
         Task {
