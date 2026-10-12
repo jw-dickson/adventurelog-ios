@@ -181,6 +181,35 @@ struct ItemEditTests {
         #expect(phone.shown.notes.first { $0.name == "Dinner change" }?.content == "Booked the 20:00 table.")
     }
 
+    @Test func editsToANoteBeingSentGoToTheServersNote() async throws {
+        let server = FakeTripServer(trip: try Fixture.trip())
+        var phone = FakeDevice(try Fixture.trip())
+        let add = TripEdit.AddNote(name: "Fuel", content: "Fill up in Swansea.", date: d1)
+        phone.make(.addNote(add))
+
+        // The note is on its way to the server when it's edited and moved: those edits queue
+        // behind it instead of changing what's being sent.
+        let entry = try #require(phone.outbox.next(at: phone.now))
+        phone.outbox.markSending(entry.id)
+        phone.make(.editNote(TripEdit.EditNote(noteID: add.localID, noteName: add.title, baseContent: add.content, content: "Fill up in Bicheno.")))
+        phone.make(.moveRow(TripEdit.MoveRow(rowID: add.rowID, title: add.title, toDate: d2, toIndex: 0)))
+        #expect(phone.outbox.entries.count == 3)
+        #expect(phone.shown.notes.first { $0.name == "Fuel" }?.content == "Fill up in Bicheno.")
+        #expect(phone.titles(on: d2).first == "Fuel")
+
+        let outcome = await EditSender(server: server).send(entry.edit, tripID: phone.tripID)
+        phone.outbox.record(outcome, for: entry.id, sent: entry.edit, at: phone.now)
+        await phone.drain(to: server)
+        #expect(phone.outbox.entries.isEmpty)
+        #expect(phone.outbox.notices.isEmpty)
+        #expect(await server.createdNotes == 1)
+
+        try await phone.refresh(from: server)
+        #expect(phone.shown.notes.filter { $0.name == "Fuel" }.map(\.content) == ["Fill up in Bicheno."])
+        #expect(phone.titles(on: d2).first == "Fuel")
+        #expect(!phone.titles(on: d1).contains("Fuel"))
+    }
+
     @Test func movingOrRemovingANoteBeforeItsSentChangesWhatIsAdded() throws {
         var phone = FakeDevice(try Fixture.trip())
         let add = TripEdit.AddNote(name: "Fuel", content: "Fill up in Swansea.", date: d1)

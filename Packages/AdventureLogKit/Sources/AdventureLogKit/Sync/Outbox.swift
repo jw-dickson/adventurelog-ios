@@ -64,6 +64,11 @@ public struct SyncNotice: Codable, Sendable, Hashable, Identifiable {
 public struct Outbox: Codable, Sendable, Hashable {
     public private(set) var entries: [PendingEdit]
     public private(set) var notices: [SyncNotice]
+    /// The entry being sent right now. Nothing is folded into it, since the server may already
+    /// have the version being sent. Not saved: after a relaunch nothing is in flight.
+    public private(set) var sending: UUID?
+
+    private enum CodingKeys: String, CodingKey { case entries, notices }
 
     public init(entries: [PendingEdit] = [], notices: [SyncNotice] = []) {
         self.entries = entries
@@ -93,7 +98,7 @@ public struct Outbox: Codable, Sendable, Hashable {
         case .editNote(let new):
             // Editing a note that hasn't been sent yet changes what will be added.
             if TripEdit.AddNote.isLocal(new.noteID), let index = entries.lastIndex(where: { entry in
-                guard entry.isWaiting, entry.tripID == tripID, case .addNote(let add) = entry.edit else { return false }
+                guard entry.isWaiting, entry.id != sending, entry.tripID == tripID, case .addNote(let add) = entry.edit else { return false }
                 return add.localID == new.noteID
             }), case .addNote(var add) = entries[index].edit {
                 add.content = new.content
@@ -163,7 +168,7 @@ public struct Outbox: Codable, Sendable, Hashable {
 
     private func waitingAddNote(rowID: String, tripID: String) -> Int? {
         entries.lastIndex { entry in
-            guard entry.isWaiting, entry.tripID == tripID, case .addNote(let add) = entry.edit else { return false }
+            guard entry.isWaiting, entry.id != sending, entry.tripID == tripID, case .addNote(let add) = entry.edit else { return false }
             return add.rowID == rowID
         }
     }
@@ -178,6 +183,11 @@ public struct Outbox: Codable, Sendable, Hashable {
         return first
     }
 
+    /// Marks `id` as being sent, until its outcome is recorded.
+    public mutating func markSending(_ id: UUID) {
+        sending = id
+    }
+
     /// When the first waiting edit may be sent again, if it is backing off.
     public var nextAttempt: Date? {
         entries.first(where: \.isWaiting)?.notBefore
@@ -188,7 +198,16 @@ public struct Outbox: Codable, Sendable, Hashable {
     /// - Parameter sent: the edit as it was sent. If another edit was folded into the entry while
     ///   it was being sent, the entry stays to send the newer edit, instead of being removed.
     public mutating func record(_ outcome: SyncOutcome, for id: UUID, sent: TripEdit? = nil, at now: Date) {
+        if sending == id { sending = nil }
         guard let index = entries.firstIndex(where: { $0.id == id }) else { return }
+        if case .added(let noteID, let rowID) = outcome {
+            // Edits queued for the note while it was being sent now go to the server's ids.
+            if case .addNote(let add) = sent ?? entries[index].edit {
+                retarget(note: add.localID, row: add.rowID, toNote: noteID, row: rowID)
+            }
+            if let current = entries.firstIndex(where: { $0.id == id }) { entries.remove(at: current) }
+            return
+        }
         if let sent, entries[index].edit != sent {
             switch outcome {
             case .done, .dropped, .retry:
@@ -218,12 +237,12 @@ public struct Outbox: Codable, Sendable, Hashable {
                 entries[index].notBefore = nil
                 entries[index].lastError = nil
                 return
-            case .conflict, .fieldConflict, .unauthorized:
+            case .conflict, .fieldConflict, .unauthorized, .added:
                 break
             }
         }
         switch outcome {
-        case .done:
+        case .done, .added:
             entries.remove(at: index)
         case .dropped(let message):
             let entry = entries.remove(at: index)
@@ -263,6 +282,25 @@ public struct Outbox: Codable, Sendable, Hashable {
             entries[index].state = .failed(message)
             entries[index].lastError = message
             entries[index].notBefore = nil
+        }
+    }
+
+    /// Points edits made to a note before it reached the server at the server's ids.
+    private mutating func retarget(note localNote: String, row localRow: String, toNote noteID: String, row rowID: String) {
+        for index in entries.indices {
+            switch entries[index].edit {
+            case .editNote(var edit) where edit.noteID == localNote:
+                edit.noteID = noteID
+                entries[index].edit = .editNote(edit)
+            case .moveRow(var edit) where edit.rowID == localRow:
+                edit.rowID = rowID
+                entries[index].edit = .moveRow(edit)
+            case .removeRow(var edit) where edit.rowID == localRow:
+                edit.rowID = rowID
+                entries[index].edit = .removeRow(edit)
+            default:
+                break
+            }
         }
     }
 

@@ -41,6 +41,9 @@ public struct NoteConflict: Codable, Sendable, Hashable {
 public enum SyncOutcome: Sendable, Hashable {
     /// The server has the change, either just now or already.
     case done
+    /// A note made on the phone is on the server now, with these ids. Edits queued for it
+    /// meanwhile are pointed at them.
+    case added(noteID: String, rowID: String)
     /// The edit no longer applies (its item was deleted, or the day left the trip). Says why.
     case dropped(String)
     /// Someone else changed the same note; the person picks a version.
@@ -212,10 +215,12 @@ public struct EditSender: Sendable {
             note = try await server.createNote(NoteCreate(collection: tripID, name: edit.title, content: edit.content, date: edit.date))
             trip.notes.append(note)
         }
-        guard !trip.itinerary.contains(where: { $0.objectId == note.id }) else { return .done }
+        if let row = trip.itinerary.first(where: { $0.objectId == note.id }) {
+            return .added(noteID: note.id, rowID: row.id)
+        }
         let order = (ItineraryLayout.group(date, in: trip.itinerary).map(\.order).max() ?? -1) + 1
-        _ = try await server.createItineraryRow(ItineraryRowCreate(collection: tripID, contentType: "note", objectId: note.id, order: order, date: date))
-        return .done
+        let row = try await server.createItineraryRow(ItineraryRowCreate(collection: tripID, contentType: "note", objectId: note.id, order: order, date: date))
+        return .added(noteID: note.id, rowID: row.id)
     }
 
     private func send(_ edit: TripEdit.RemoveRow, tripID: String) async throws -> SyncOutcome {

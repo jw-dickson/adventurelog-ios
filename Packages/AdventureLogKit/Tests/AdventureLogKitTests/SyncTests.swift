@@ -278,7 +278,7 @@ struct EditSenderTests {
         let outcome = await EditSender(server: server).send(try phone.noteEdit("Trip essentials", to: "x"), tripID: phone.tripID)
         let name: String
         switch outcome {
-        case .done: name = "done"
+        case .done, .added: name = "done"
         case .dropped: name = "dropped"
         case .conflict: name = "conflict"
         case .fieldConflict: name = "fieldConflict"

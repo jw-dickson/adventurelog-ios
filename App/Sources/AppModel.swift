@@ -1005,10 +1005,14 @@ final class AppModel {
         var touched = Set<String>()
         while session == started, isCurrent(client), let entry = outbox.next(at: .now) {
             isSyncing = true
+            outbox.markSending(entry.id)
             let outcome = await sender.send(entry.edit, tripID: entry.tripID)
             guard session == started, isCurrent(client) else { return }
             outbox.record(outcome, for: entry.id, sent: entry.edit, at: .now)
             if outcome == .done { settle(entry.edit, in: entry.tripID) }
+            if case .added(let noteID, let rowID) = outcome, case .addNote(let add) = entry.edit {
+                settle(add, noteID: noteID, rowID: rowID, in: entry.tripID)
+            }
             tripRevisions[entry.tripID, default: 0] += 1
             touched.insert(entry.tripID)
             show(entry.tripID)
@@ -1036,6 +1040,18 @@ final class AppModel {
     private func settle(_ edit: TripEdit, in tripID: String) {
         guard var saved = savedTrips[tripID] else { return }
         edit.apply(to: &saved.value)
+        keepSaved(saved, for: tripID)
+    }
+
+    /// A note made on the phone is on the server: the saved copy gets it under the server's ids,
+    /// which edits queued for it now use.
+    private func settle(_ add: TripEdit.AddNote, noteID: String, rowID: String, in tripID: String) {
+        guard var saved = savedTrips[tripID] else { return }
+        add.apply(to: &saved.value, noteID: noteID, rowID: rowID)
+        keepSaved(saved, for: tripID)
+    }
+
+    private func keepSaved(_ saved: TripSnapshotStore.Snapshot<CollectionDetail>, for tripID: String) {
         savedTrips[tripID] = saved
         let detail = saved.value
         let savedAt = saved.savedAt

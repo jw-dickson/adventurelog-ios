@@ -143,15 +143,7 @@ public enum TripEdit: Codable, Sendable, Hashable {
             ItemValues.write([(edit.field, .text(edit.appended(to: current.text)))], kind: edit.kind, itemID: edit.itemID, visitID: edit.visitID, in: &trip)
 
         case .addNote(let edit):
-            guard !trip.notes.contains(where: { $0.id == edit.localID }) else { return }
-            trip.notes.append(Note(id: edit.localID, user: nil, name: edit.title, content: edit.content, date: edit.date,
-                                   links: DefaultEmpty(wrappedValue: []), isPublic: false, collection: trip.id,
-                                   createdAt: nil, updatedAt: nil))
-            let order = (ItineraryLayout.group(edit.date, in: trip.itinerary).map(\.order).max() ?? -1) + 1
-            trip.itinerary.append(ItineraryRow(id: edit.rowID, collection: trip.id, objectId: edit.localID,
-                                               item: .init(id: edit.localID, type: .note), objectName: "note",
-                                               date: edit.date, isGlobal: edit.date == nil, order: order,
-                                               startDatetime: nil, endDatetime: nil))
+            edit.apply(to: &trip, noteID: edit.localID, rowID: edit.rowID)
 
         case .removeRow(let edit):
             trip.itinerary.removeAll { $0.id == edit.rowID }

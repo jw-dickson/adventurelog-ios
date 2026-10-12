@@ -298,6 +298,21 @@ extension TripEdit {
         public var title: String { FieldValue.clean(name) ?? "Note" }
 
         public static func isLocal(_ id: String) -> Bool { id.hasPrefix("local-") }
+
+        /// Adds the note and its row at the end of its day, under the given ids: the local ones
+        /// before it's sent, the server's once it has them.
+        public func apply(to trip: inout CollectionDetail, noteID: String, rowID: String) {
+            guard !trip.notes.contains(where: { $0.id == noteID }) else { return }
+            trip.notes.append(Note(id: noteID, user: nil, name: title, content: content, date: date,
+                                   links: DefaultEmpty(wrappedValue: []), isPublic: false, collection: trip.id,
+                                   createdAt: nil, updatedAt: nil))
+            guard !trip.itinerary.contains(where: { $0.id == rowID }) else { return }
+            let order = (ItineraryLayout.group(date, in: trip.itinerary).map(\.order).max() ?? -1) + 1
+            trip.itinerary.append(ItineraryRow(id: rowID, collection: trip.id, objectId: noteID,
+                                               item: .init(id: noteID, type: .note), objectName: "note",
+                                               date: date, isGlobal: date == nil, order: order,
+                                               startDatetime: nil, endDatetime: nil))
+        }
     }
 
     /// Take a row off its day. The item stays in the trip, under Not on a day, and a place keeps

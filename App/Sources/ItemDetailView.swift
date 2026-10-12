@@ -33,12 +33,10 @@ struct ItemDetailView: View {
         return plan.unscheduled.first { $0.id == id }
     }
 
-    /// The row placing the item on `day`, else its first row anywhere.
+    /// The row the person came from: on `day`, or trip-wide when there's no day. Never a row on
+    /// another day, so Remove from day only ever removes the placement that was opened.
     static func entry(_ id: String, on day: CalendarDate?, in plan: TripPlan) -> TripPlan.Entry? {
-        if let day, let entry = plan.day(for: day)?.entries.first(where: { $0.item.id == id }) { return entry }
-        for day in plan.days {
-            if let entry = day.entries.first(where: { $0.item.id == id }) { return entry }
-        }
+        if let day { return plan.day(for: day)?.entries.first { $0.item.id == id } }
         return plan.tripWide.first { $0.item.id == id }
     }
 }
