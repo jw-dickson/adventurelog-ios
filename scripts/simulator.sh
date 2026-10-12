@@ -6,6 +6,7 @@
 #   scripts/simulator.sh udid          # UDID of the newest available iPhone simulator (boots nothing)
 #   scripts/simulator.sh destination   # xcodebuild -destination string for it
 #   scripts/simulator.sh boot          # boot it and open Simulator.app
+#   scripts/simulator.sh grant-location [bundle id]  # allow location for the app (UI tests run with it allowed)
 #   scripts/simulator.sh run           # build, install and launch the app on it
 #   scripts/simulator.sh drive <gpx>   # replay a recorded drive (Stage 3)
 set -euo pipefail
@@ -44,6 +45,14 @@ case "${1:-}" in
     open -a Simulator --args -CurrentDeviceUDID "$id" 2>/dev/null || true
     xcrun simctl bootstatus "$id" -b >/dev/null
     echo "$id"
+    ;;
+  grant-location)
+    # The app's first tracking pass only creates its CLMonitor when location is allowed; a Simulator that
+    # never grants it never runs that code (an invalid monitor name crashed the app on every launch).
+    id=$("$0" udid)
+    xcrun simctl boot "$id" 2>/dev/null || true
+    xcrun simctl bootstatus "$id" -b >/dev/null
+    xcrun simctl privacy "$id" grant location-always "${2:-app.adventurelog.ios.dev}"
     ;;
   run)
     id=$("$0" boot)

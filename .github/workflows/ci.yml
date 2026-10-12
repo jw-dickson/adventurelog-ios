@@ -200,6 +200,7 @@ jobs:
       # The live-server tests skip themselves here (no AL_TEST_SERVER). The gallery has its own job.
       - name: UI tests on the Simulator
         run: |
+          scripts/simulator.sh grant-location   # location allowed, as on a phone that said yes
           set +e
           xcodebuild test-without-building -project AdventureLog.xcodeproj -scheme AdventureLog \
             -destination "$DEST" -derivedDataPath build/DerivedData \

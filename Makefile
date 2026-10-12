@@ -38,6 +38,7 @@ test-packages:
 	cd Packages/ALDesign && swift test $(SWIFT_FLAGS)
 
 test-ui: generate
+	$(SIM) grant-location
 	TEST_RUNNER_AL_TEST_SERVER="$(AL_TEST_SERVER)" TEST_RUNNER_AL_TEST_API_KEY="$(AL_TEST_API_KEY)" \
 	  xcodebuild test $(XCB_SIM) -skip-testing:AdventureLogUITests/GalleryUITests \
 	  -resultBundlePath build/UITests-$$(date +%Y%m%d-%H%M%S).xcresult
