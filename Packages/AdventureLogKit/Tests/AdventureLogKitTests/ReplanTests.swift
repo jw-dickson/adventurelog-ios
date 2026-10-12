@@ -330,6 +330,25 @@ struct ReplanTests {
         #expect(problems.contains(.blankTitle))
     }
 
+    @Test func aClaimedLateItemOnlyExcusesTheLatenessItStates() {
+        let s = situation(afternoon, delay: 30, nextDay: nextDay)
+        // Running into the tour by 15 minutes, as stated: allowed.
+        let stated = Replan.Proposal(behindMinutes: 30, summary: "", changes: [
+            .retime(rowID: "row-bay", start: time(20, 0), end: time(21, 5), reason: nil)],
+            lateFor: "Night wildlife tour", lateRowID: "row-tour", lateMinutes: 5)
+        #expect(check(stated, s).isEmpty)
+        // Sitting on top of the tour isn't, whatever the proposal claims.
+        let over = Replan.Proposal(behindMinutes: 30, summary: "", changes: [
+            .retime(rowID: "row-bay", start: time(20, 30), end: time(22, 30), reason: nil)],
+            lateFor: "Night wildlife tour", lateRowID: "row-tour", lateMinutes: 5)
+        #expect(check(over, s) == [.overlap("Honeymoon Bay", "Night wildlife tour")])
+        // Nor is a row claimed late that isn't booked.
+        let notBooked = Replan.Proposal(behindMinutes: 30, summary: "", changes: [
+            .retime(rowID: "row-lookout", start: time(18, 0), end: time(18, 45), reason: nil)],
+            lateRowID: "row-bay", lateMinutes: 60)
+        #expect(check(notBooked, s) == [.overlap("Wineglass Bay Lookout", "Honeymoon Bay")])
+    }
+
     @Test func theCheckerHoldsJourneysAndTheDaysEnd() {
         let drive = Replan.Stop(rowID: "row-drive", itemID: "drive", title: "Drive to Bicheno", kind: .transportation,
                                 start: time(15, 0), end: time(16, 0), zone: hobart, isBooked: false, coordinate: carPark)
@@ -423,6 +442,19 @@ struct ReplanTests {
         // On the cruise at 19:00: nothing timed is left after it today.
         let point = TrackPoint(time: time(18, 59), latitude: at.latitude, longitude: at.longitude)
         #expect(Replan.Situation.current(plan: plan, today: day, now: time(19, 0), lastPoint: point) == nil)
+    }
+
+    @Test func atABookedTourTheRowsInsideItFollowFromItsStart() {
+        // At the tour base at 09:10; lunch at 12:00 is inside the 09:00–17:00 tour.
+        let tour = place("tour", "Day tour", (9, 0), (17, 0), at: tourBase, booked: true)
+        let lunch = place("lunch", "Lunch at the beach", (12, 0), (13, 0), at: honeymoon)
+        let inside = Replan.Situation.afterStop(tour, next: lunch, now: time(9, 10), position: tourBase)
+        #expect(inside.delay == 0, "on time, not five hours behind")
+        #expect(inside.startingPoint == tourBase)
+        // After a place with nothing inside it, you're free when it ends.
+        let walk = place("walk", "Cape Tourville walk", (16, 0), (17, 0), at: tourville)
+        let after = Replan.Situation.afterStop(walk, next: afternoon[1], now: time(17, 10), position: tourville)
+        #expect(after.delay == 5, "17:10 plus a 10-minute drive, for the 17:15 lookout")
     }
 
     @Test func linesReadLikeTheMockup() throws {

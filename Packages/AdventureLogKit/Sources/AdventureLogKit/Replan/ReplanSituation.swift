@@ -46,14 +46,10 @@ extension Replan.Situation {
             let first = stops[0]
             if let at = first.coordinate, LeaveBy.kilometres(from: position, to: at) * 1000 <= atStopMetres,
                now >= first.start.addingTimeInterval(-15 * 60) {
-                // At it: free when it ends (or now, if you've stayed on), wherever it ends.
                 stops.removeFirst()
-                startingPoint = first.exit ?? position
-                if let next = stops.first {
-                    let free = max(now, first.end)
-                    let arrive = free.addingTimeInterval(Double(Replan.travelMinutes(from: startingPoint, to: next.coordinate) * 60))
-                    delay = max(0, Int((arrive.timeIntervalSince(next.start) / 60).rounded(.up)))
-                }
+                let after = afterStop(first, next: stops.first, now: now, position: position)
+                delay = after.delay
+                startingPoint = after.startingPoint
             } else {
                 delay = Replan.delay(now: now, position: position, target: first)
             }
@@ -62,6 +58,19 @@ extension Replan.Situation {
         return Replan.Situation(date: today, now: now, stops: stops, delayMinutes: delay,
                                 position: reportedDelay == nil ? startingPoint : nil,
                                 nextDay: nextDay(after: today, in: plan), zone: plan.timeZone)
+    }
+
+    /// You're at `first`: how late you'll be for `next`, and where you'll set off from. You're free
+    /// when `first` ends (or now, if you've stayed on), wherever it ends. A booked tour with rows
+    /// inside it is different: those rows follow from its start, there.
+    public static func afterStop(_ first: Replan.Stop, next: Replan.Stop?, now: Date,
+                                 position: ItemSummary.Coordinate) -> (delay: Int, startingPoint: ItemSummary.Coordinate) {
+        guard let next else { return (0, first.exit ?? position) }
+        let nested = next.start < first.end
+        let from = nested ? (first.coordinate ?? position) : (first.exit ?? position)
+        let free = nested ? max(now, first.start) : max(now, first.end)
+        let arrive = free.addingTimeInterval(Double(Replan.travelMinutes(from: from, to: next.coordinate) * 60))
+        return (max(0, Int((arrive.timeIntervalSince(next.start) / 60).rounded(.up))), from)
     }
 
     /// The trip's next day after `date`, with its first timed place or journey that starts that day
