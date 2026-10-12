@@ -6,7 +6,9 @@ from tests.test_worker import KEY, fake_adventurelog
 
 
 def client(tmp_path) -> TestClient:
-    settings = Settings({"ADVENTURELOG_URL": "https://adventurelog.example", "COMPANION_DB": str(tmp_path / "c.sqlite")})
+    settings = Settings(
+        {"ADVENTURELOG_URL": "https://adventurelog.example", "COMPANION_DB": str(tmp_path / "c.sqlite")}
+    )
     return TestClient(create_app(settings, adventurelog=fake_adventurelog(), run_worker=False))
 
 

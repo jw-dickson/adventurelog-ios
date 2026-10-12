@@ -4,6 +4,7 @@
 The file holds each phone's AdventureLog API key (the companion polls with it), so keep it on a
 volume only the companion can read. Signing out on the phone unregisters it.
 """
+
 from __future__ import annotations
 
 import json
@@ -74,13 +75,16 @@ class Store:
             """insert into devices (id, user_id, api_key, environment, start_token) values (?, ?, ?, ?, ?)
                on conflict(id) do update set environment = excluded.environment,
                start_token = coalesce(excluded.start_token, devices.start_token)""",
-            (device_id, user_id, api_key, environment, start_token))
+            (device_id, user_id, api_key, environment, start_token),
+        )
         self.db.commit()
         return self.device(device_id)
 
     def device(self, device_id: str) -> Device | None:
         row = self.db.execute("select * from devices where id = ?", (device_id,)).fetchone()
-        return Device(row["id"], row["user_id"], row["api_key"], row["environment"], row["start_token"]) if row else None
+        return (
+            Device(row["id"], row["user_id"], row["api_key"], row["environment"], row["start_token"]) if row else None
+        )
 
     def device_for_key(self, api_key: str) -> Device | None:
         row = self.db.execute("select id from devices where api_key = ?", (api_key,)).fetchone()
@@ -100,8 +104,9 @@ class Store:
     # Activities
 
     def activity(self, device_id: str, trip_id: str, row_id: str) -> Activity | None:
-        row = self.db.execute("select * from activities where device_id = ? and trip_id = ? and row_id = ?",
-                              (device_id, trip_id, row_id)).fetchone()
+        row = self.db.execute(
+            "select * from activities where device_id = ? and trip_id = ? and row_id = ?", (device_id, trip_id, row_id)
+        ).fetchone()
         return self._activity(row) if row else None
 
     def open_activities(self, device_id: str) -> list[Activity]:
@@ -113,27 +118,40 @@ class Store:
         self.db.execute(
             """insert into activities (device_id, trip_id, row_id, push_token) values (?, ?, ?, ?)
                on conflict(device_id, trip_id, row_id) do update set push_token = excluded.push_token, ended = 0""",
-            (device_id, trip_id, row_id, push_token))
+            (device_id, trip_id, row_id, push_token),
+        )
         self.db.commit()
 
     def mark_start_sent(self, device_id: str, trip_id: str, row_id: str) -> None:
         self.db.execute(
             """insert into activities (device_id, trip_id, row_id, start_sent) values (?, ?, ?, 1)
                on conflict(device_id, trip_id, row_id) do update set start_sent = 1""",
-            (device_id, trip_id, row_id))
+            (device_id, trip_id, row_id),
+        )
         self.db.commit()
 
     def save_state(self, activity: Activity, state: dict) -> None:
-        self.db.execute("update activities set last_state = ? where device_id = ? and trip_id = ? and row_id = ?",
-                        (json.dumps(state, sort_keys=True), activity.device_id, activity.trip_id, activity.row_id))
+        self.db.execute(
+            "update activities set last_state = ? where device_id = ? and trip_id = ? and row_id = ?",
+            (json.dumps(state, sort_keys=True), activity.device_id, activity.trip_id, activity.row_id),
+        )
         self.db.commit()
 
     def mark_ended(self, activity: Activity) -> None:
-        self.db.execute("update activities set ended = 1 where device_id = ? and trip_id = ? and row_id = ?",
-                        (activity.device_id, activity.trip_id, activity.row_id))
+        self.db.execute(
+            "update activities set ended = 1 where device_id = ? and trip_id = ? and row_id = ?",
+            (activity.device_id, activity.trip_id, activity.row_id),
+        )
         self.db.commit()
 
     @staticmethod
     def _activity(row) -> Activity:
-        return Activity(row["device_id"], row["trip_id"], row["row_id"], row["push_token"], bool(row["start_sent"]),
-                        json.loads(row["last_state"]) if row["last_state"] else None, bool(row["ended"]))
+        return Activity(
+            row["device_id"],
+            row["trip_id"],
+            row["row_id"],
+            row["push_token"],
+            bool(row["start_sent"]),
+            json.loads(row["last_state"]) if row["last_state"] else None,
+            bool(row["ended"]),
+        )

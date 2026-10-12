@@ -23,3 +23,16 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
 packages = ["companion"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+
+[tool.ruff.lint]
+# pyflakes, pycodestyle, import order, pyupgrade, bugbear, simplify
+select = ["F", "E", "W", "I", "UP", "B", "SIM"]
+# The formatter owns line length; long strings and comments are left alone.
+ignore = ["E501"]
+
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Header", "fastapi.Query", "fastapi.Body"]
