@@ -7,6 +7,8 @@ import Foundation
 public enum ReplanCheck {
     public enum Problem: Sendable, Hashable {
         case tooManyChanges
+        /// Today changed so much that the proposal's day can't be checked (nothing timed left, say).
+        case outOfDate
         /// The row isn't one of today's remaining stops.
         case unknownRow(String)
         /// More than one change for the same row.
@@ -30,6 +32,7 @@ public enum ReplanCheck {
         public var message: String {
             switch self {
             case .tooManyChanges: return "It changes too many things at once."
+            case .outOfDate: return "Today has changed since this plan was made."
             case .unknownRow(let title): return "It mentions something that isn't left today (\(title))."
             case .duplicate(let title): return "It changes \(title) twice."
             case .changesBooked(let title): return "It moves \(title), which is booked."
@@ -105,7 +108,8 @@ public enum ReplanCheck {
         }
 
         // Overlaps the proposal causes: a changed row against anything it didn't overlap before.
-        // The booked item the proposal already says you'll be late for doesn't count.
+        // Running into the booked item the proposal says you'll be late for is allowed, but only
+        // from before it and only by the lateness it states (plus that item's buffer).
         func overlaps(_ a: (Date, Date), _ b: (Date, Date)) -> Bool {
             a.0 < b.1.addingTimeInterval(-60) && b.0 < a.1.addingTimeInterval(-60)
         }
@@ -113,9 +117,14 @@ public enum ReplanCheck {
         var reported: Set<[String]> = []
         for stop in ordered where changed.contains(stop.rowID) {
             guard let mine = timeline[stop.rowID] else { continue }
-            for other in ordered where other.rowID != stop.rowID && other.rowID != proposal.lateRowID {
+            for other in ordered where other.rowID != stop.rowID {
                 guard let theirs = timeline[other.rowID], overlaps(mine, theirs),
                       !overlaps((stop.start, stop.end), (other.start, other.end)) else { continue }
+                let allowance = Double((proposal.lateMinutes ?? 0) + Replan.buffer(before: other)) * 60 + 60
+                if other.rowID == proposal.lateRowID, other.isBooked, mine.0 < theirs.0,
+                   mine.1 <= theirs.0.addingTimeInterval(allowance) {
+                    continue
+                }
                 let pair = [stop, other].sorted { $0.start < $1.start }
                 guard reported.insert(pair.map(\.rowID)).inserted else { continue }
                 problems.append(.overlap(pair[0].title, pair[1].title))

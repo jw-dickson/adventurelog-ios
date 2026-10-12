@@ -12,6 +12,8 @@ struct ReplanSheet: View {
     @Environment(\.dismiss) private var dismiss
     /// How late the person says they are, when the phone isn't recording.
     @State private var reported: Int?
+    /// Why Apply didn't go through (the day moved on while the sheet was open).
+    @State private var applyProblem: String?
 
     static let lateChoices = [15, 30, 45, 60, 90]
 
@@ -79,8 +81,11 @@ struct ReplanSheet: View {
                 }
                 HStack(spacing: ALSpace.space3) {
                     Button("Apply changes") {
-                        model.applyReplan(proposal, tripID: tripID)
-                        dismiss()
+                        if let problem = model.applyReplan(proposal, tripID: tripID, reportedDelay: reported).first {
+                            applyProblem = problem.message + " Here's the plan for now."
+                        } else {
+                            dismiss()
+                        }
                     }
                     .buttonStyle(ALButtonStyle(.primary))
                     .frame(maxWidth: .infinity)
@@ -92,6 +97,12 @@ struct ReplanSheet: View {
                         .accessibilityIdentifier("replan.notNow")
                 }
                 .padding(.top, ALSpace.space2)
+                if let applyProblem {
+                    Label(applyProblem, systemImage: "arrow.clockwise")
+                        .font(ALFont.footnote)
+                        .foregroundStyle(ALColor.errorText)
+                        .accessibilityIdentifier("replan.applyProblem")
+                }
                 Text("Applying saves the new times on this phone and sends them when it's online. Skipped places stay in the trip.")
                     .font(ALFont.footnote)
                     .foregroundStyle(ALColor.inkMuted)

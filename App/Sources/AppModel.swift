@@ -647,9 +647,16 @@ final class AppModel {
         return situation.delayMinutes
     }
 
-    /// Saves a proposal's changes as ordinary edits: new times, moves to another day, skips and notes.
-    func applyReplan(_ proposal: Replan.Proposal, tripID: String) {
-        guard let plan = trips[tripID]?.plan else { return }
+    /// Checks a proposal against today as it is now and, if it still passes, saves its changes as
+    /// ordinary edits: new times, moves to another day, skips and notes. The sheet may have been
+    /// open a while, so the clock or the trip can have moved on since it was shown.
+    /// - Returns: what's wrong with it now; nothing is saved then.
+    @discardableResult
+    func applyReplan(_ proposal: Replan.Proposal, tripID: String, reportedDelay: Int?) -> [ReplanCheck.Problem] {
+        guard let plan = trips[tripID]?.plan, let situation = replanSituation(tripID: tripID, reportedDelay: reportedDelay)
+        else { return [.outOfDate] }
+        let problems = ReplanCheck.problems(proposal, situation: situation, tripDays: tripDays(tripID))
+        guard problems.isEmpty else { return problems }
         for action in ReplanApply.actions(for: proposal, plan: plan, today: today) {
             switch action {
             case .retime(let item, let start, let end):
@@ -663,6 +670,7 @@ final class AppModel {
                 addNote(name: title, content: content, date: date, tripID: tripID)
             }
         }
+        return []
     }
 
     /// While recording in the background: once per late stop, at most every 90 minutes, a
