@@ -110,7 +110,8 @@ def create_app(settings: Settings | None = None, adventurelog: AdventureLog | No
     @app.post("/v1/devices")
     async def register(body: Registration, x_api_key: str = Header(...), user: str = Depends(user_for)):
         device = store.register(user, x_api_key, body.environment, body.start_token)
-        return {"id": device.id}
+        # Tells the app whether it can start activities while the app is closed (#24).
+        return {"id": device.id, "canStart": device.start_token is not None}
 
     @app.delete("/v1/devices", status_code=204)
     async def unregister(device: Device = Depends(device_for)):
