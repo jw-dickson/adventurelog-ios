@@ -11,7 +11,8 @@ struct ZoneShiftTests {
     @Test func theTravelDayShowsEachChangeWhereItHappens() throws {
         // Fri 5 Mar: Denver → Los Angeles, then Los Angeles → Sydney (US clocks change on 14 Mar).
         let plan = try TripPlan(Fixture.trip(), fallbackTimeZone: .gmt)
-        let day = try #require(plan.day(for: try #require(CalendarDate("2027-03-05"))))
+        let date = try #require(CalendarDate("2027-03-05"))
+        let day = try #require(plan.day(for: date))
         let summaries = day.entries.map { $0.summary(in: plan) }
         let marks = ZoneShift.marks(summaries)
         let byTitle = Dictionary(zip(summaries.map(\.title), marks), uniquingKeysWith: { first, _ in first })
