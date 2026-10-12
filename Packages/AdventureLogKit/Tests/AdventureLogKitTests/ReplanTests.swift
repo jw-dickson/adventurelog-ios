@@ -438,7 +438,7 @@ struct ReplanTests {
         let lines = ReplanText.lines(proposal, situation: s, locale: Locale(identifier: "en_GB"))
         #expect(lines.map(\.detail) == [
             "Booked · stays at 21:00",
-            "Moved to tomorrow 08:00, before Drive to Bicheno",
+            "Moved to tomorrow 8:00, before Drive to Bicheno",
             "60 → 30 min · 19:00–19:30",
             "18:30 → 18:45 · More light",
             "New · Today · Rest before the tour",
