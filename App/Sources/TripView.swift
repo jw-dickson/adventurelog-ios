@@ -272,12 +272,14 @@ private struct EntryList: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .alCard()
         } else {
+            // A list with no times in it (trip-wide notes) keeps a narrow time column.
+            let timed = entries.contains { $0.summary(in: plan).start != nil }
             VStack(spacing: 0) {
                 ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
                     let summary = entry.summary(in: plan)
                     NavigationLink(value: ItemRoute(tripID: tripID, itemID: entry.item.id, day: entry.row.date)) {
                         TimelineRow(summary.timelineContent, state: summary.timelineStatus(at: now),
-                                    isFirst: index == 0, isLast: index == entries.count - 1)
+                                    isFirst: index == 0, isLast: index == entries.count - 1, fitsTimes: timed)
                     }
                     .buttonStyle(.plain)
                     .contextMenu {
@@ -307,7 +309,7 @@ private struct UnscheduledList: View {
                     let summary = ItemSummary(item, day: nil, tripZone: plan.timeZone)
                     NavigationLink(value: ItemRoute(tripID: tripID, itemID: item.id, day: nil)) {
                         TimelineRow(summary.timelineContent, state: summary.timelineStatus(at: now),
-                                    isFirst: index == 0, isLast: index == plan.unscheduled.count - 1)
+                                    isFirst: index == 0, isLast: index == plan.unscheduled.count - 1, fitsTimes: false)
                     }
                     .buttonStyle(.plain)
                 }

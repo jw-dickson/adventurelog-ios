@@ -275,15 +275,19 @@ public struct TimelineRow: View {
     private let state: Status
     private let isFirst: Bool
     private let isLast: Bool
+    private let fitsTimes: Bool
     @ScaledMetric(relativeTo: .subheadline) private var timeWidth: CGFloat = 52
     @ScaledMetric(relativeTo: .body) private var iconSize: CGFloat = 28
     @Environment(\.dynamicTypeSize) private var typeSize
 
-    public init(_ content: Content, state: Status, isFirst: Bool = false, isLast: Bool = false) {
+    /// - Parameter fitsTimes: false for a list with no times in it (trip-wide notes), whose time
+    ///   column can then stay narrow; every row of a list passes the same value.
+    public init(_ content: Content, state: Status, isFirst: Bool = false, isLast: Bool = false, fitsTimes: Bool = true) {
         self.content = content
         self.state = state
         self.isFirst = isFirst
         self.isLast = isLast
+        self.fitsTimes = fitsTimes
     }
 
     public var body: some View {
@@ -295,7 +299,7 @@ public struct TimelineRow: View {
         } else {
             HStack(alignment: .top, spacing: ALSpace.space2) {
                 TimeColumn(alignment: .trailing) {
-                    TimeText(content.time, alignment: .trailing)
+                    TimeText(content.time, alignment: .trailing, fitsTimes: fitsTimes)
                         .frame(minWidth: timeWidth, alignment: .trailing)
                         .foregroundStyle(ALColor.ink)
                     if let secondary = content.secondaryTime {
@@ -417,15 +421,18 @@ public struct TimelineRow: View {
 public struct TimeText: View {
     private let text: String?
     private let alignment: Alignment
+    private let fitsTimes: Bool
 
-    public init(_ text: String?, alignment: Alignment = .leading) {
+    /// - Parameter fitsTimes: false to size to the text alone, in a column that holds no times.
+    public init(_ text: String?, alignment: Alignment = .leading, fitsTimes: Bool = true) {
         self.text = text
         self.alignment = alignment
+        self.fitsTimes = fitsTimes
     }
 
     public var body: some View {
         ZStack(alignment: alignment) {
-            ForEach(Self.widestTimes, id: \.self) { Text($0).hidden().accessibilityHidden(true) }
+            ForEach(fitsTimes ? Self.widestTimes : [], id: \.self) { Text($0).hidden().accessibilityHidden(true) }
         }
         .overlay(alignment: alignment) {
             Text(text ?? "").minimumScaleFactor(0.6)
