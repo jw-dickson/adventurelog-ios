@@ -32,7 +32,7 @@ public enum ItemField: String, Codable, Sendable, Hashable, CaseIterable {
         }
     }
 
-    /// Whether the field is stored on a place's visit rather than on the place.
+    /// For a place: whether the field is stored on its visit rather than on the place itself.
     public var isOnVisit: Bool { self == .visitNotes || self == .start || self == .end }
 
     /// How the field is named in the app, for conflicts: "start time", "notes".
@@ -184,7 +184,8 @@ extension TripEdit {
             let changes = ItemField.fields(for: kind).compactMap { field -> FieldChange? in
                 guard let value = values[field], let base = ItemValues.read(field, of: item, visitID: visitID),
                       !value.matches(base) else { return nil }
-                if field.isOnVisit, visitID == nil { return nil }
+                // A place's times and visit notes need its visit; journeys and stays keep theirs on the item.
+                if kind == .location, field.isOnVisit, visitID == nil { return nil }
                 return FieldChange(field: field, base: base, value: value)
             }
             guard !changes.isEmpty else { return nil }
