@@ -9,7 +9,7 @@ A flight's Live Activity knows only what is typed into AdventureLog: the schedul
   - **FlightAware AeroAPI, Personal tier**, as the default suggestion for a self-hoster. It has no monthly minimum and gives a free monthly allowance (up to $5), which a trip's flights stay well inside. Its terms allow personal use, which fits someone running their own companion with their own key.
   - **AeroDataBox** as the alternative. It's cheap, with gate, terminal and revised times in its flight status. Its free tier is for non-commercial use with attribution; paid plans start at a few dollars a month.
 - **Overlay only. Nothing is written back to AdventureLog.** The plan stays the plan (see below).
-- **Only flights in their Live Activity window are looked up** (from three hours before departure until arrival), with a monthly cap.
+- **Only flights in their Live Activity window are looked up** (from three hours before departure until it leaves), with a monthly cap.
 
 ## Providers compared
 
@@ -44,13 +44,12 @@ Cache results by `(provider, flight number, local date)`, so two people on the s
 | --- | --- | --- |
 | 3 h before departure (window opens) | 1 h before | 15 min |
 | 1 h before | estimated departure | 5 min |
-| Departure | estimated arrival | 30 min, to catch a diversion or the landing |
 
-If the answer hasn't changed three times running, double the gap, but never past 15 minutes in the last hour. Stop at landing, or at the activity's end, or when the flight is cancelled. `FLIGHT_STATUS_MONTHLY_LIMIT` (300 by default) caps lookups. At 90% of the cap only the last hour is polled, and at 100% nothing is.
+If the answer hasn't changed three times running, double the gap, but never past 15 minutes in the last hour. Stop at departure (when the activity ends) or when the flight is cancelled. `FLIGHT_STATUS_MONTHLY_LIMIT` (300 by default) caps lookups. At 90% of the cap only the last hour is polled, and at 100% nothing is.
 
-**Volume:** about 8 + 12 + 4 ≈ 24 lookups a flight. A trip with six flights is about 150 lookups.
-- **AeroAPI:** at the $0.005 billed in that forum post, about $0.75, inside the free $5.
-- **AeroDataBox:** the flight-status endpoint's tier isn't stated on its pricing page. At 2 units a lookup it would be about 300 units: inside the free 400 for one trip a month, and comfortably inside Pro.
+**Volume:** about 8 + 12 = 20 lookups a flight, fewer with back-off. A trip with six flights is about 120 lookups.
+- **AeroAPI:** at the $0.005 billed in that forum post, about $0.60, inside the free $5.
+- **AeroDataBox:** the flight-status endpoint's tier isn't stated on its pricing page. At 2 units a lookup it would be about 240 units: inside the free 400 for one trip a month, and comfortably inside Pro.
 
 ### What changes on the Live Activity
 
@@ -64,7 +63,6 @@ If the answer hasn't changed three times running, double the gap, but never past
 | Boarding (AeroDataBox status, or AeroAPI's estimated gate departure under 45 min away) | `phase` boarding | "EX 1501 is boarding" |
 | Cancelled | `phase` cancelled, note "Cancelled" | Yes. The activity stays until the scheduled departure plus an hour, then ends |
 | Departed (actual gate or runway departure) | End | No |
-| Diverted | Note "Diverted to …" until it ends | Yes |
 
 **A change on the phone is needed too.** Today the phone keeps a pushed note but puts back its own times, and it ends the activity at the scheduled departure. With live status it has to keep a pushed later `departure` and `target`, and keep the activity until the pushed departure (`LiveActivityController.show`, and the companion planner's `end`). Without that, a delayed flight's countdown would jump back to the schedule whenever the app opens.
 
@@ -86,7 +84,7 @@ If the answer hasn't changed three times running, double the gap, but never past
 
 ### Testing
 
-- **Recorded answers, never live calls, in CI:** hand-written JSON in each provider's shape for the synthetic trip's flights ("EX 1501", "EX 7"), covering on time, delayed, gate change, boarding, cancelled, diverted and not found.
+- **Recorded answers, never live calls, in CI:** hand-written JSON in each provider's shape for the synthetic trip's flights ("EX 1501", "EX 7"), covering on time, delayed, gate change, boarding, cancelled, departed and not found.
 - **Golden tests:** provider answer → `LiveActivityState`, and the same payloads as `Fixtures/live-activity/` where they overlap.
 - **Budget tests:** the schedule above for a flight produces the expected number of lookups, the cap holds, and no key means no lookups.
 - **On a device:** a test trip with a real flight a few hours out, as for Live Activities in Handoff 7.
@@ -94,6 +92,7 @@ If the answer hasn't changed three times running, double the gap, but never past
 ## Not now
 
 - Pushed alerts from the provider (AeroAPI alerts need the $100 a month tier; AeroDataBox's Flight Alert API needs a public webhook to the companion). Polling inside the window is cheap enough.
+- Anything after departure: the activity ends then, as it does today. Keeping it through the flight (landing time, a diversion, the arrival gate and baggage belt) would need a new in-flight phase on the activity and more lookups; worth a look once the departure side works.
 - Positions in the air (ADS-B), and inbound-aircraft delay prediction.
 - Reading Flighty's calendar events on the phone.
 
