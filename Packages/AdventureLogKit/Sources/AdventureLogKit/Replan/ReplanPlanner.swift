@@ -239,7 +239,7 @@ public enum ReplanPlanner {
             case nil:
                 guard slot.start != slot.stop.start || slot.end != slot.stop.end else { continue }
                 changes.append(.retime(rowID: slot.stop.rowID, start: slot.start, end: slot.end, reason: nil))
-                later.append(slot.stop.title)
+                if slot.start > slot.stop.start { later.append(slot.stop.title) }
                 // The last daylight place of the day is the one to name.
                 if latestEnd(for: slot.stop, situation) < dayEnd(for: slot.stop, situation) { beforeSunset = slot.stop.title }
             }

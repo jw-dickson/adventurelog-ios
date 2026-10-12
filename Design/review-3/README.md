@@ -71,7 +71,8 @@ Actions › ci › Run workflow, choose the branch, and tick "Capture the screen
 
 ```bash
 git fetch origin gallery
-git archive origin/gallery | tar -x -C Design/review-N
+mkdir -p Design/review-N
+git archive origin/gallery | tar -x -C Design/review-N --exclude=README.md
 ```
 
 On a Mac, `make gallery` puts the same screenshots in `build/gallery`.

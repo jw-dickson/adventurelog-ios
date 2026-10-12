@@ -34,7 +34,10 @@ final class GalleryUITests: XCTestCase {
         replan.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
         XCTAssertTrue(app.staticTexts["replan.headline"].waitForExistence(timeout: 5))
         let late = app.buttons["replan.late.45"]
-        if late.exists { late.tap(); sleep(1) } // let the chip's selection settle
+        XCTAssertTrue(late.waitForExistence(timeout: 5), "no recent position in the seed, so the sheet asks how late")
+        late.tap()
+        XCTAssertEqual(app.staticTexts["replan.headline"].label, "You're 45 min behind")
+        sleep(1) // let the chip's selection settle
         keep(app, "08-replan-\(variant)")
         app.buttons["replan.close"].tap()
         XCTAssertTrue(app.staticTexts["replan.headline"].waitForNonExistence(timeout: 5))

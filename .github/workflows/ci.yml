@@ -259,8 +259,8 @@ jobs:
 
       # The same screenshots as PNGs on the `gallery` branch (one commit, replaced each run), so a
       # review can be put together without a Mac. Only the synthetic seed is ever on screen.
+      # Only after the whole gallery passed, so a failed run never replaces a complete gallery.
       - name: Put the screenshots on the gallery branch
-        if: always()
         env:
           GH_TOKEN: ${{ github.token }}
           SOURCE_SHA: ${{ github.sha }}
