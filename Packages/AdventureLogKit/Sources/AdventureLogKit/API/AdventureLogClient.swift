@@ -27,7 +27,9 @@ public final class AdventureLogClient: Sendable {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.httpShouldSetCookies = false
         configuration.httpCookieAcceptPolicy = .never
-        configuration.waitsForConnectivity = false
+        #if !canImport(FoundationNetworking)
+        configuration.waitsForConnectivity = false  // read-only (and always false) on Linux
+        #endif
         configuration.timeoutIntervalForRequest = 30
         return URLSession(configuration: configuration)
     }
