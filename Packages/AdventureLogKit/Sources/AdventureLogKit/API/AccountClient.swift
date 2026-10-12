@@ -1,6 +1,9 @@
 // AdventureLog for iOS — Copyright (C) 2026 the AdventureLog iOS contributors. GPL-3.0-or-later.
 
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking  // URLSession on Linux
+#endif
 
 /// A sign-in method the server offers besides a password: GitHub, or an OpenID Connect provider
 /// such as Authentik (`GET /auth/social-providers/`).

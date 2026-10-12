@@ -1,6 +1,9 @@
 // AdventureLog for iOS — Copyright (C) 2026 the AdventureLog iOS contributors. GPL-3.0-or-later.
 
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking  // URLSession on Linux
+#endif
 
 /// A server message decoded leniently from any of AdventureLog's three error shapes:
 /// `{"detail": "…"}`, `{"error": "…"}`, or DRF validation `{"field": ["…"]}`, where a
