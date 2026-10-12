@@ -204,3 +204,18 @@ def test_describe_tolerates_missing_or_odd_times():
     described = describe({"stops": [{"rowID": "r", "start": "not a time", "zoneID": "Nowhere/Land"}]})
     assert described["stops"][0]["localStart"] is None
     assert described["localNow"] is None
+
+
+def test_more_than_a_day_holds_is_refused_before_claude(tmp_path):
+    seen: list[httpx.Request] = []
+    with client(tmp_path, Claude("sk-test", transport=anthropic(seen))) as api:
+        many = {**SITUATION, "stops": [SITUATION["stops"][0]] * 61}
+        body = {"situation": many, "ask": "Help", "tripDays": []}
+        assert api.post("/v1/replan", json=body, headers={"X-API-Key": KEY}).status_code == 422
+        huge = {**SITUATION, "notes": "x" * 100_001}
+        body = {"situation": huge, "ask": "Help", "tripDays": []}
+        assert api.post("/v1/replan", json=body, headers={"X-API-Key": KEY}).status_code == 422
+        changes = {"changes": [{"type": "keep", "rowID": "r"}] * 41}
+        body = {"situation": SITUATION, "ask": "Help", "proposal": changes, "tripDays": []}
+        assert api.post("/v1/replan", json=body, headers={"X-API-Key": KEY}).status_code == 422
+    assert seen == []

@@ -9,13 +9,14 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import json
 import logging
 import os
 import time
 from typing import Literal
 
 from fastapi import Depends, FastAPI, Header, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from .adventurelog import AdventureLog, AdventureLogError
 from .apns import APNs, APNsConfig
@@ -24,6 +25,11 @@ from .store import Device, Store
 from .worker import tick
 
 log = logging.getLogger("companion")
+
+# Replan asks (Stage 5b): more than any day holds is refused before it reaches Claude.
+MAX_REPLAN_STOPS = 60
+MAX_REPLAN_CHANGES = 40
+MAX_REPLAN_BYTES = 100_000
 
 
 class Settings:
@@ -60,6 +66,29 @@ class ReplanAsk(BaseModel):
     ask: str = Field(max_length=500)
     proposal: dict | None = None
     trip_days: list[str] = Field(default_factory=list, alias="tripDays", max_length=400)
+
+    @field_validator("situation")
+    @classmethod
+    def a_days_worth(cls, situation: dict) -> dict:
+        """No more than a day could hold, since all of it goes to a billed API."""
+        stops = situation.get("stops")
+        if not isinstance(stops, list) or len(stops) > MAX_REPLAN_STOPS:
+            raise ValueError(f"situation.stops must be a list of at most {MAX_REPLAN_STOPS} stops")
+        if len(json.dumps(situation)) > MAX_REPLAN_BYTES:
+            raise ValueError("situation is too large")
+        return situation
+
+    @field_validator("proposal")
+    @classmethod
+    def a_proposals_worth(cls, proposal: dict | None) -> dict | None:
+        if proposal is None:
+            return None
+        changes = proposal.get("changes", [])
+        if not isinstance(changes, list) or len(changes) > MAX_REPLAN_CHANGES:
+            raise ValueError(f"proposal.changes must be a list of at most {MAX_REPLAN_CHANGES} changes")
+        if len(json.dumps(proposal)) > MAX_REPLAN_BYTES:
+            raise ValueError("proposal is too large")
+        return proposal
 
 
 class ActivityToken(BaseModel):
@@ -151,6 +180,9 @@ def create_app(
         if not body.ask.strip():
             raise HTTPException(status_code=400, detail="Say what you'd like changed.")
         now = time.time()
+        # Forget people whose asks are all over an hour old.
+        for who in [who for who, moments in asks.items() if all(now - moment >= 3600 for moment in moments)]:
+            del asks[who]
         recent = [moment for moment in asks.get(user, []) if now - moment < 3600]
         if len(recent) >= settings.replan_asks_per_hour:
             raise HTTPException(status_code=429, detail="That's a lot of asks this hour. Try again later.")

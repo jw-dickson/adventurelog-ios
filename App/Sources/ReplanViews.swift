@@ -175,10 +175,13 @@ struct ReplanSheet: View {
         guard !text.isEmpty, !asking else { return }
         asking = true
         askProblem = nil
+        let sentFor = reported
         Task {
             defer { asking = false }
             do {
                 let proposal = try await model.askReplan(text, situation: situation, current: current, tripID: tripID)
+                // The delay changed while Claude was thinking: that answer is for another situation.
+                guard reported == sentFor else { return }
                 if let problem = ReplanCheck.problems(proposal, situation: situation, tripDays: model.tripDays(tripID)).first {
                     askProblem = "Claude's plan didn't fit: " + problem.message
                 } else {
