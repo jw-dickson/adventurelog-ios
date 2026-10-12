@@ -35,6 +35,8 @@ final class LogUITests: XCTestCase {
         XCTAssertTrue(gpx.waitForExistence(timeout: 5))
 
         // The whole trip, day by day; a day opens its own log.
+        // The swipes above scroll the picker under the header, where isHittable still says yes: go back to the top.
+        app.swipeDown()
         app.segmentedControls["log.scope"].buttons["Trip"].tap()
         let day = app.buttons["log.day.2027-03-08"]
         XCTAssertTrue(day.waitForExistence(timeout: 5))
