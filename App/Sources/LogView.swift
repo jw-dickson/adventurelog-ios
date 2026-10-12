@@ -9,7 +9,8 @@ import UniformTypeIdentifiers
 
 /// The Log tab (Design/review-1, 07): what actually happened against the plan, from the route
 /// this phone recorded. Trip shows every day so far; Today (or a day picked from Trip) shows the
-/// plan item by item. The route stays on the phone; GPX shares it.
+/// plan item by item. The route stays on the phone; GPX shares it. With a companion that has
+/// photos set up, the trip's photos are matched to its stops for Lightroom (Stage 6).
 struct LogView: View {
     enum Scope: Hashable { case trip, day }
 
@@ -136,6 +137,7 @@ private struct LogContent: View {
                     .foregroundStyle(ALColor.inkMuted)
             }
             exportSection(days: [date], hasRoute: !log.points.isEmpty)
+            PhotosSection(tripID: tripID, plan: plan, date: date)
         } else {
             Text("The trip hasn't started yet.")
                 .font(ALFont.subheadline)
@@ -182,6 +184,8 @@ private struct LogContent: View {
             .background(ALColor.surface200, in: RoundedRectangle(cornerRadius: ALRadius.box, style: .continuous))
             exportSection(days: daysSoFar, hasRoute: logs.contains { !$0.points.isEmpty })
         }
+        // Before the trip too, so photos can be turned on ahead of it.
+        PhotosSection(tripID: tripID, plan: plan, date: nil)
     }
 
     @ViewBuilder private func exportSection(days: [CalendarDate], hasRoute: Bool) -> some View {

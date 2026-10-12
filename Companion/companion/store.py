@@ -223,6 +223,15 @@ class Store:
         return [self._photo_trip(r) for r in self.db.execute("select * from photo_trips where enabled = 1")]
 
     def save_photo_trip(self, user_id: str, trip_id: str, enabled: bool, camera_offset_minutes: int) -> PhotoTrip:
+        """Turning a trip back on (off, then on) lets undone photos be matched again, so a day
+        can be redone with a new camera offset. One still waiting to be unlinked in AdventureLog
+        stays until it is."""
+        if enabled and not self.photo_trip(user_id, trip_id).enabled:
+            self.db.execute(
+                """delete from photo_assets where user_id = ? and trip_id = ? and state = 'undone'
+                   and image_id is null""",
+                (user_id, trip_id),
+            )
         self.db.execute(
             """insert into photo_trips (user_id, trip_id, enabled, camera_offset_minutes) values (?, ?, ?, ?)
                on conflict(user_id, trip_id) do update set enabled = excluded.enabled,

@@ -22,7 +22,7 @@ final class GalleryUITests: XCTestCase {
     }
 
     private func capture(variant: String, _ arguments: [String]) throws {
-        let app = try OfflineBrowseUITests.launchOffline(arguments, track: true, photos: true)
+        let app = try OfflineBrowseUITests.launchOffline(arguments, track: true, photos: true, matchedPhotos: true)
 
         XCTAssertTrue(app.staticTexts["today.title"].waitForExistence(timeout: 15))
         XCTAssertTrue(app.staticTexts["today.next.title"].waitForExistence(timeout: 5))
@@ -113,6 +113,20 @@ final class GalleryUITests: XCTestCase {
         app.tabBars.buttons["Log"].tap()
         XCTAssertTrue(app.descendants(matching: .any)["log.done"].waitForExistence(timeout: 10))
         keep(app, "07-log-\(variant)")
+
+        // Photos for Lightroom (Stage 6b), on the whole trip.
+        app.segmentedControls["log.scope"].buttons["Trip"].tap()
+        let photos = app.switches["photos.enabled"]
+        for _ in 0..<6 where !(photos.exists && photos.isHittable) { app.swipeUp() }
+        XCTAssertTrue(photos.waitForExistence(timeout: 5))
+        app.swipeUp()
+        keep(app, "07b-log-photos-\(variant)")
+        let offset = app.buttons["photos.offset"]
+        for _ in 0..<6 where !(offset.exists && offset.isHittable) { app.swipeDown() }
+        offset.tap()
+        XCTAssertTrue(app.steppers["photos.offset.stepper"].waitForExistence(timeout: 5))
+        keep(app, "07c-camera-clock-\(variant)")
+        app.buttons["Cancel"].tap()
 
         app.terminate()
         let signIn = XCUIApplication()

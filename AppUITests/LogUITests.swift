@@ -54,6 +54,52 @@ final class LogUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["trip.map"].waitForExistence(timeout: 10))
     }
 
+    /// Stage 6b: the companion's photo matches show on the Log, a day can be undone, and the
+    /// camera offset and switch reach it (here a stand-in, `AL_SEED_PHOTOS`).
+    func testPhotosMatchedToTheTripCanBeUndone() throws {
+        let app = try OfflineBrowseUITests.launchOffline(matchedPhotos: true)
+        XCTAssertTrue(app.staticTexts["today.title"].waitForExistence(timeout: 15))
+        app.tabBars.buttons["Log"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["log.view"].waitForExistence(timeout: 10))
+        app.segmentedControls["log.scope"].buttons["Trip"].tap()
+
+        let enabled = app.switches["photos.enabled"]
+        for _ in 0..<6 where !(enabled.exists && enabled.isHittable) { app.swipeUp() }
+        XCTAssertTrue(enabled.waitForExistence(timeout: 5))
+        XCTAssertEqual(enabled.value as? String, "1")
+        XCTAssertTrue(element(app, containing: "10 photos matched").exists)
+
+        // Most recent day first, its stops largest first.
+        let today = element(app, containing: "Wineglass Bay Lookout 3 · Sunset cruise 1 · between stops 2")
+        for _ in 0..<4 where !today.exists { app.swipeUp() }
+        XCTAssertTrue(today.exists)
+        XCTAssertTrue(element(app, containing: "4 photos · 1 not written").exists, "the day before")
+
+        let undo = app.buttons["photos.undo.2027-03-08"]
+        for _ in 0..<4 where !undo.isHittable { app.swipeUp() }
+        undo.tap()
+        let confirm = app.buttons["Undo day"].firstMatch
+        XCTAssertTrue(confirm.waitForExistence(timeout: 5))
+        confirm.tap()
+        XCTAssertTrue(element(app, containing: "6 photos put back").waitForExistence(timeout: 5))
+        XCTAssertTrue(element(app, containing: "0 photos · 6 undone").exists)
+        XCTAssertFalse(undo.exists, "nothing left to undo that day")
+
+        // The camera ran three minutes slow.
+        let offset = app.buttons["photos.offset"]
+        for _ in 0..<6 where !(offset.exists && offset.isHittable) { app.swipeDown() }
+        offset.tap()
+        let stepper = app.steppers["photos.offset.stepper"]
+        XCTAssertTrue(stepper.waitForExistence(timeout: 5))
+        for _ in 0..<3 { stepper.buttons.element(boundBy: 1).tap() }
+        app.buttons["photos.offset.save"].tap()
+        XCTAssertTrue(element(app, containing: "3 min slow").waitForExistence(timeout: 5))
+
+        enabled.tap()
+        XCTAssertEqual(enabled.value as? String, "0")
+        XCTAssertFalse(offset.exists, "the offset only shows while photos are on")
+    }
+
     func testTodayAsksOnceBeforeRecording() throws {
         let app = try OfflineBrowseUITests.launchOffline()
         XCTAssertTrue(app.staticTexts["today.title"].waitForExistence(timeout: 15))

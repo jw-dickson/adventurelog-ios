@@ -146,3 +146,112 @@ struct CompanionReplanTests {
         #expect(stops.first?["start"] as? String == "2027-03-08T05:00:00Z")
     }
 }
+
+/// Answers the photo calls like the companion with photos set up (Stage 6).
+private final class PhotosProtocol: URLProtocol, @unchecked Sendable {
+    nonisolated(unsafe) static var seen: [(method: String, path: String, body: [String: Any])] = []
+
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+    override func stopLoading() {}
+
+    static let summary = """
+    {"enabled": true, "cameraOffsetMinutes": 3, "lastRun": "2027-03-24T02:00:00+00:00", "lastError": null,
+     "days": [{"date": "2027-03-08", "photos": 6, "undone": 0, "failed": 1,
+               "stops": [{"title": "Sunset cruise", "photos": 1}, {"title": "", "photos": 2},
+                         {"title": "Wineglass Bay Lookout", "photos": 3}]}]}
+    """
+
+    override func startLoading() {
+        var data = request.httpBody ?? Data()
+        if data.isEmpty, let stream = request.httpBodyStream {
+            stream.open()
+            var buffer = [UInt8](repeating: 0, count: 4096)
+            while stream.hasBytesAvailable {
+                let count = stream.read(&buffer, maxLength: buffer.count)
+                if count <= 0 { break }
+                data.append(buffer, count: count)
+            }
+            stream.close()
+        }
+        let body = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] ?? [:]
+        let path = request.url?.path() ?? ""
+        Self.seen.append((request.httpMethod ?? "", path, body))
+        var status = 200
+        var reply = Self.summary
+        if path.hasPrefix("/v1/trips/missing") {
+            status = 404
+            reply = #"{"detail": "That trip can't be found with this key."}"#
+        } else if path.hasSuffix("/undo") {
+            reply = #"{"restored": 5, "kept": 1, "# + String(Self.summary.dropFirst())
+        }
+        client?.urlProtocol(self, didReceive: HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: nil, headerFields: nil)!,
+                            cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: Data(reply.utf8))
+        client?.urlProtocolDidFinishLoading(self)
+    }
+}
+
+@Suite("Companion photos", .serialized)
+struct CompanionPhotosTests {
+    func client() -> CompanionClient {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [PhotosProtocol.self]
+        return CompanionClient(baseURL: URL(string: "https://companion.example")!, apiKey: "al_synthetic_key",
+                               session: URLSession(configuration: configuration))
+    }
+
+    @Test func readsTheTripsSummary() async throws {
+        PhotosProtocol.seen = []
+        let photos = try await client().photos(tripID: "4b2dbaf2-bdda-4b57-950f-386189c5d813")
+        #expect(PhotosProtocol.seen.first?.path == "/v1/trips/4b2dbaf2-bdda-4b57-950f-386189c5d813/photos")
+        #expect(photos.enabled && photos.cameraOffsetMinutes == 3)
+        let day = try #require(photos.day(CalendarDate("2027-03-08")!))
+        #expect(day.stopsText == "Wineglass Bay Lookout 3 · Sunset cruise 1 · between stops 2")
+        #expect(day.countText == "6 photos · 1 not written")
+        #expect(day.canUndo)
+        #expect(photos.totalPhotos == 6)
+    }
+
+    @Test func turningOnSendsTheOffsetWithinRange() async throws {
+        PhotosProtocol.seen = []
+        _ = try await client().setPhotos(tripID: "trip-1", enabled: true, cameraOffsetMinutes: 5000)
+        let sent = try #require(PhotosProtocol.seen.first)
+        #expect(sent.method == "PUT")
+        #expect(sent.body["enabled"] as? Bool == true)
+        #expect(sent.body["cameraOffsetMinutes"] as? Int == 1440)
+    }
+
+    @Test func undoSendsTheDayAndReadsTheCounts() async throws {
+        PhotosProtocol.seen = []
+        let undo = try await client().undoPhotos(tripID: "trip-1", date: CalendarDate("2027-03-08")!)
+        #expect(PhotosProtocol.seen.first?.path == "/v1/trips/trip-1/photos/undo")
+        #expect(PhotosProtocol.seen.first?.body["date"] as? String == "2027-03-08")
+        #expect(undo.restored == 5 && undo.kept == 1)
+        #expect(undo.photos.days.count == 1)
+    }
+
+    @Test func aTripIDCantReachAnotherPath() async throws {
+        PhotosProtocol.seen = []
+        _ = try? await client().photos(tripID: "../../healthz?x=1")
+        #expect(PhotosProtocol.seen.first?.path == "/v1/trips/healthzx1/photos")
+    }
+
+    @Test func aTripTheKeyCantSeeIsNotFound() async {
+        await #expect(throws: APIError.self) { try await client().photos(tripID: "missing") }
+    }
+
+    @Test func offsetsReadTheWayPeopleSayThem() {
+        #expect(TripPhotos.offsetText(0) == "On time")
+        #expect(TripPhotos.offsetText(3) == "3 min slow")
+        #expect(TripPhotos.offsetText(-65) == "1 h 5 min fast")
+        #expect(TripPhotos.offsetText(120) == "2 h slow")
+    }
+
+    @Test func aDayWithNothingLeftCantBeUndone() {
+        let day = TripPhotos.Day(date: CalendarDate("2027-03-08")!, photos: 0, undone: 4)
+        #expect(!day.canUndo)
+        #expect(day.countText == "0 photos · 4 undone")
+        #expect(day.stopsText.isEmpty)
+    }
+}

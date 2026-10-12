@@ -447,3 +447,25 @@ A build from Xcode registers as `sandbox`, and TestFlight builds as `production`
 Only after 2 passes: point `PHOTO_PATHS` at the library and turn the trip on.
 
 ### Results
+
+## Handoff 13 · Stage 6b, photos on the phone (2026-10-12)
+
+**Branch:** `stage-6b-photos`. **Goal:** the Log tab shows what the companion matched for the trip, and turns it on or off, sets the camera offset, and undoes a day.
+
+### What changed
+
+- **Phone:** a Photos for Lightroom section on the Log tab (Trip shows every day, a day shows itself), shown when the companion says `"photos": true`. `TripPhotos` and the photo calls in `CompanionClient`.
+- **Companion:** turning a trip off and on lets undone photos be matched again.
+
+### 1. Simulator
+
+1. `LogUITests.testPhotosMatchedToTheTripCanBeUndone` runs the section against a stand-in companion (`AL_SEED_PHOTOS`).
+
+### 2. On a phone (TestFlight), with the companion's photos set up
+
+1. Open Log › Trip. Photos for Lightroom should be at the bottom, off. Turn it on.
+2. Within a few minutes (pull to refresh, or leave and come back), the days with photos should list their stops.
+3. Undo a day you're testing with: the sidecars should match their backups, and the count says how many were put back.
+4. Set the camera clock to a few minutes slow, turn photos off and on, and check the day is matched again.
+
+### Results

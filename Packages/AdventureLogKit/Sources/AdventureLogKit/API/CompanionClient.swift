@@ -54,6 +54,8 @@ public struct CompanionClient: Sendable {
         public var pushes: Bool?
         /// Claude is configured for replan asks (Stage 5b).
         public var replan: Bool?
+        /// Immich and the photo library are configured (Stage 6).
+        public var photos: Bool?
     }
 
     public func health() async throws -> Health {
@@ -89,6 +91,13 @@ public struct CompanionClient: Sendable {
         data.map { String(format: "%02x", $0) }.joined()
     }
 
+    private func json(_ method: String, _ path: String, _ body: some Encodable) async throws -> Data {
+        var request = request(method, path, nil)
+        request.httpBody = try JSONEncoder().encode(body)
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        return try await send(request)
+    }
+
     func request(_ method: String, _ path: String, _ body: [String: String]?) -> URLRequest {
         var root = baseURL.absoluteString
         while root.hasSuffix("/") { root.removeLast() }
@@ -114,5 +123,46 @@ public struct CompanionClient: Sendable {
         guard let http = response as? HTTPURLResponse else { throw APIError.transport(code: -1, description: "No HTTP response.") }
         guard (200..<300).contains(http.statusCode) else { throw APIError.from(status: http.statusCode, data: data) }
         return data
+    }
+}
+
+// MARK: Photos to the trip (Stage 6)
+
+extension CompanionClient: TripPhotosService {
+    /// The trip's id goes into the path, so only the characters a UUID can hold.
+    private static func path(_ tripID: String, _ rest: String = "") -> String {
+        let safe = String(tripID.unicodeScalars.filter { CharacterSet.alphanumerics.contains($0) || $0 == "-" })
+        return "v1/trips/\(safe)/photos" + rest
+    }
+
+    public func photos(tripID: String) async throws -> TripPhotos {
+        try Self.decode(try await send(request("GET", Self.path(tripID), nil)))
+    }
+
+    public func setPhotos(tripID: String, enabled: Bool, cameraOffsetMinutes: Int) async throws -> TripPhotos {
+        struct Body: Encodable {
+            let enabled: Bool
+            let cameraOffsetMinutes: Int
+        }
+        let offset = min(max(cameraOffsetMinutes, TripPhotos.offsetRange.lowerBound), TripPhotos.offsetRange.upperBound)
+        return try Self.decode(try await json("PUT", Self.path(tripID), Body(enabled: enabled, cameraOffsetMinutes: offset)))
+    }
+
+    public func undoPhotos(tripID: String, date: CalendarDate) async throws -> TripPhotos.Undo {
+        let data = try await json("POST", Self.path(tripID, "/undo"), ["date": date])
+        struct Counts: Decodable {
+            let restored: Int
+            let kept: Int
+        }
+        let counts: Counts = try Self.decode(data)
+        return TripPhotos.Undo(restored: counts.restored, kept: counts.kept, photos: try Self.decode(data))
+    }
+
+    private static func decode<T: Decodable>(_ data: Data) throws -> T {
+        do {
+            return try JSONDecoder().decode(T.self, from: data)
+        } catch {
+            throw APIError.decoding("The companion's photo summary couldn't be read: \(error.localizedDescription)")
+        }
     }
 }
