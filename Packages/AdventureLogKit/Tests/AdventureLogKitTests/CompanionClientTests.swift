@@ -255,3 +255,40 @@ struct CompanionPhotosTests {
         #expect(day.stopsText.isEmpty)
     }
 }
+
+@Suite("The companion's default address")
+struct CompanionDefaultAddressTests {
+    @Test func sitsBesideTheServer() {
+        #expect(CompanionClient.defaultAddress(forServer: URL(string: "https://trips.example.com")!)?.absoluteString
+                == "https://trips.example.com/companion")
+        #expect(CompanionClient.defaultAddress(forServer: URL(string: "https://example.com/adventurelog/")!)?.absoluteString
+                == "https://example.com/adventurelog/companion")
+        #expect(CompanionClient.defaultAddress(forServer: URL(string: "https://trips.example.com:8443?x=1")!)?.absoluteString
+                == "https://trips.example.com:8443/companion")
+    }
+
+    @Test func neverOverPlainHTTP() {
+        #expect(CompanionClient.defaultAddress(forServer: URL(string: "http://192.0.2.10:8015")!) == nil)
+    }
+
+    @Test func readsWithoutItsScheme() {
+        #expect(CompanionClient.displayAddress(URL(string: "https://trips.example.com/companion/")!) == "trips.example.com/companion")
+    }
+}
+
+@Suite("Companion requests and redirects")
+struct CompanionRedirectTests {
+    @Test func theCompanionsSessionRefusesRedirects() throws {
+        #expect(CompanionClient.session.delegate is NoRedirects)
+        #expect(CompanionClient.session(configuration: .ephemeral).delegate is NoRedirects)
+        let delegate = NoRedirects()
+        let url = try #require(URL(string: "https://trips.example.com/companion/healthz"))
+        let response = try #require(HTTPURLResponse(url: url, statusCode: 302, httpVersion: nil,
+                                                    headerFields: ["Location": "https://sso.example.com/login"]))
+        let login = URLRequest(url: try #require(URL(string: "https://sso.example.com/login")))
+        var followed: URLRequest? = login
+        delegate.urlSession(CompanionClient.session, task: CompanionClient.session.dataTask(with: url),
+                            willPerformHTTPRedirection: response, newRequest: login) { followed = $0 }
+        #expect(followed == nil)
+    }
+}

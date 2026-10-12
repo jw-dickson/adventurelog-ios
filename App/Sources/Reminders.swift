@@ -205,21 +205,21 @@ struct ReminderSettingsView: View {
                 }
                 .listRowBackground(ALColor.surface200)
                 Section {
-                    TextField("Companion address", text: $model.companionAddress, prompt: Text("companion.example.com"))
+                    // Empty uses the companion found beside the server; its address shows as the placeholder.
+                    TextField("Companion address", text: $model.companionAddress,
+                              prompt: Text(model.discoveredCompanion.map(CompanionClient.displayAddress) ?? "companion.example.com"))
                         .textContentType(.URL)
                         .keyboardType(.URL)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .accessibilityIdentifier("reminders.companion")
                     if let status = model.companionStatus {
-                        Label(status, systemImage: status == "Connected" ? "checkmark.circle" : "exclamationmark.triangle")
-                            .font(ALFont.footnote)
-                            .foregroundStyle(status == "Connected" ? ALColor.successText : ALColor.errorText)
+                        CompanionStatusLine(status: status)
                     }
                 } header: {
                     Text("Companion service")
                 } footer: {
-                    Text("Optional. With your self-hosted AdventureLog companion, Live Activities start and end on time without opening the app. It uses this phone's AdventureLog key.")
+                    Text("Optional. With your self-hosted AdventureLog companion, Live Activities start and end on time without opening the app. It uses this phone's AdventureLog key. Leave the address empty to use one served at /companion on your AdventureLog server, if there is one.")
                 }
                 .listRowBackground(ALColor.surface200)
                 if model.remindersEnabled {
@@ -277,6 +277,41 @@ struct ReminderOffer: View {
             }
             .alCard(padding: ALSpace.space4)
             .accessibilityIdentifier("reminders.offer")
+        }
+    }
+}
+
+/// "Connected" with the address in use, a quiet "none found", or what went wrong.
+private struct CompanionStatusLine: View {
+    let status: CompanionStatus
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Label(status.text, systemImage: symbol)
+                .foregroundStyle(colour)
+            if let address = status.address {
+                Text(status.found ? "\(address) · found on your server" : address)
+                    .foregroundStyle(ALColor.inkMuted)
+            }
+        }
+        .font(ALFont.footnote)
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("reminders.companion.status")
+    }
+
+    private var symbol: String {
+        switch status.tone {
+        case .connected: "checkmark.circle"
+        case .quiet: "minus.circle"
+        case .problem: "exclamationmark.triangle"
+        }
+    }
+
+    private var colour: Color {
+        switch status.tone {
+        case .connected: ALColor.successText
+        case .quiet: ALColor.inkMuted
+        case .problem: ALColor.errorText
         }
     }
 }

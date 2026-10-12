@@ -19,7 +19,16 @@ public struct CompanionClient: Sendable {
     private let apiKey: String
     private let session: URLSession
 
-    public init(baseURL: URL, apiKey: String, session: URLSession = .shared) {
+    /// Companion requests carry the API key, and a redirect means "not a companion" (a login page
+    /// behind SSO, say), so they never follow one: a 3xx comes back as an error.
+    public static let session = URLSession(configuration: .default, delegate: NoRedirects(), delegateQueue: nil)
+
+    /// A session for tests: their own configuration, the same no-redirect rule.
+    public static func session(configuration: URLSessionConfiguration) -> URLSession {
+        URLSession(configuration: configuration, delegate: NoRedirects(), delegateQueue: nil)
+    }
+
+    public init(baseURL: URL, apiKey: String, session: URLSession = CompanionClient.session) {
         self.baseURL = baseURL
         self.apiKey = apiKey
         self.session = session
@@ -58,8 +67,35 @@ public struct CompanionClient: Sendable {
         public var photos: Bool?
     }
 
-    public func health() async throws -> Health {
-        try JSONDecoder().decode(Health.self, from: try await send("GET", "healthz", nil))
+    /// - Parameter timeout: short when probing an address that may not have a companion at all.
+    public func health(timeout: TimeInterval? = nil) async throws -> Health {
+        var request = request("GET", "healthz", nil)
+        if let timeout { request.timeoutInterval = timeout }
+        return try JSONDecoder().decode(Health.self, from: try await send(request))
+    }
+
+    /// Where a companion served beside the AdventureLog server would be: `<server>/companion`
+    /// (the reference deployment, behind the same reverse proxy and certificate). Only for HTTPS
+    /// servers, since every companion request carries the API key.
+    public static func defaultAddress(forServer server: URL) -> URL? {
+        guard server.scheme?.lowercased() == "https", var components = URLComponents(url: server, resolvingAgainstBaseURL: false),
+              components.host != nil else { return nil }
+        components.query = nil
+        components.fragment = nil
+        var path = components.path
+        while path.hasSuffix("/") { path.removeLast() }
+        components.path = path + "/companion"
+        return components.url
+    }
+
+    /// "trips.example.com/companion": the address without its scheme, for status lines.
+    public static func displayAddress(_ url: URL) -> String {
+        var text = url.absoluteString
+        for prefix in ["https://", "http://"] where text.lowercased().hasPrefix(prefix) {
+            text.removeFirst(prefix.count)
+        }
+        while text.hasSuffix("/") { text.removeLast() }
+        return text
     }
 
     /// Claude's take on the rest of today, from what the person asked. The answer is only data
@@ -164,5 +200,13 @@ extension CompanionClient: TripPhotosService {
         } catch {
             throw APIError.decoding("The companion's photo summary couldn't be read: \(error.localizedDescription)")
         }
+    }
+}
+
+/// Refuses every redirect, so the 3xx itself is the answer.
+final class NoRedirects: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
+    func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
+                    newRequest request: URLRequest, completionHandler: @escaping (URLRequest?) -> Void) {
+        completionHandler(nil)
     }
 }
