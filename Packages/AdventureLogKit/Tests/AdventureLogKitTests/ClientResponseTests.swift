@@ -189,6 +189,8 @@ struct ClientResponseTests {
         defer { session.invalidateAndCancel() }
         #expect(!session.configuration.httpShouldSetCookies)
         #expect(session.configuration.httpCookieAcceptPolicy == .never)
-        #expect(!session.configuration.waitsForConnectivity)
+        #if !canImport(FoundationNetworking)
+        #expect(!session.configuration.waitsForConnectivity)  // Darwin only
+        #endif
     }
 }

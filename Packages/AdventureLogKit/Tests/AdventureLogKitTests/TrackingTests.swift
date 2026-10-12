@@ -1,6 +1,9 @@
 // AdventureLog for iOS — Copyright (C) 2026 the AdventureLog iOS contributors. GPL-3.0-or-later.
 
 import Foundation
+#if canImport(FoundationXML)
+import FoundationXML  // XMLParser on Linux
+#endif
 import Testing
 @testable import AdventureLogKit
 
