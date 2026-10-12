@@ -1,6 +1,9 @@
 // AdventureLog for iOS — Copyright (C) 2026 the AdventureLog iOS contributors. GPL-3.0-or-later.
 
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking  // URLSession on Linux
+#endif
 
 /// The self-hosted companion service (`Companion/` in this repository), which sends Live Activity
 /// pushes. It authenticates the phone with the same AdventureLog API key the app uses.

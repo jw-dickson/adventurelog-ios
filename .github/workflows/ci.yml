@@ -52,6 +52,32 @@ jobs:
           python3 scripts/ci-annotate.py build/packages.log $([ $status -ne 0 ] && echo --tail)
           exit $status
 
+  # AdventureLogKit is Foundation only, so it also builds and tests on Linux: minutes sooner
+  # than a macOS runner, and it keeps the Kit free of Apple-only APIs. ALStore (Keychain) and
+  # ALDesign (SwiftUI) stay macOS-only.
+  kit-linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container: swift:6.1-noble
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Toolchain
+        run: swift --version
+      - name: Kit tests on Linux
+        working-directory: Packages/AdventureLogKit
+        shell: bash
+        run: |
+          mkdir -p ../../build
+          set +e
+          swift test 2>&1 | tee ../../build/kit-linux.log
+          status=${PIPESTATUS[0]}
+          if command -v python3 >/dev/null; then
+            python3 ../../scripts/ci-annotate.py ../../build/kit-linux.log $([ $status -ne 0 ] && echo --tail)
+          fi
+          exit $status
+
   # The companion service (Python), on Linux: quick, so it runs every time.
   companion:
     runs-on: ubuntu-latest

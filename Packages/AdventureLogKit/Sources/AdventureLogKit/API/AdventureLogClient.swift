@@ -1,6 +1,9 @@
 // AdventureLog for iOS — Copyright (C) 2026 the AdventureLog iOS contributors. GPL-3.0-or-later.
 
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking  // URLSession on Linux
+#endif
 
 /// A thin, typed client for one AdventureLog server, authenticated with an API key.
 ///
