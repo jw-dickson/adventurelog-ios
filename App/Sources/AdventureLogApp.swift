@@ -78,6 +78,8 @@ struct MainView: View {
                 await model.refreshOpenTrip()
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: NotificationPresenter.openReplan)) { _ in openPendingReplan() }
+        .onAppear { openPendingReplan() }
         .onChange(of: scenePhase) { _, phase in
             switch phase {
             case .active: model.becameActive()
@@ -90,5 +92,14 @@ struct MainView: View {
         } message: {
             Text(model.signOutError ?? "")
         }
+    }
+
+    /// The replan notification was tapped: Today, on that trip, with the sheet open.
+    private func openPendingReplan() {
+        guard let tripID = NotificationPresenter.pendingReplan else { return }
+        NotificationPresenter.pendingReplan = nil
+        model.selectedTripID = tripID
+        model.replanRequest = tripID
+        tab = .today
     }
 }

@@ -196,7 +196,10 @@ final class AppModel {
         }
         tracker.onPoints = { [weak self] points in self?.recorded(points) }
         tracker.onEvent = { [weak self] event in self?.recorded(event) }
-        tracker.onTick = { [weak self] in self?.checkTrackingDay() }
+        tracker.onTick = { [weak self] in
+            self?.checkTrackingDay()
+            self?.considerReplanNotice()
+        }
     }
 
     /// Real storage, or throwaway storage when UI tests ask for a clean start.
@@ -390,6 +393,9 @@ final class AppModel {
         skipped = [:]
         selectedTripID = nil
         tripListSavedAt = nil
+        replanRequest = nil
+        replanNoticeKey = nil
+        lastReplanNotice = nil
     }
 
     // MARK: Trip list
@@ -604,6 +610,79 @@ final class AppModel {
         saveDeviceState()
         scheduleReminderUpdate()
         if tripID == trackedTripID { updateTracking() }
+    }
+
+    // MARK: Replan (Stage 5)
+
+    /// Behind by this much while recording, Today suggests a replan (and a notification does, in the background).
+    static let replanNudgeMinutes = 30
+    /// A trip whose replan sheet should open, from the notification.
+    var replanRequest: String?
+    /// The stop the last replan notification was about, so each late stop notifies once.
+    private var replanNoticeKey: String?
+    private var lastReplanNotice: Date?
+    private var lastReplanCheck = Date.distantPast
+
+    /// The rest of today for a replan: from the last recorded position when recording, else from
+    /// how late the person says they are.
+    func replanSituation(tripID: String, reportedDelay: Int? = nil) -> Replan.Situation? {
+        guard let plan = trips[tripID]?.plan else { return nil }
+        let recording = tripID == trackedTripID
+        let log = recording ? dayLog(tripID: tripID, date: today) : nil
+        let last = recording ? (tracker.buffered.last ?? trackPoints[tripID]?.last) : nil
+        return .current(plan: plan, today: today, now: now, skipped: skipped[tripID] ?? [], log: log,
+                        lastPoint: last, reportedDelay: reportedDelay)
+    }
+
+    func tripDays(_ tripID: String) -> Set<CalendarDate> {
+        Set(trips[tripID]?.plan.days.map(\.date) ?? [])
+    }
+
+    /// Minutes behind, while recording, when it's worth suggesting a replan.
+    func replanNudge(tripID: String) -> Int? {
+        guard tripID == trackedTripID, tracker.isRunning, let situation = replanSituation(tripID: tripID),
+              situation.position != nil, situation.delayMinutes >= Self.replanNudgeMinutes,
+              ReplanPlanner.propose(situation).changesSomething
+        else { return nil }
+        return situation.delayMinutes
+    }
+
+    /// Saves a proposal's changes as ordinary edits: new times, moves to another day, skips and notes.
+    func applyReplan(_ proposal: Replan.Proposal, tripID: String) {
+        guard let plan = trips[tripID]?.plan else { return }
+        for action in ReplanApply.actions(for: proposal, plan: plan, today: today) {
+            switch action {
+            case .retime(let item, let start, let end):
+                editItem(item, values: [.start: .time(start), .end: .time(end)], tripID: tripID)
+            case .move(let entry, let item, let date, let index, let start, let end):
+                editItem(item, values: [.start: .time(start), .end: .time(end)], tripID: tripID)
+                move(entry, to: date, at: index, tripID: tripID)
+            case .skip(let rowID):
+                setSkipped(true, rowID: rowID, tripID: tripID)
+            case .addNote(let title, let content, let date):
+                addNote(name: title, content: content, date: date, tripID: tripID)
+            }
+        }
+    }
+
+    /// While recording in the background: once per late stop, at most every 90 minutes, a
+    /// notification that opens the replan. Checked at most once a minute.
+    private func considerReplanNotice() {
+        guard let id = trackedTripID, now.timeIntervalSince(lastReplanCheck) >= 60 else { return }
+        lastReplanCheck = now
+        guard [.authorized, .provisional].contains(reminderPermission),
+              UIApplication.shared.applicationState != .active,
+              let situation = replanSituation(tripID: id), situation.position != nil,
+              situation.delayMinutes >= Self.replanNudgeMinutes, let target = situation.stops.first,
+              ReplanPlanner.propose(situation).changesSomething
+        else { return }
+        let key = id + "/" + target.rowID
+        guard key != replanNoticeKey else { return }
+        if let last = lastReplanNotice, now.timeIntervalSince(last) < 90 * 60 { return }
+        replanNoticeKey = key
+        lastReplanNotice = now
+        let behind = situation.delayMinutes
+        Task { await reminderScheduler.notifyReplan(tripID: id, behindMinutes: behind, nextTitle: target.title) }
     }
 
     // MARK: Reminders

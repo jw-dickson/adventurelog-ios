@@ -80,6 +80,7 @@ private struct TodayContent: View {
     let today: TodayPlan
     @Environment(AppModel.self) private var model
     @State private var moving: TripPlan.Entry?
+    @State private var replanning = false
 
     var body: some View {
         ScrollView {
@@ -89,6 +90,7 @@ private struct TodayContent: View {
                     .foregroundStyle(ALColor.inkMuted)
                     .accessibilityIdentifier("today.trip")
                 DayHeader(today: today)
+                ReplanNudge(tripID: tripID) { replanning = true }
                 if let next = today.next {
                     NextCard(tripID: tripID, today: today, next: next)
                 }
@@ -124,6 +126,20 @@ private struct TodayContent: View {
         }
         .sheet(item: $moving) { entry in
             MoveToDaySheet(tripID: tripID, entry: entry)
+        }
+        .sheet(isPresented: $replanning) {
+            ReplanSheet(tripID: tripID)
+        }
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button("Replan today", systemImage: "wand.and.stars") { replanning = true }
+                    .accessibilityIdentifier("today.replan")
+            }
+        }
+        .onChange(of: model.replanRequest, initial: true) { _, request in
+            guard request == tripID else { return }
+            model.replanRequest = nil
+            replanning = true
         }
         .accessibilityIdentifier("today.view")
     }
