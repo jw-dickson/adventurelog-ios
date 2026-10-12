@@ -9,7 +9,7 @@ A flight's Live Activity knows only what is typed into AdventureLog: the schedul
   - **FlightAware AeroAPI, Personal tier**, as the default suggestion for a self-hoster. It has no monthly minimum and gives a free monthly allowance (up to $5), which a trip's flights stay well inside. Its terms allow personal use, which fits someone running their own companion with their own key.
   - **AeroDataBox** as the alternative. It's cheap, with gate, terminal and revised times in its flight status. Its free tier is for non-commercial use with attribution; paid plans start at a few dollars a month.
 - **Overlay only. Nothing is written back to AdventureLog.** The plan stays the plan (see below).
-- **Only flights in their Live Activity window are looked up** (from three hours before departure until it leaves), with a monthly cap.
+- **Only flights in their Live Activity window are looked up** (from three hours before departure until it leaves), under monthly and daily caps.
 
 ## Providers compared
 
