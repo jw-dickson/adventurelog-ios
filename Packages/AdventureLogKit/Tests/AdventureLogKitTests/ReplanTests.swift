@@ -314,6 +314,79 @@ struct ReplanTests {
         #expect(stops.allSatisfy { !$0.isBooked })
     }
 
+    @Test func theSituationComesFromThePlanAndTheLastPosition() throws {
+        let plan = TripPlan(try Fixture.trip(), fallbackTimeZone: hobart)
+        // 18:40 at the lookout; the cruise (18:30) is a 10-minute drive away.
+        let point = TrackPoint(time: time(18, 38), latitude: -42.15, longitude: 148.29)
+        let s = try #require(Replan.Situation.current(plan: plan, today: day, now: time(18, 40), lastPoint: point))
+        #expect(s.stops.map(\.title) == ["Sunset cruise"])
+        #expect(s.delayMinutes == 20)
+        #expect(s.position != nil)
+        #expect(s.nextDay?.date == nextDate)
+
+        // A position from half an hour ago says nothing; what the person says counts instead.
+        let stale = TrackPoint(time: time(18, 10), latitude: -42.15, longitude: 148.29)
+        #expect(Replan.Situation.current(plan: plan, today: day, now: time(18, 40), lastPoint: stale)?.delayMinutes == 0)
+        let told = try #require(Replan.Situation.current(plan: plan, today: day, now: time(18, 40), lastPoint: point, reportedDelay: 45))
+        #expect(told.delayMinutes == 45)
+        #expect(told.position == nil)
+    }
+
+    @Test func atAStopYouAreThereUntilItEnds() throws {
+        let plan = TripPlan(try Fixture.trip(), fallbackTimeZone: hobart)
+        let today = try #require(TodayPlan(plan: plan, today: day, now: time(19, 0)))
+        let cruise = try #require(today.entries.first { $0.summary.title == "Sunset cruise" })
+        let at = try #require(cruise.summary.coordinate)
+        // On the cruise at 19:00: nothing timed is left after it today.
+        let point = TrackPoint(time: time(18, 59), latitude: at.latitude, longitude: at.longitude)
+        #expect(Replan.Situation.current(plan: plan, today: day, now: time(19, 0), lastPoint: point) == nil)
+    }
+
+    @Test func linesReadLikeTheMockup() throws {
+        let s = situation(afternoon, delay: 48, nextDay: nextDay)
+        let proposal = Replan.Proposal(behindMinutes: 48, summary: "", changes: [
+            .keep(rowID: "row-tour"),
+            .move(rowID: "row-walk", date: nextDate, start: time(8, 0, on: nextDate), end: time(9, 0, on: nextDate), reason: "Before Drive to Bicheno"),
+            .retime(rowID: "row-lookout", start: time(19, 0), end: time(19, 30), reason: nil),
+            .retime(rowID: "row-bay", start: time(18, 45), end: time(19, 30), reason: "More light"),
+            .skip(rowID: "row-nope", reason: nil),
+            .add(title: "Dinner at the campsite", content: "", date: day, reason: "Rest before the tour"),
+        ])
+        let lines = ReplanText.lines(proposal, situation: s, locale: Locale(identifier: "en_GB"))
+        #expect(lines.map(\.detail) == [
+            "Booked · stays at 21:00",
+            "Moved to tomorrow 08:00, before Drive to Bicheno",
+            "60 → 30 min · 19:00–19:30",
+            "18:30 → 18:45 · More light",
+            "New · Today · Rest before the tour",
+        ], "an unknown row is left out")
+        #expect(lines.map(\.mark) == [.locked, .moved, .shortened, .moved, .added])
+    }
+
+    @Test func applyingTurnsChangesIntoEdits() throws {
+        let plan = TripPlan(try Fixture.trip(), fallbackTimeZone: hobart)
+        let today = try #require(TodayPlan(plan: plan, today: day, now: time(10, 0)))
+        let cruise = try #require(today.entries.first { $0.summary.title == "Sunset cruise" })
+        let lookout = try #require(today.entries.first { $0.summary.title == "Wineglass Bay Lookout" })
+        let proposal = Replan.Proposal(behindMinutes: 30, summary: "", changes: [
+            .retime(rowID: cruise.rowID, start: time(19, 0), end: time(21, 0), reason: nil),
+            .move(rowID: lookout.rowID, date: nextDate, start: time(8, 0, on: nextDate), end: time(9, 0, on: nextDate), reason: nil),
+            .skip(rowID: "row-gone", reason: nil),
+            .add(title: "Dinner", content: "", date: day, reason: nil),
+        ])
+        let actions = ReplanApply.actions(for: proposal, plan: plan, today: day)
+        #expect(actions.count == 3, "a row that isn't on today is left out")
+        #expect(actions[0] == .retime(item: cruise.entry.item, start: time(19, 0), end: time(21, 0)))
+        guard case .move(let entry, _, let date, let index, let start, _) = actions[1] else {
+            Issue.record("expected a move")
+            return
+        }
+        #expect(entry.row.id == lookout.rowID && date == nextDate && start == time(8, 0, on: nextDate))
+        let tomorrow = try #require(plan.day(for: nextDate))
+        #expect(index >= 0 && index <= tomorrow.entries.count)
+        #expect(actions[2] == .addNote(title: "Dinner", content: "", date: day))
+    }
+
     // MARK: Sun
 
     @Test func sunsetAtFreycinetInMarch() throws {
