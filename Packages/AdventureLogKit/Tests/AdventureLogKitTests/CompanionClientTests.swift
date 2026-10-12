@@ -73,3 +73,76 @@ struct CompanionClientTests {
         }
     }
 }
+
+/// Answers health and replan asks like the companion with Claude set up (Stage 5b).
+private final class ReplanProtocol: URLProtocol, @unchecked Sendable {
+    nonisolated(unsafe) static var lastBody: [String: Any] = [:]
+
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+    override func stopLoading() {}
+
+    override func startLoading() {
+        var data = request.httpBody ?? Data()
+        if data.isEmpty, let stream = request.httpBodyStream {
+            stream.open()
+            var buffer = [UInt8](repeating: 0, count: 4096)
+            while stream.hasBytesAvailable {
+                let count = stream.read(&buffer, maxLength: buffer.count)
+                if count <= 0 { break }
+                data.append(buffer, count: count)
+            }
+            stream.close()
+        }
+        Self.lastBody = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] ?? [:]
+        let reply: String
+        switch request.url?.path() {
+        case "/healthz": reply = #"{"ok": true, "pushes": false, "replan": true}"#
+        default:
+            reply = """
+            {"behindMinutes": 48, "summary": "Keeps the tour.", "source": "claude",
+             "changes": [{"type": "keep", "rowID": "row-tour"}, {"type": "skip", "rowID": "row-walk", "reason": "Rain"}]}
+            """
+        }
+        client?.urlProtocol(self, didReceive: HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!,
+                            cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: Data(reply.utf8))
+        client?.urlProtocolDidFinishLoading(self)
+    }
+}
+
+@Suite("Companion replan asks", .serialized)
+struct CompanionReplanTests {
+    func client() -> CompanionClient {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [ReplanProtocol.self]
+        return CompanionClient(baseURL: URL(string: "https://companion.example")!, apiKey: "al_synthetic_key",
+                               session: URLSession(configuration: configuration))
+    }
+
+    @Test func healthSaysWhetherClaudeIsSetUp() async throws {
+        #expect(try await client().health() == CompanionClient.Health(ok: true, pushes: false, replan: true))
+    }
+
+    @Test func anAskSendsTheDayWithISOTimesAndReturnsClaudesProposal() async throws {
+        let hobart = TimeZone(identifier: "Australia/Hobart")!
+        let day = CalendarDate("2027-03-08")!
+        let start = ISO8601.parse("2027-03-08T05:00:00Z")!
+        let stop = Replan.Stop(rowID: "row-walk", itemID: "walk", title: "Cape Tourville walk", kind: .location, start: start,
+                               end: start.addingTimeInterval(3600), zone: hobart, isBooked: false, coordinate: nil)
+        let situation = Replan.Situation(date: day, now: start.addingTimeInterval(48 * 60), stops: [stop], delayMinutes: 48, zone: hobart)
+        let proposal = try await client().replan(situation: situation, ask: "It's raining", proposal: nil,
+                                                 tripDays: [day, day.adding(days: 1)])
+        #expect(proposal.source == .claude)
+        #expect(proposal.changes == [.keep(rowID: "row-tour"), .skip(rowID: "row-walk", reason: "Rain")])
+
+        let body = ReplanProtocol.lastBody
+        #expect(body["ask"] as? String == "It's raining")
+        #expect(body["tripDays"] as? [String] == ["2027-03-08", "2027-03-09"])
+        let sent = try #require(body["situation"] as? [String: Any])
+        #expect(sent["now"] as? String == "2027-03-08T05:48:00Z", "times go as ISO-8601, as the companion reads them")
+        #expect(sent["zoneID"] as? String == "Australia/Hobart")
+        let stops = try #require(sent["stops"] as? [[String: Any]])
+        #expect(stops.first?["start"] as? String == "2027-03-08T05:00:00Z")
+    }
+}

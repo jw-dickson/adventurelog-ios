@@ -398,6 +398,7 @@ final class AppModel {
         replanRequest = nil
         replanNoticeKey = nil
         lastReplanNotice = nil
+        companionCanReplan = false
     }
 
     // MARK: Trip list
@@ -651,6 +652,15 @@ final class AppModel {
         return situation.delayMinutes
     }
 
+    /// The companion has Claude set up, so the replan sheet offers "Ask for a different plan" (Stage 5b).
+    private(set) var companionCanReplan = false
+
+    /// Claude's take on the rest of today, through the companion. Checked by the sheet before it's shown.
+    func askReplan(_ ask: String, situation: Replan.Situation, current: Replan.Proposal, tripID: String) async throws -> Replan.Proposal {
+        guard let companion = registeredCompanion ?? self.companion else { throw APIError.transport(code: -1, description: "No companion is set up.") }
+        return try await companion.replan(situation: situation, ask: ask, proposal: current, tripDays: tripDays(tripID).sorted())
+    }
+
     /// Checks a proposal against today as it is now and, if it still passes, saves its changes as
     /// ordinary edits: new times, moves to another day, skips and notes. The sheet may have been
     /// open a while, so the clock or the trip can have moved on since it was shown.
@@ -787,6 +797,7 @@ final class AppModel {
         guard let companion else {
             let address = companionAddress.trimmingCharacters(in: .whitespacesAndNewlines)
             companionStatus = address.isEmpty || credentials == nil ? nil : "Use an https:// address."
+            companionCanReplan = false
             return
         }
         let started = session
@@ -805,6 +816,11 @@ final class AppModel {
             if let sending { registeredStartToken = sending }
             // An older companion doesn't say; a newer one says whether it can start activities.
             companionStatus = canStart == false ? "Connected · activities start when you open the app" : "Connected"
+            // Whether replan asks can go to Claude (Stage 5b); an older companion doesn't say.
+            let health = try? await companion.health()
+            if session == started, self.companion?.baseURL == companion.baseURL {
+                companionCanReplan = health?.replan == true
+            }
             await sendPendingActivityTokens()
             // A newer token arrived while this was in flight (or this older request finished last):
             // register again so the companion ends up with the newest one.
@@ -812,6 +828,7 @@ final class AppModel {
         } catch {
             guard session == started else { return }
             companionStatus = Self.describe(error)
+            companionCanReplan = false
         }
     }
 

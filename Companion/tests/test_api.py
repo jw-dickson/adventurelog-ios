@@ -49,4 +49,4 @@ def test_activity_tokens_and_unregistering(tmp_path):
 
 def test_health_says_whether_pushes_are_configured(tmp_path):
     with client(tmp_path) as api:
-        assert api.get("/healthz").json() == {"ok": True, "pushes": False}
+        assert api.get("/healthz").json() == {"ok": True, "pushes": False, "replan": False}

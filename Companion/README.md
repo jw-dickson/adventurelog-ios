@@ -23,7 +23,8 @@ separate accounts, and it keeps the key to read that person's trips.
 | `POST /v1/devices` | Registers the phone: `{"environment": "production" or "sandbox", "startToken": "…"}`. The start token is the app's Live Activity push-to-start token. Answers `{"id", "canStart"}`: `canStart` says whether it holds a start token, so it can start activities while the app is closed. A registration without a token keeps the one already held. |
 | `PUT /v1/activities` | Gives the companion a running activity's push token: `{"tripID", "rowID", "pushToken"}`. |
 | `DELETE /v1/devices` | Unregisters the phone (the app does this on sign-out). |
-| `GET /healthz` | `{"ok": true, "pushes": true}` when APNs is configured. |
+| `POST /v1/replan` | Optional (Stage 5b): the replan sheet's "Ask for a different plan". Body: `{"situation", "ask", "proposal", "tripDays"}`, the phone's `Replan.Situation` and proposal with times as ISO-8601. Answers a proposal in the same format, from Claude, which the phone checks before showing. `503` when Claude isn't set up, `429` past the hourly limit, `502` when Claude fails. |
+| `GET /healthz` | `{"ok": true, "pushes": true, "replan": true}`: `pushes` when APNs is configured, `replan` when Claude is. |
 
 Push payloads match `Fixtures/live-activity/` at the repository root: `content-state` is the app's
 `LiveActivityState`, with times in Unix seconds.
@@ -58,8 +59,14 @@ volumes:
 | `ADVENTURELOG_URL` | The AdventureLog server whose keys it accepts and whose trips it reads. It needs to reach `/api/` and `/auth/` with an API key. |
 | `APNS_KEY_PATH`, `APNS_KEY_ID`, `APNS_TEAM_ID` | An APNs auth key (`.p8`) from the Apple Developer account. Without them it runs but sends nothing. |
 | `APNS_BUNDLE_ID` | The app's bundle id; pushes go to `<bundle id>.push-type.liveactivity`. |
+| `ANTHROPIC_API_KEY` | Optional. With it, replan asks go to Claude (Anthropic's API, billed to this key). Without it the phone hides the ask box; its own replan works either way. |
+| `ANTHROPIC_MODEL` | Optional; the default is `claude-sonnet-5-5`. |
+| `COMPANION_REPLAN_ASKS_PER_HOUR` | Optional; asks allowed per person per hour, 20 by default. |
 | `COMPANION_DB` | The SQLite file, `/data/companion.sqlite` by default. It holds each phone's API key: keep the volume private. |
 | `COMPANION_POLL_SECONDS` | How often it checks, 300 by default. |
+
+Replan asks send Anthropic the rest of that day's plan (titles, times, places, which items are
+booked) and the words typed. Nothing about the ask is stored on the companion.
 
 Builds from Xcode push through Apple's sandbox, and TestFlight and App Store builds through
 production. The app says which when it registers.
