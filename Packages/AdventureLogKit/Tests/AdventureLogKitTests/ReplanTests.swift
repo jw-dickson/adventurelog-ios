@@ -94,6 +94,14 @@ struct ReplanTests {
         #expect(check(proposal, s).isEmpty)
     }
 
+    @Test func anEveningPlaceThatOnlyMovesLaterStillSaysSo() {
+        // Nothing booked, and the cruise ends after dark anyway: the sentence names what moves.
+        let s = situation([place("cruise", "Sunset cruise", (18, 30), (20, 30), at: honeymoon)], delay: 45)
+        let proposal = ReplanPlanner.propose(s)
+        #expect(times(proposal, "row-cruise")?.start == time(19, 15))
+        #expect(proposal.summary == "Sunset cruise starts later.")
+    }
+
     @Test func theMockupDayKeepsTheTourAndDaylight() throws {
         // 48 minutes behind at the walk: the tour is booked, Honeymoon Bay was planned for daylight.
         let s = situation(afternoon, delay: 48, nextDay: nextDay)

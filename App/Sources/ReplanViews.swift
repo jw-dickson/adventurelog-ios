@@ -10,6 +10,7 @@ struct ReplanSheet: View {
     let tripID: String
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var typeSize
     /// How late the person says they are, when the phone isn't recording.
     @State private var reported: Int?
     /// Claude's proposal from the last ask (Stage 5b), shown instead of the phone's while it passes the check.
@@ -100,22 +101,27 @@ struct ReplanSheet: View {
                     }
                     .overlay(alignment: .top) { Divider().overlay(ALColor.hairline) }
                 }
-                HStack(spacing: ALSpace.space3) {
-                    Button("Apply changes") {
+                // Side by side and the same width; one under the other at the largest text sizes.
+                let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: ALSpace.space3))
+                                                          : AnyLayout(HStackLayout(spacing: ALSpace.space3))
+                layout {
+                    Button {
                         if let problem = model.applyReplan(proposal, tripID: tripID, reportedDelay: reported).first {
                             applyProblem = problem.message + " Here's the plan for now."
                         } else {
                             dismiss()
                         }
+                    } label: {
+                        Text("Apply changes").frame(maxWidth: .infinity)
                     }
                     .buttonStyle(ALButtonStyle(.primary))
-                    .frame(maxWidth: .infinity)
                     .disabled(!proposal.changesSomething || !problems.isEmpty)
                     .accessibilityIdentifier("replan.apply")
-                    Button("Not now") { dismiss() }
-                        .buttonStyle(ALButtonStyle(.secondary))
-                        .frame(maxWidth: .infinity)
-                        .accessibilityIdentifier("replan.notNow")
+                    Button { dismiss() } label: {
+                        Text("Not now").frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(ALButtonStyle(.secondary))
+                    .accessibilityIdentifier("replan.notNow")
                 }
                 .padding(.top, ALSpace.space2)
                 if let applyProblem {

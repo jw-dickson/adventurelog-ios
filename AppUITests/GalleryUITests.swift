@@ -34,7 +34,7 @@ final class GalleryUITests: XCTestCase {
         replan.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
         XCTAssertTrue(app.staticTexts["replan.headline"].waitForExistence(timeout: 5))
         let late = app.buttons["replan.late.45"]
-        if late.exists { late.tap() }
+        if late.exists { late.tap(); sleep(1) } // let the chip's selection settle
         keep(app, "08-replan-\(variant)")
         app.buttons["replan.close"].tap()
         XCTAssertTrue(app.staticTexts["replan.headline"].waitForNonExistence(timeout: 5))
@@ -66,10 +66,12 @@ final class GalleryUITests: XCTestCase {
         app.buttons["Cancel"].tap()
         XCTAssertTrue(app.textViews["quickNote.text"].waitForNonExistence(timeout: 5))
         app.buttons["item.edit"].tap()
-        XCTAssertTrue(app.textFields["edit.name"].waitForExistence(timeout: 5))
+        // A text view at the largest text sizes, where the name wraps.
+        let name = app.descendants(matching: .any)["edit.name"].firstMatch
+        XCTAssertTrue(name.waitForExistence(timeout: 5))
         keep(app, "e04-edit-place-\(variant)")
         app.buttons["Cancel"].tap()
-        XCTAssertTrue(app.textFields["edit.name"].waitForNonExistence(timeout: 5))
+        XCTAssertTrue(name.waitForNonExistence(timeout: 5))
         app.navigationBars.buttons.element(boundBy: 0).tap()
 
         // A new note on the day, from the add menu.

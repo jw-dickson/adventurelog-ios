@@ -18,6 +18,7 @@ struct ItemEditor: View {
     let tripID: String
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var typeSize
     @State private var values: [ItemField: FieldValue]
     @State private var confirmingRemove = false
     private let original: [ItemField: FieldValue]
@@ -60,7 +61,8 @@ struct ItemEditor: View {
         NavigationStack {
             Form {
                 Section {
-                    TextField("Name", text: text(.name))
+                    // At the largest text sizes a long name wraps instead of being cut short; it stays one line.
+                    TextField("Name", text: oneLine(text(.name)), axis: typeSize.isAccessibilitySize ? .vertical : .horizontal)
                         .font(ALFont.body)
                         .accessibilityIdentifier("edit.name")
                 }
@@ -169,20 +171,37 @@ struct ItemEditor: View {
 
     @ViewBuilder private func timeRow(_ label: String, field: ItemField, zone: TimeZone, code: String?) -> some View {
         if let date = values[field]?.time {
-            DatePicker(selection: timeBinding(field), displayedComponents: summary.isAllDay ? [.date] : [.date, .hourAndMinute]) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(label).font(ALFont.body)
-                    if kind == .transportation {
-                        Text([code, zone.abbreviation(for: date)].compactMap { $0 }.joined(separator: " · "))
-                            .font(ALFont.footnote)
-                            .foregroundStyle(ALColor.inkMuted)
+            let components: DatePickerComponents = summary.isAllDay ? [.date] : [.date, .hourAndMinute]
+            let title = VStack(alignment: .leading, spacing: 2) {
+                Text(label).font(ALFont.body)
+                if kind == .transportation {
+                    Text([code, zone.abbreviation(for: date)].compactMap { $0 }.joined(separator: " · "))
+                        .font(ALFont.footnote)
+                        .foregroundStyle(ALColor.inkMuted)
+                }
+            }
+            Group {
+                if typeSize.isAccessibilitySize {
+                    // At the largest text sizes the label goes above the date and time, so it isn't
+                    // broken into pieces beside them.
+                    VStack(alignment: .leading, spacing: ALSpace.space2) {
+                        title
+                        DatePicker(label, selection: timeBinding(field), displayedComponents: components)
+                            .labelsHidden()
                     }
+                } else {
+                    DatePicker(selection: timeBinding(field), displayedComponents: components) { title }
                 }
             }
             // All-day values are UTC midnight on their date; everything else is shown in its zone.
             .environment(\.timeZone, summary.isAllDay ? TimeZone(identifier: "UTC")! : zone)
             .accessibilityIdentifier(field == .start ? "edit.start" : "edit.end")
         }
+    }
+
+    /// A field's text kept to one line: a return typed in a wrapping field is dropped.
+    private func oneLine(_ binding: Binding<String>) -> Binding<String> {
+        Binding(get: { binding.wrappedValue }, set: { binding.wrappedValue = $0.filter { !$0.isNewline } })
     }
 
     @ViewBuilder private var detailsSection: some View {
@@ -306,6 +325,7 @@ struct QuickNoteSheet: View {
                 Text("Added under the notes with the time, \(TripTime.shortTime(model.now, in: zone)). Saved on this phone first.")
                     .font(ALFont.footnote)
                     .foregroundStyle(ALColor.inkMuted)
+                    .fixedSize(horizontal: false, vertical: true) // the field gives way, not this line
                 Spacer(minLength: 0)
             }
             .padding(ALSpace.space4)

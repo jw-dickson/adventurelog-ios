@@ -245,20 +245,20 @@ private struct LogRowView: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: ALSpace.space3) {
-            VStack(alignment: .leading, spacing: 2) {
-                if let actual = row.actualStart {
-                    Text(TripTime.shortTime(actual, in: row.zone))
-                        .font(ALFont.time)
-                        .foregroundStyle(ALColor.ink)
-                }
+            // Wide enough for any time this locale writes, so "10:58 AM" isn't wrapped or cut.
+            TimeColumn(alignment: .leading) {
+                TimeText(row.actualStart.map { TripTime.shortTime($0, in: row.zone) })
+                    .foregroundStyle(ALColor.ink)
                 if let planned = row.plannedStart, showsPlanned(planned) {
                     Text(TripTime.shortTime(planned, in: row.zone))
                         .font(ALFont.footnote)
                         .strikethrough(row.actualStart != nil)
                         .foregroundStyle(ALColor.inkMuted)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                        .padding(.top, 2)
                 }
             }
-            .frame(width: 56, alignment: .leading)
             VStack(alignment: .leading, spacing: 2) {
                 Text(row.title)
                     .font(ALFont.headline)
