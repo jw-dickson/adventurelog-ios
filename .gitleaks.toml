@@ -1,0 +1,10 @@
+# Secret scanning (CI job `privacy`): gitleaks' default rules, plus one exception.
+[extend]
+useDefault = true
+
+# AdventureLog shows only the first dozen characters of an API key (`key_prefix`); the fixtures
+# hold one from a disposable server. A whole key is longer and is still caught.
+[allowlist]
+description = "AdventureLog API-key prefixes"
+regexTarget = "secret"
+regexes = ['''^al_[A-Za-z0-9]{6,12}$''']

@@ -29,6 +29,15 @@ BASE_URL=http://127.0.0.1:8000 API_KEY=al_… python3 Fixtures/adventurelog-v0.1
 AL_TEST_SERVER=http://127.0.0.1:8000 AL_TEST_API_KEY=al_… make test-ui
 ```
 
+## Checks in CI
+
+Every pull request runs, besides the tests:
+
+- **Swift warnings as errors**: in the package tests (`make test-packages SWIFT_FLAGS="-Xswiftc -warnings-as-errors"`) and the Simulator build. Local and TestFlight builds keep warnings as warnings, so a newer Xcode can't block a release.
+- **ruff** on the companion: `cd Companion && ruff check . && ruff format --check .` (settings in `Companion/pyproject.toml`).
+- **gitleaks** over the whole history, with gitleaks' default rules plus `.gitleaks.toml`.
+- **A private denylist** (`scripts/privacy-scan.py`): fails if the tree, a pull request's commits (messages and added lines), its title or its body mention an entry. The list is the `PRIVACY_DENYLIST` repository secret (Settings › Secrets and variables › Actions): one entry per line, matched without regard to case; `re:` starts a regular expression and `#` a comment. Put in real names, your domain and hostnames, your team id and bundle id, and real trip places. Leave out your GitHub handle and the name you commit under: they are public anyway, and in every commit. The log shows only where a match is and the entry's number, never the entry. Without the secret (forks, or not set up yet) the step notes that and passes. To run it locally: `PRIVACY_DENYLIST="$(cat my-list)" python3 scripts/privacy-scan.py`.
+
 ## Layout
 
 | Path | What |
