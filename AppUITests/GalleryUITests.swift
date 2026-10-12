@@ -58,7 +58,8 @@ final class GalleryUITests: XCTestCase {
 
         // The travel day: Denver → Los Angeles → Sydney, with the clock changes on the timeline.
         showDay(app, "2027-03-05", from: "2027-03-08")
-        XCTAssertTrue(app.descendants(matching: .any)["timeline.zoneShift"].firstMatch.waitForExistence(timeout: 5))
+        let clock = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", "clocks go")).firstMatch
+        XCTAssertTrue(clock.waitForExistence(timeout: 5))
         keep(app, "03c-travel-day-\(variant)")
         showDay(app, "2027-03-08", from: "2027-03-05")
 

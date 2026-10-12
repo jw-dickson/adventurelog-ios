@@ -277,6 +277,7 @@ public struct TimelineRow: View {
     private let isLast: Bool
     private let fitsTimes: Bool
     private let thumbnail: AnyView?
+    private let clockNote: String?
     @ScaledMetric(relativeTo: .subheadline) private var timeWidth: CGFloat = 52
     @ScaledMetric(relativeTo: .body) private var thumbnailSize: CGFloat = 56
     @ScaledMetric(relativeTo: .body) private var iconSize: CGFloat = 28
@@ -287,20 +288,23 @@ public struct TimelineRow: View {
     ///     then stay narrow; every row of a list passes the same value.
     ///   - thumbnail: the item's photo, filled into a rounded square at the card's trailing edge
     ///     (a strip across the top at the accessibility sizes). Nil for items without one.
+    ///   - clockNote: where the clock changes after this item ("Now on Sydney time · clocks go
+    ///     forward 19 h"), shown under the card on the rail, before the next row.
     public init(_ content: Content, state: Status, isFirst: Bool = false, isLast: Bool = false, fitsTimes: Bool = true,
-                thumbnail: AnyView? = nil) {
+                thumbnail: AnyView? = nil, clockNote: String? = nil) {
         self.content = content
         self.state = state
         self.isFirst = isFirst
         self.isLast = isLast
         self.fitsTimes = fitsTimes
         self.thumbnail = thumbnail
+        self.clockNote = clockNote
     }
 
     public var body: some View {
         if typeSize.isAccessibilitySize {
             // At the largest sizes the time moves into the card so titles keep their width.
-            card(showTime: true)
+            cardAndNote(showTime: true)
                 .padding(.bottom, ALSpace.space2)
                 .accessibilityElement(children: .combine)
         } else {
@@ -321,7 +325,7 @@ public struct TimelineRow: View {
 
                 rail.frame(width: 20)
 
-                card(showTime: false).padding(.bottom, ALSpace.space2)
+                cardAndNote(showTime: false).padding(.bottom, ALSpace.space2)
             }
             .accessibilityElement(children: .combine)
         }
@@ -353,6 +357,20 @@ public struct TimelineRow: View {
             Circle().fill(ALColor.surface100).frame(width: 12, height: 12).overlay(Circle().strokeBorder(ALColor.hairline, lineWidth: 2))
         case .planned:
             Circle().fill(ALColor.surface100).frame(width: 12, height: 12).overlay(Circle().strokeBorder(ALColor.primary, lineWidth: 2))
+        }
+    }
+
+    private func cardAndNote(showTime: Bool) -> some View {
+        VStack(alignment: .leading, spacing: ALSpace.space2) {
+            card(showTime: showTime)
+            if let clockNote {
+                Label(clockNote, systemImage: "clock.arrow.2.circlepath")
+                    .font(ALFont.footnote)
+                    .foregroundStyle(ALColor.secondaryText)
+                    .padding(.horizontal, ALSpace.space3)
+                    .padding(.vertical, ALSpace.space1)
+                    .background(ALColor.surface200, in: Capsule())
+            }
         }
     }
 
@@ -442,60 +460,6 @@ public struct TimelineRow: View {
         .padding()
     }
     .background(ALColor.surface100)
-}
-
-/// A line in a timeline where the clock changes ("Now on Sydney time · clocks go forward 19 h"),
-/// on the rail between the rows it separates, so a shift in times reads as a shift in zone.
-public struct ZoneShiftRow: View {
-    private let text: String
-    private let fitsTimes: Bool
-    private let continuesRail: Bool
-    @ScaledMetric(relativeTo: .subheadline) private var timeWidth: CGFloat = 52
-    @Environment(\.dynamicTypeSize) private var typeSize
-
-    /// - Parameters:
-    ///   - fitsTimes: the same value the list's rows pass, so the rail lines up.
-    ///   - continuesRail: false after the list's last row, where the rail has ended.
-    public init(_ text: String, fitsTimes: Bool = true, continuesRail: Bool = true) {
-        self.text = text
-        self.fitsTimes = fitsTimes
-        self.continuesRail = continuesRail
-    }
-
-    public var body: some View {
-        if typeSize.isAccessibilitySize {
-            label.padding(.bottom, ALSpace.space2)
-        } else {
-            HStack(alignment: .center, spacing: ALSpace.space2) {
-                // Measured the way TimelineRow measures its time column, so the rails line up.
-                TimeColumn(alignment: .trailing) {
-                    TimeText(nil, alignment: .trailing, fitsTimes: fitsTimes)
-                        .frame(minWidth: timeWidth, alignment: .trailing)
-                }
-                .accessibilityHidden(true)
-                Rectangle()
-                    .fill(ALColor.hairline)
-                    .frame(width: 2)
-                    .frame(maxHeight: .infinity)
-                    .frame(width: 20)
-                    .opacity(continuesRail ? 1 : 0)
-                label
-                    .padding(.top, ALSpace.space1)
-                    .padding(.bottom, ALSpace.space3)
-            }
-        }
-    }
-
-    private var label: some View {
-        Label(text, systemImage: "clock.arrow.2.circlepath")
-            .font(ALFont.footnote)
-            .foregroundStyle(ALColor.secondaryText)
-            .padding(.horizontal, ALSpace.space3)
-            .padding(.vertical, ALSpace.space1)
-            .background(ALColor.surface200, in: Capsule())
-            .accessibilityElement(children: .combine)
-            .accessibilityIdentifier("timeline.zoneShift")
-    }
 }
 
 /// A time in a column of times: as wide as the widest time this locale writes ("10:58 PM" or

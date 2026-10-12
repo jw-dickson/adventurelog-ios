@@ -26,6 +26,12 @@ struct ZoneShiftTests {
         #expect(pacific.before == nil, "it leaves from where the last flight landed")
         #expect(pacific.within?.minutes == 19 * 60)
         #expect(pacific.within?.text == "Now on Sydney time · clocks go forward 19 h")
+
+        // As notes under each row: one under each flight.
+        let notes = ZoneShift.notes(summaries)
+        let titled = Dictionary(zip(summaries.map(\.title), notes), uniquingKeysWith: { first, _ in first })
+        #expect(titled["Example Air EX 101 DEN → LAX"] == "Now on Los Angeles time · clocks go back 1 h")
+        #expect(titled["Example Air EX 7 LAX → SYD"] == "Now on Sydney time · clocks go forward 19 h")
     }
 
     @Test func sameClockDifferentPlaceIsNoChange() throws {

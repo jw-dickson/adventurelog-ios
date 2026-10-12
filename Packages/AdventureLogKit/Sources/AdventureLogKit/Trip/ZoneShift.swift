@@ -50,4 +50,15 @@ public struct ZoneShift: Sendable, Hashable {
             return (before, within)
         }
     }
+
+    /// The same changes as notes under each item: what changes during it, then what changes
+    /// before the next one. Nil where the clock stays put.
+    public static func notes(_ items: [ItemSummary]) -> [String?] {
+        let all = marks(items)
+        return all.indices.map { index in
+            let next = index + 1 < all.count ? all[index + 1].before : nil
+            let lines = [all[index].within, next].compactMap { $0?.text }
+            return lines.isEmpty ? nil : lines.joined(separator: "\n")
+        }
+    }
 }
