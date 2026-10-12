@@ -10,25 +10,43 @@ import SwiftUI
 // asks for a day to be undone. Nothing here touches a photo itself.
 
 extension AppModel {
-    // Each call notes the session and companion it asked; a reply that comes back after
-    // sign-out or a new companion address is dropped rather than shown for the wrong account.
+    /// Which request a reply belongs to: the session and companion it asked, and the trip's
+    /// photo revision when it was sent.
+    private struct PhotoRequest: Equatable {
+        let source: String
+        let revision: Int
+    }
+
+    /// Starts a request for the trip: anything still in flight for it is now out of date.
+    private func beginPhotoRequest(_ tripID: String) -> PhotoRequest? {
+        guard let source = photoSourceKey else { return nil }
+        let revision = (tripPhotosRevision[tripID] ?? 0) + 1
+        tripPhotosRevision[tripID] = revision
+        return PhotoRequest(source: source, revision: revision)
+    }
+
+    /// Its reply is used only if nothing newer was asked since, in the same session, of the
+    /// same companion: not after sign-out, a new address, or a later change on this trip.
+    private func isCurrent(_ request: PhotoRequest, _ tripID: String) -> Bool {
+        photoSourceKey == request.source && tripPhotosRevision[tripID] == request.revision
+    }
 
     func loadTripPhotos(_ tripID: String) async {
-        guard let service = photoService, let key = photoSourceKey else { return }
+        guard let service = photoService, let request = beginPhotoRequest(tripID) else { return }
         do {
             let photos = try await service.photos(tripID: tripID)
-            guard photoSourceKey == key else { return }
+            guard isCurrent(request, tripID) else { return }
             tripPhotos[tripID] = photos
             tripPhotosProblem[tripID] = nil
         } catch {
-            guard photoSourceKey == key else { return }
+            guard isCurrent(request, tripID) else { return }
             tripPhotosProblem[tripID] = Self.photoProblem(error)
         }
     }
 
     /// Shown at once, sent after; put back if the companion refuses.
     func setTripPhotos(_ tripID: String, enabled: Bool, cameraOffsetMinutes: Int) async {
-        guard let service = photoService, let key = photoSourceKey else { return }
+        guard let service = photoService, let request = beginPhotoRequest(tripID) else { return }
         let before = tripPhotos[tripID]
         var shown = before ?? TripPhotos(enabled: enabled)
         shown.enabled = enabled
@@ -36,26 +54,29 @@ extension AppModel {
         tripPhotos[tripID] = shown
         do {
             let photos = try await service.setPhotos(tripID: tripID, enabled: enabled, cameraOffsetMinutes: cameraOffsetMinutes)
-            guard photoSourceKey == key else { return }
+            guard isCurrent(request, tripID) else { return }
             tripPhotos[tripID] = photos
             tripPhotosProblem[tripID] = nil
         } catch {
-            guard photoSourceKey == key else { return }
+            guard isCurrent(request, tripID) else { return }
             tripPhotos[tripID] = before
             tripPhotosProblem[tripID] = Self.photoProblem(error)
         }
     }
 
+    /// The undo's counts come back even if a newer request has since replaced the summary.
     func undoTripPhotos(_ tripID: String, date: CalendarDate) async -> TripPhotos.Undo? {
-        guard let service = photoService, let key = photoSourceKey else { return nil }
+        guard let service = photoService, let request = beginPhotoRequest(tripID) else { return nil }
         do {
             let undo = try await service.undoPhotos(tripID: tripID, date: date)
-            guard photoSourceKey == key else { return nil }
-            tripPhotos[tripID] = undo.photos
-            tripPhotosProblem[tripID] = nil
+            guard photoSourceKey == request.source else { return nil }
+            if isCurrent(request, tripID) {
+                tripPhotos[tripID] = undo.photos
+                tripPhotosProblem[tripID] = nil
+            }
             return undo
         } catch {
-            guard photoSourceKey == key else { return nil }
+            guard isCurrent(request, tripID) else { return nil }
             tripPhotosProblem[tripID] = Self.photoProblem(error)
             return nil
         }

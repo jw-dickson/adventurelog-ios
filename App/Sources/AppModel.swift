@@ -112,6 +112,8 @@ final class AppModel {
     var companionAddress: String {
         didSet {
             defaults.set(companionAddress, forKey: Keys.companionAddress)
+            // No photo calls to the old address while the new one connects; it says again if it can.
+            companionCanPhoto = false
             // A moment after the typing stops, not on every keystroke.
             companionTask?.cancel()
             companionTask = Task { [weak self] in
@@ -683,6 +685,8 @@ final class AppModel {
     var tripPhotos: [String: TripPhotos] = [:]
     /// Why a trip's photos couldn't be read or changed, by trip.
     var tripPhotosProblem: [String: String] = [:]
+    /// Bumped by every photo request for a trip, so only the newest one's reply is shown.
+    var tripPhotosRevision: [String: Int] = [:]
     /// A stand-in for the companion in UI tests (`AL_SEED_PHOTOS`).
     var seededPhotos: (any TripPhotosService)?
 
