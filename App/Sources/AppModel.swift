@@ -152,7 +152,7 @@ final class AppModel {
 
     // Tracking: only on the days of a trip the person agreed to; the log never leaves the phone.
     let tracks: TrackStore
-    let tracker = LocationTracker()
+    let tracker: LocationTracker
     /// Trips whose route the person agreed to log, and trips they said no to.
     private(set) var trackingAllowed: Set<String> = []
     private(set) var trackingDeclined: Set<String> = []
@@ -181,6 +181,8 @@ final class AppModel {
         self.images = images
         self.deviceState = deviceState
         self.defaults = defaults
+        // Its crash-loop mark lives in the same defaults, so a UI test's launch never inherits an earlier one's.
+        self.tracker = LocationTracker(defaults: defaults)
         self.pinnedNow = now
         self.remindersEnabled = defaults.bool(forKey: Keys.remindersEnabled)
         self.reminderOfferDismissed = defaults.bool(forKey: Keys.reminderOfferDismissed)
