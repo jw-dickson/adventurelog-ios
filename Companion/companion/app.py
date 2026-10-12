@@ -13,14 +13,19 @@ import json
 import logging
 import os
 import time
+import uuid
+from datetime import date
 from typing import Literal
 
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException, Path
 from pydantic import BaseModel, Field, field_validator
 
+from . import photo_worker
 from .adventurelog import AdventureLog, AdventureLogError
 from .apns import APNs, APNsConfig
 from .claude import DEFAULT_MODEL, Claude, ClaudeError
+from .immich import Immich, ImmichError
+from .photo_worker import PhotoSettings
 from .store import Device, Store
 from .worker import tick
 
@@ -44,6 +49,8 @@ class Settings:
         self.anthropic_api_key = env.get("ANTHROPIC_API_KEY") or None
         self.anthropic_model = env.get("ANTHROPIC_MODEL") or DEFAULT_MODEL
         self.replan_asks_per_hour = int(env.get("COMPANION_REPLAN_ASKS_PER_HOUR", "20"))
+        # Optional (Stage 6): photos to the trip, with Immich and the Lightroom library mounted.
+        self.photos = PhotoSettings.from_env(env)
         key_path = env.get("APNS_KEY_PATH")
         self.apns = None
         if key_path and env.get("APNS_KEY_ID") and env.get("APNS_TEAM_ID") and env.get("APNS_BUNDLE_ID"):
@@ -91,6 +98,16 @@ class ReplanAsk(BaseModel):
         return proposal
 
 
+class PhotoSetting(BaseModel):
+    enabled: bool
+    # A camera clock that drifted: minutes to add to its times (positive when it ran slow).
+    camera_offset_minutes: int = Field(default=0, alias="cameraOffsetMinutes", ge=-1440, le=1440)
+
+
+class PhotoUndo(BaseModel):
+    day: date = Field(alias="date")
+
+
 class ActivityToken(BaseModel):
     trip_id: str = Field(alias="tripID")
     row_id: str = Field(alias="rowID")
@@ -103,6 +120,7 @@ def create_app(
     apns: APNs | None = None,
     run_worker: bool = True,
     claude: Claude | None = None,
+    immich: Immich | None = None,
 ) -> FastAPI:
     settings = settings or Settings()
     store = Store(settings.database)
@@ -111,6 +129,9 @@ def create_app(
         apns = APNs(settings.apns)
     if claude is None and settings.anthropic_api_key:
         claude = Claude(settings.anthropic_api_key, settings.anthropic_model)
+    photo_settings = settings.photos
+    if immich is None and photo_settings:
+        immich = Immich(photo_settings.immich_url, photo_settings.immich_api_key)
     verified: dict[str, tuple[str, float]] = {}
     # Replan asks per user in the last hour, so a stuck phone can't run up the Claude bill.
     asks: dict[str, list[float]] = {}
@@ -121,6 +142,11 @@ def create_app(
                 await tick(store, adventurelog, apns)
             except Exception:  # keep polling whatever one pass hits
                 log.exception("poll failed")
+            if photo_settings and immich:
+                try:
+                    await photo_worker.run(store, adventurelog, immich, photo_settings)
+                except Exception:
+                    log.exception("photo pass failed")
             await asyncio.sleep(settings.poll_seconds)
 
     @contextlib.asynccontextmanager
@@ -134,6 +160,7 @@ def create_app(
 
     app = FastAPI(title="AdventureLog companion", lifespan=lifespan)
     app.state.store = store
+    app.state.photo_settings = photo_settings
 
     async def user_for(x_api_key: str = Header(...)) -> str:
         """The AdventureLog user the key belongs to, checked at most every ten minutes."""
@@ -160,7 +187,12 @@ def create_app(
 
     @app.get("/healthz")
     async def health():
-        return {"ok": True, "pushes": apns is not None, "replan": claude is not None}
+        return {
+            "ok": True,
+            "pushes": apns is not None,
+            "replan": claude is not None,
+            "photos": photo_settings is not None,
+        }
 
     @app.post("/v1/devices")
     async def register(body: Registration, x_api_key: str = Header(...), user: str = Depends(user_for)):
@@ -191,6 +223,53 @@ def create_app(
             return await claude.replan(body.situation, body.ask.strip(), body.proposal, body.trip_days)
         except ClaudeError as error:
             raise HTTPException(status_code=502, detail=str(error)) from error
+
+    async def trip_for(
+        trip_id: str = Path(...), x_api_key: str = Header(...), user: str = Depends(user_for)
+    ) -> tuple[str, str]:
+        """(person, trip) once AdventureLog confirms the key can see the trip."""
+        try:
+            trip_id = str(uuid.UUID(trip_id))
+        except ValueError as error:
+            raise HTTPException(status_code=404, detail="There's no such trip.") from error
+        try:
+            await adventurelog.trip(x_api_key, trip_id)
+        except AdventureLogError as error:
+            raise HTTPException(status_code=404, detail="That trip can't be found with this key.") from error
+        return user, trip_id
+
+    def photos_ready() -> PhotoSettings:
+        if photo_settings is None or immich is None:
+            raise HTTPException(status_code=503, detail="Photos aren't set up on this companion.")
+        return photo_settings
+
+    @app.get("/v1/trips/{trip_id}/photos")
+    async def trip_photos(owner: tuple[str, str] = Depends(trip_for), _ready: PhotoSettings = Depends(photos_ready)):
+        """The trip's photo setting and what's been matched, day by day (Stage 6)."""
+        return photo_worker.summary(store, *owner)
+
+    @app.put("/v1/trips/{trip_id}/photos")
+    async def set_trip_photos(
+        body: PhotoSetting,
+        owner: tuple[str, str] = Depends(trip_for),
+        _ready: PhotoSettings = Depends(photos_ready),
+    ):
+        store.save_photo_trip(*owner, body.enabled, body.camera_offset_minutes)
+        return photo_worker.summary(store, *owner)
+
+    @app.post("/v1/trips/{trip_id}/photos/undo")
+    async def undo_trip_photos(
+        body: PhotoUndo,
+        owner: tuple[str, str] = Depends(trip_for),
+        ready: PhotoSettings = Depends(photos_ready),
+    ):
+        """Puts back a day's sidecars and unlinks its photos. The day's photos aren't matched
+        again unless the trip is turned off and on."""
+        try:
+            result = await photo_worker.undo_day(*owner, body.day.isoformat(), store, adventurelog, immich, ready)
+        except (ImmichError, OSError) as error:
+            raise HTTPException(status_code=502, detail=str(error)) from error
+        return {**result, **photo_worker.summary(store, *owner)}
 
     @app.put("/v1/activities", status_code=204)
     async def activity_token(body: ActivityToken, device: Device = Depends(device_for)):

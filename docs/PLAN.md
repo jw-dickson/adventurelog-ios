@@ -13,8 +13,8 @@ The app is built in stages. Each ends in something that runs in the Simulator an
 | **3 · Reminders and tracking** *(3a reminders, 3b tracking)* | Leave-by and heads-up reminders, rolling geofence window, background tracking, stop detection, plan vs actual on the phone (server write-back decided later), GPX capture, the Log tab | A replayed drive fires the right reminders in the trip's zone and detects the planned stops |
 | **4 · Companion service and Live Activities** *(optional module)* | Self-hosted companion: device registration, APNs, track ingest, fixed/flexible flags; Live Activities for connections and booked tours | `simctl push` payloads render every state; a server push reaches a TestFlight build |
 | **5 · Replan assistant** *(optional module; 5a on the phone, 5b asks through the companion)* | Proposes a revised day around booked items; the user accepts, edits or dismisses | Golden scenarios produce valid proposals; a UI test accepts one end to end |
-| **Design review 3, freeze** *([`Design/review-3`](../Design/review-3/README.md), waiting for sign-off)* | Full-app review | Fixes only after this point |
-| **6 · Photo export** *(optional module)* | Per-day GPX and XMP keywords for Lightroom Classic | Round-trip on a sample catalogue |
+| **Design review 3, freeze** ✅ *([`Design/review-3`](../Design/review-3/README.md))* | Full-app review | Signed off 12 Oct 2026; fixes only after this point |
+| **6 · Photos to the trip** *(optional module; 6a in the companion, 6b on the phone)* | Raw photos in Immich matched to the trip's stops; keywords, place and position written into their XMP sidecars for Lightroom Classic and Immich; a trip album and a few photos on each place in AdventureLog; undo by day | A pass over a sample library keeps Lightroom's edits, adds the keywords once, and undoes cleanly |
 
 ## How Stage 2 syncs
 
@@ -96,6 +96,17 @@ The phone works out a revised rest-of-today itself, with no network (`AdventureL
 - **The check** (`ReplanCheck`): every row must be one of today's remaining stops, once; nothing booked changes; a journey keeps its length and isn't moved or left out; ends come after starts; nothing starts in the past; new times stay on today and end by 23:00 (unless the plan already ran later); moves and new notes go to later trip days; and nothing it changes newly overlaps something else, apart from the booked item the proposal says you'll be late for.
 - **Asking Claude (5b):** when the companion has an Anthropic key (`GET /healthz` says `"replan": true`), the sheet has "Ask for a different plan…". The phone sends the companion the rest of today (its `Replan.Situation`), its own proposal, the trip's days and the words typed; the companion asks Claude, which must answer through a tool in the proposal format. The phone shows Claude's plan, marked "Suggested by Claude", only while it passes `ReplanCheck` against the latest situation, and the person can go back to the phone's plan. The companion allows 20 asks per person per hour and stores nothing about them.
 - **The sheet** (Design/review-1, 08): how far behind you are, a sentence on what it keeps, booked items first with a lock, then each change ("60 → 30 min", "18:30 → 19:15", "Moved to tomorrow 08:00", "Left out today"). **Apply changes** saves them as ordinary edits through the outbox (new times, a move to the other day, a skip, a note), so they work offline and sync like any other edit.
+
+## How Stage 6 matches photos
+
+The photos go camera → Lightroom (cloud while travelling, then Lightroom Classic at home) → a library that Immich also reads. The companion works on that library through Immich, so it needs no part in the upload.
+
+- **When a photo was taken:** the camera stays on home time. A raw file's EXIF usually has no zone, so its clock is read in the companion's `CAMERA_ZONE`, plus the trip's camera offset for a clock that drifted. A photo with a zone in its EXIF uses that.
+- **Where:** a place during its visit, a journey while under way, a stay only in the two hours after check-in and before check-out, 15 minutes either side. A place beats a journey, and anything beats a stay. Other photos in the trip's dates belong to the day, which is the local date at the nearest stop. Hires and passes longer than a day aren't stops.
+- **What's written** (`companion/photos.py`): keywords (`dc:subject`), a keyword path `Trips|<trip>|<date · day name>|<stop>` (`lr:hierarchicalSubject`, and `digiKam:TagsList` for Immich), and the place's name, city, region, country and position where the file has none. The sidecar is Lightroom's `IMG.xmp`, plus Immich's `IMG.ARW.xmp` if one exists. Everything else in the file is kept, including the develop settings.
+- **Safety** (`companion/photo_worker.py`): a copy of each sidecar before it's first changed, whole-file replacement, nothing outside the mapped folders or behind a symlink, and nothing written to a file that isn't XMP. Undo puts a day back, apart from files changed since.
+- **Lightroom Classic** only takes the keywords when asked (Read Metadata from Files), which replaces its catalogue's metadata with the file's. With "Automatically write changes into XMP" on, or Save Metadata to Files first, the files already hold the current edits. The companion README walks through it.
+- **6b, on the phone:** a Photos section on the Log tab with each day's matches and Undo, and the trip's switch and camera offset.
 
 ## Testing without a device
 

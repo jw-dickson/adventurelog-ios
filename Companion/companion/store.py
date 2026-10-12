@@ -1,5 +1,5 @@
 # AdventureLog for iOS — Copyright (C) 2026 the AdventureLog iOS contributors. GPL-3.0-or-later.
-"""Registered phones and their Live Activities, in one SQLite file.
+"""Registered phones, their Live Activities and the photos matched to trips, in one SQLite file.
 
 The file holds each phone's AdventureLog API key (the companion polls with it), so keep it on a
 volume only the companion can read. Signing out on the phone unregisters it.
@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import sqlite3
 import uuid
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 
 SCHEMA = """
@@ -31,6 +31,42 @@ create table if not exists activities (
     last_state text,
     ended integer not null default 0,
     primary key (device_id, trip_id, row_id)
+);
+-- Photos to the trip (Stage 6). Per person, not per phone: the photos are theirs.
+create table if not exists photo_trips (
+    user_id text not null,
+    trip_id text not null,
+    enabled integer not null default 0,
+    camera_offset_minutes integer not null default 0,
+    album_id text,
+    last_run text,
+    last_error text,
+    primary key (user_id, trip_id)
+);
+create table if not exists photo_assets (
+    user_id text not null,
+    trip_id text not null,
+    asset_id text not null,
+    taken_at text not null,
+    day text not null,
+    stop_id text,
+    stop_kind text,
+    stop_title text,
+    image_id text,           -- the AdventureLog image linking it to the stop, if one was made
+    state text not null,     -- done, undone, failed, unmatched
+    detail text,
+    primary key (user_id, trip_id, asset_id)
+);
+-- Every sidecar written, with a copy of what was there before (null: there was no file), and a
+-- hash of what was written, so undo can tell whether Lightroom has changed it since.
+create table if not exists photo_sidecars (
+    user_id text not null,
+    trip_id text not null,
+    asset_id text not null,
+    path text not null,
+    backup text,
+    written_hash text not null,
+    primary key (user_id, trip_id, asset_id, path)
 );
 """
 
@@ -57,6 +93,32 @@ class Activity:
     @property
     def key(self) -> tuple[str, str]:
         return (self.trip_id, self.row_id)
+
+
+@dataclass
+class PhotoTrip:
+    user_id: str
+    trip_id: str
+    enabled: bool
+    camera_offset_minutes: int
+    album_id: str | None
+    last_run: str | None
+    last_error: str | None
+
+
+@dataclass
+class PhotoAsset:
+    user_id: str
+    trip_id: str
+    asset_id: str
+    taken_at: str
+    day: str
+    stop_id: str | None
+    stop_kind: str | None
+    stop_title: str | None
+    image_id: str | None
+    state: str
+    detail: str | None
 
 
 class Store:
@@ -143,6 +205,93 @@ class Store:
             (activity.device_id, activity.trip_id, activity.row_id),
         )
         self.db.commit()
+
+    # Photos (Stage 6)
+
+    def api_key_for(self, user_id: str) -> str | None:
+        """A key to reach AdventureLog as this person: any of their registered phones'."""
+        row = self.db.execute("select api_key from devices where user_id = ? limit 1", (user_id,)).fetchone()
+        return row["api_key"] if row else None
+
+    def photo_trip(self, user_id: str, trip_id: str) -> PhotoTrip:
+        row = self.db.execute(
+            "select * from photo_trips where user_id = ? and trip_id = ?", (user_id, trip_id)
+        ).fetchone()
+        return self._photo_trip(row) if row else PhotoTrip(user_id, trip_id, False, 0, None, None, None)
+
+    def photo_trips(self) -> list[PhotoTrip]:
+        return [self._photo_trip(r) for r in self.db.execute("select * from photo_trips where enabled = 1")]
+
+    def save_photo_trip(self, user_id: str, trip_id: str, enabled: bool, camera_offset_minutes: int) -> PhotoTrip:
+        self.db.execute(
+            """insert into photo_trips (user_id, trip_id, enabled, camera_offset_minutes) values (?, ?, ?, ?)
+               on conflict(user_id, trip_id) do update set enabled = excluded.enabled,
+               camera_offset_minutes = excluded.camera_offset_minutes""",
+            (user_id, trip_id, int(enabled), camera_offset_minutes),
+        )
+        self.db.commit()
+        return self.photo_trip(user_id, trip_id)
+
+    def photo_trip_ran(self, trip: PhotoTrip, when: str, error: str | None, album_id: str | None) -> None:
+        self.db.execute(
+            "update photo_trips set last_run = ?, last_error = ?, album_id = ? where user_id = ? and trip_id = ?",
+            (when, error, album_id, trip.user_id, trip.trip_id),
+        )
+        self.db.commit()
+
+    def photo_assets(self, user_id: str, trip_id: str) -> list[PhotoAsset]:
+        rows = self.db.execute(
+            "select * from photo_assets where user_id = ? and trip_id = ? order by taken_at", (user_id, trip_id)
+        )
+        return [PhotoAsset(**dict(r)) for r in rows]
+
+    def save_photo_asset(self, asset: PhotoAsset) -> None:
+        self.db.execute(
+            """insert or replace into photo_assets
+               (user_id, trip_id, asset_id, taken_at, day, stop_id, stop_kind, stop_title, image_id, state, detail)
+               values (:user_id, :trip_id, :asset_id, :taken_at, :day, :stop_id, :stop_kind, :stop_title,
+                       :image_id, :state, :detail)""",
+            asdict(asset),
+        )
+        self.db.commit()
+
+    def sidecars(self, user_id: str, trip_id: str, asset_id: str) -> list[dict]:
+        rows = self.db.execute(
+            "select path, backup, written_hash from photo_sidecars where user_id = ? and trip_id = ? and asset_id = ?",
+            (user_id, trip_id, asset_id),
+        )
+        return [dict(r) for r in rows]
+
+    def save_sidecar(
+        self, user_id: str, trip_id: str, asset_id: str, path: str, backup: str | None, written_hash: str
+    ) -> None:
+        """The first backup of a file is kept: writing it again only updates the hash."""
+        self.db.execute(
+            """insert into photo_sidecars (user_id, trip_id, asset_id, path, backup, written_hash)
+               values (?, ?, ?, ?, ?, ?)
+               on conflict(user_id, trip_id, asset_id, path) do update set written_hash = excluded.written_hash""",
+            (user_id, trip_id, asset_id, path, backup, written_hash),
+        )
+        self.db.commit()
+
+    def forget_sidecar(self, user_id: str, trip_id: str, asset_id: str, path: str) -> None:
+        self.db.execute(
+            "delete from photo_sidecars where user_id = ? and trip_id = ? and asset_id = ? and path = ?",
+            (user_id, trip_id, asset_id, path),
+        )
+        self.db.commit()
+
+    @staticmethod
+    def _photo_trip(row) -> PhotoTrip:
+        return PhotoTrip(
+            row["user_id"],
+            row["trip_id"],
+            bool(row["enabled"]),
+            row["camera_offset_minutes"],
+            row["album_id"],
+            row["last_run"],
+            row["last_error"],
+        )
 
     @staticmethod
     def _activity(row) -> Activity:

@@ -420,3 +420,30 @@ A build from Xcode registers as `sandbox`, and TestFlight builds as `production`
 
 ### Results
 
+
+## Handoff 12 · Stage 6a, photos to the trip in the companion (2026-10-12)
+
+**Branch:** `stage-6a-photos`. **Goal:** the companion matches a trip's raw photos in Immich to its stops and writes them into the Lightroom sidecars, without losing an edit, and can undo a day.
+
+### What changed
+
+- **Companion:** `companion/photos.py` (matching and the sidecar merge), `companion/photo_worker.py` (the pass, backups and undo), `companion/immich.py`, three tables in the store, and `GET`/`PUT /v1/trips/{id}/photos` and `POST …/photos/undo`. It needs `IMMICH_URL`, `IMMICH_API_KEY`, `PHOTO_PATHS` and `CAMERA_ZONE`. See `Companion/README.md`.
+- **Phone:** nothing yet; 6b adds the Photos section and the trip's switch.
+
+### 1. Lightroom Classic first
+
+1. Turn on Catalog Settings › Metadata › Automatically write changes into XMP, or select the trip's photos and choose Metadata › Save Metadata to Files.
+
+### 2. Companion, on a copy
+
+1. Copy one day's raw files and their `.xmp` sidecars into a scratch folder that Immich doesn't index, and point `PHOTO_PATHS` at a test library holding that copy (an Immich external library on the scratch folder works). Set `CAMERA_ZONE` to the zone the camera's clock is on.
+2. Restart the companion. `GET /healthz` should include `"photos": true`.
+3. `PUT /v1/trips/{id}/photos` with `{"enabled": true, "cameraOffsetMinutes": 0}` and the phone's API key. Within a pass, `GET` should list the day with its stops.
+4. Open a sidecar: the develop settings (`crs:`) should be unchanged, with the trip's keywords added. Import the copy into a scratch Lightroom catalogue and Read Metadata from Files: the keywords should be under Trips, and the edits as they were.
+5. `POST …/photos/undo` for that day: the sidecars should match the originals byte for byte.
+
+### 3. The real library
+
+Only after 2 passes: point `PHOTO_PATHS` at the library and turn the trip on.
+
+### Results
