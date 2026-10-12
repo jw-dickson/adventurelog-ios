@@ -176,6 +176,30 @@ def test_clean_refuses_unknown_changes_and_fixes_small_things():
     assert tidy == {"behindMinutes": 0, "summary": "", "changes": [{"type": "skip", "rowID": "r"}], "source": "claude"}
 
 
+def test_clean_puts_times_in_the_phones_form():
+    tidy = clean(
+        {
+            "changes": [
+                {"type": "retime", "rowID": "r", "start": "2027-03-08T18:45:00.5+11:00", "end": "2027-03-08T08:30Z"}
+            ]
+        }
+    )
+    assert tidy["changes"][0]["start"] == "2027-03-08T07:45:00Z"
+    assert tidy["changes"][0]["end"] == "2027-03-08T08:30:00Z"
+    with pytest.raises(ClaudeError):
+        clean(
+            {"changes": [{"type": "retime", "rowID": "r", "start": "quarter past six", "end": "2027-03-08T08:30:00Z"}]}
+        )
+    with pytest.raises(ClaudeError):
+        clean(
+            {
+                "changes": [
+                    {"type": "retime", "rowID": "r", "start": "2027-03-08T18:45:00", "end": "2027-03-08T08:30:00Z"}
+                ]
+            }
+        )
+
+
 def test_describe_tolerates_missing_or_odd_times():
     described = describe({"stops": [{"rowID": "r", "start": "not a time", "zoneID": "Nowhere/Land"}]})
     assert described["stops"][0]["localStart"] is None

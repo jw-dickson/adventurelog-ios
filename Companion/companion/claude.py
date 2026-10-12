@@ -9,7 +9,7 @@ so the reply is data the phone can check with `ReplanCheck` before showing it. N
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 
 import httpx
@@ -103,6 +103,17 @@ def describe(situation: dict) -> dict:
     return described
 
 
+def utc(text: str) -> str:
+    """A time as the phone reads it: UTC, whole seconds, with a Z."""
+    try:
+        moment = datetime.fromisoformat(text.strip().replace("Z", "+00:00"))
+    except ValueError as error:
+        raise ClaudeError(f"Claude's answer had a time the app can't read: {text}") from error
+    if moment.tzinfo is None:
+        raise ClaudeError(f"Claude's answer had a time without a zone: {text}")
+    return moment.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
 def clean(proposal: object) -> dict:
     """Claude's tool input as a proposal, or ClaudeError. The phone checks the rest."""
     if not isinstance(proposal, dict) or not isinstance(proposal.get("changes"), list):
@@ -111,7 +122,11 @@ def clean(proposal: object) -> dict:
     for change in proposal["changes"]:
         if not isinstance(change, dict) or change.get("type") not in CHANGE_TYPES:
             raise ClaudeError("Claude's answer had a change the app doesn't know.")
-        changes.append({key: value for key, value in change.items() if isinstance(value, str) and value.strip()})
+        tidy = {key: value.strip() for key, value in change.items() if isinstance(value, str) and value.strip()}
+        for key in ("start", "end"):
+            if key in tidy:
+                tidy[key] = utc(tidy[key])
+        changes.append(tidy)
     behind = proposal.get("behindMinutes")
     return {
         "behindMinutes": behind if isinstance(behind, int) and behind >= 0 else 0,
