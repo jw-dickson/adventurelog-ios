@@ -134,4 +134,58 @@ final class OfflineEditingUITests: XCTestCase {
         if !waiting.waitForExistence(timeout: 3) { app.swipeUp() }
         XCTAssertTrue(waiting.waitForExistence(timeout: 5))
     }
+
+    // MARK: Editing items (Design/editing)
+
+    func testAddingANoteToAPlaceOffline() throws {
+        let app = try OfflineBrowseUITests.launchOffline()
+        openTripDay(app)
+        element(app, containing: "Sunset cruise").tap()
+        XCTAssertTrue(app.staticTexts["item.title"].waitForExistence(timeout: 5))
+
+        app.buttons["item.addNote"].tap()
+        let field = app.textViews["quickNote.text"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        field.typeText("Moved to the later sailing.")
+        app.buttons["quickNote.add"].tap()
+
+        XCTAssertTrue(element(app, containing: "Moved to the later sailing.").waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["item.waiting"].exists)
+    }
+
+    func testEditingAPlacesNameOffline() throws {
+        let app = try OfflineBrowseUITests.launchOffline()
+        openTripDay(app)
+        element(app, containing: "Sunset cruise").tap()
+        XCTAssertTrue(app.staticTexts["item.title"].waitForExistence(timeout: 5))
+
+        app.buttons["item.edit"].tap()
+        let name = app.textFields["edit.name"]
+        XCTAssertTrue(name.waitForExistence(timeout: 5))
+        name.tap()
+        name.typeText(" (rebooked)")
+        app.buttons["edit.save"].tap()
+
+        XCTAssertTrue(element(app, containing: "Sunset cruise (rebooked)").waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["item.waiting"].exists)
+    }
+
+    func testAddingANoteToADay() throws {
+        let app = try OfflineBrowseUITests.launchOffline()
+        openTripDay(app)
+        // A menu in the navigation bar can't be scrolled to, so tap it where it is.
+        let add = app.buttons["trip.add"].firstMatch
+        XCTAssertTrue(add.waitForExistence(timeout: 5))
+        add.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        let newNote = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "New note on")).firstMatch
+        XCTAssertTrue(newNote.waitForExistence(timeout: 5))
+        newNote.tap()
+
+        let title = app.textFields["newNote.title"]
+        XCTAssertTrue(title.waitForExistence(timeout: 5))
+        title.typeText("Dinner change")
+        app.buttons["newNote.add"].tap()
+
+        XCTAssertTrue(element(app, containing: "Dinner change").waitForExistence(timeout: 5))
+    }
 }

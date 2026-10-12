@@ -327,6 +327,30 @@ A build from Xcode registers as `sandbox`, and TestFlight builds as `production`
 
 ### Results
 
+## Handoff 8 · Editing trip items (2026-10-11)
+
+**Branch:** `item-editing`. **Goal:** change a place, journey or stay from the phone on the road, including with no signal. Issue #22; mockups in [Design/editing](../Design/editing/README.md), signed off 11 Oct 2026.
+
+### What changed
+
+- **Item detail:** **Edit** in the toolbar for places, journeys and stays, and **Add a note** under the notes.
+- **Edit sheet:** name, times in the item's own zone, notes, address, link, flight number or booking reference. **Remove from** the day at the bottom.
+- **Trip day:** a **+** menu with a new note on the day or a trip-wide note.
+- **Sync issues:** a clash on a field shows both values with Keep mine and Keep server's.
+- **Kit:** `TripEdit.editItem`, `appendNote`, `addNote` and `removeRow`, with tests against the fake server (`ItemEditTests`). See "How item edits sync" in [PLAN.md](PLAN.md).
+
+### 1. Simulator
+
+1. In the offline seed, open Trip, tap Sunset cruise, then **Add a note**: the line shows under the notes with the time, and "Saved on this phone, waiting to sync" appears.
+2. **Edit**: change the name and move the start; the end moves with it. Save, and check Today and the day timeline.
+3. On the day, tap **+** → New note; it goes at the end of the day.
+
+### 2. On a device (TestFlight)
+
+1. On a real trip, add a note to an item with the phone in flight mode, then turn the network back on. The note should reach AdventureLog's web page.
+2. Edit a time in the app and the same item's notes on the web at the same time. Saving should keep the web's notes, save your time, and ask about nothing; if you change the same field in both places it should ask.
+3. Remove something from a day: on the web it should show as unscheduled, with its visit kept.
+
 ## Handoff 9 · The push-to-start token (2026-10-11)
 
 **Branch:** `live-activity-start-token`. **Goal:** the companion gets the phone's push-to-start token, so it can start a Live Activity while the app is closed. Issue #24.

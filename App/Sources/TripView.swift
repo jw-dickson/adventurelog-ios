@@ -29,6 +29,7 @@ struct TripView: View {
     @State private var selectedDate: CalendarDate?
     @State private var reordering: ReorderTarget?
     @State private var moving: TripPlan.Entry?
+    @State private var newNote: NewNoteSheet.Target?
 
     /// The day (or the trip-wide list) being reordered.
     struct ReorderTarget: Identifiable {
@@ -56,6 +57,25 @@ struct TripView: View {
             ItemDetailView(route: route)
         }
         .toolbar {
+            if let plan = model.trip(tripID)?.plan {
+                ToolbarItem(placement: .primaryAction) {
+                    Menu {
+                        if scope == .days, !plan.days.isEmpty {
+                            let day = currentDay(in: plan)
+                            Button("New note on \(DayText.long(day.date))", systemImage: "note.text") {
+                                newNote = .init(date: day.date, label: [DayText.long(day.date), day.name].compactMap { $0 }.joined(separator: " · "))
+                            }
+                        }
+                        Button("Trip-wide note", systemImage: "note.text") {
+                            newNote = .init(date: nil, label: "Whole trip")
+                        }
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                    .accessibilityLabel("Add")
+                    .accessibilityIdentifier("trip.add")
+                }
+            }
             if let plan = model.trip(tripID)?.plan, let target = reorderTarget(in: plan) {
                 ToolbarItem(placement: .primaryAction) {
                     Button("Reorder", systemImage: "arrow.up.arrow.down") { reordering = target }
@@ -68,6 +88,9 @@ struct TripView: View {
         }
         .sheet(item: $moving) { entry in
             MoveToDaySheet(tripID: tripID, entry: entry)
+        }
+        .sheet(item: $newNote) { target in
+            NewNoteSheet(target: target, tripID: tripID)
         }
         .task(id: tripID) {
             model.selectedTripID = tripID

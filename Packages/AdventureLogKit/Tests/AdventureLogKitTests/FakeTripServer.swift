@@ -113,6 +113,127 @@ actor FakeTripServer: TripServer {
         trip.itinerary = rows
         return updated
     }
+
+    // MARK: Items
+
+    private func requireCollection(_ patch: ItemPatch) throws {
+        guard patch.collection != nil else {
+            throw APIError.forbidden(ServerMessage(summary: "You cannot remove the collection as you are not the owner."))
+        }
+    }
+
+    /// Applies a patch the way the server does: only the fields sent change; a blank name is refused.
+    private func patched(_ patch: ItemPatch, kind: ItemKind, id: String, visitID: String? = nil) throws {
+        if case .text(let name)? = patch.fields[.name], FieldValue.clean(name) == nil {
+            throw APIError.invalid(ServerMessage(summary: "name: This field may not be blank."))
+        }
+        writes += 1
+        ItemValues.write(patch.fields.map { ($0.key, $0.value) }, kind: kind, itemID: id, visitID: visitID, in: &trip)
+    }
+
+    func location(id: String) async throws -> Location {
+        try check()
+        guard let place = trip.locations.first(where: { $0.id == id }) else { throw Self.notFound() }
+        return place
+    }
+
+    func updateLocation(id: String, _ patch: ItemPatch) async throws -> Location {
+        try check()
+        guard trip.locations.contains(where: { $0.id == id }) else { throw Self.notFound() }
+        try patched(patch, kind: .location, id: id)
+        return try await location(id: id)
+    }
+
+    private func placeID(ofVisit id: String) -> String? {
+        trip.locations.first { $0.visits.contains { $0.id == id } }?.id
+    }
+
+    func visit(id: String) async throws -> Visit {
+        try check()
+        guard let visit = trip.locations.lazy.flatMap(\.visits).first(where: { $0.id == id }) else { throw Self.notFound() }
+        return visit
+    }
+
+    func updateVisit(id: String, _ patch: ItemPatch) async throws -> Visit {
+        try check()
+        guard let place = placeID(ofVisit: id) else { throw Self.notFound() }
+        writes += 1
+        ItemValues.write(patch.fields.map { ($0.key, $0.value) }, kind: .location, itemID: place, visitID: id, in: &trip)
+        return try await visit(id: id)
+    }
+
+    func transportation(id: String) async throws -> Transportation {
+        try check()
+        guard let leg = trip.transportations.first(where: { $0.id == id }) else { throw Self.notFound() }
+        return leg
+    }
+
+    func updateTransportation(id: String, _ patch: ItemPatch) async throws -> Transportation {
+        try check()
+        guard trip.transportations.contains(where: { $0.id == id }) else { throw Self.notFound() }
+        try requireCollection(patch)
+        try patched(patch, kind: .transportation, id: id)
+        return try await transportation(id: id)
+    }
+
+    func lodging(id: String) async throws -> Lodging {
+        try check()
+        guard let stay = trip.lodging.first(where: { $0.id == id }) else { throw Self.notFound() }
+        return stay
+    }
+
+    func updateLodging(id: String, _ patch: ItemPatch) async throws -> Lodging {
+        try check()
+        guard trip.lodging.contains(where: { $0.id == id }) else { throw Self.notFound() }
+        try requireCollection(patch)
+        try patched(patch, kind: .lodging, id: id)
+        return try await lodging(id: id)
+    }
+
+    private(set) var createdNotes = 0
+
+    func createNote(_ note: NoteCreate) async throws -> Note {
+        try check()
+        writes += 1
+        createdNotes += 1
+        let made = Note(id: UUID().uuidString.lowercased(), user: nil, name: note.name, content: note.content, date: note.date,
+                        links: DefaultEmpty(wrappedValue: []), isPublic: false, collection: note.collection,
+                        createdAt: tick(), updatedAt: tick())
+        trip.notes.append(made)
+        if loseAnswer {
+            loseAnswer = false
+            throw APIError.transport(code: -1005, description: "The network connection was lost.")
+        }
+        return made
+    }
+
+    func createItineraryRow(_ row: ItineraryRowCreate) async throws -> ItineraryRow {
+        try check()
+        if let date = row.date, let start = trip.startDate, let end = trip.endDate, date < start || date > end {
+            throw APIError.invalid(ServerMessage(summary: "date: outside the collection."))
+        }
+        // The server bumps an order that's already taken to max + 1.
+        let taken = ItineraryLayout.group(row.date, in: trip.itinerary).map(\.order)
+        let order = taken.contains(row.order) ? (taken.max() ?? -1) + 1 : row.order
+        writes += 1
+        let made = ItineraryRow(id: UUID().uuidString.lowercased(), collection: row.collection, objectId: row.objectId,
+                                item: .init(id: row.objectId, type: ItemKind(rawValue: row.contentType) ?? .unknown),
+                                objectName: row.contentType, date: row.date, isGlobal: row.isGlobal, order: order,
+                                startDatetime: nil, endDatetime: nil)
+        trip.itinerary.append(made)
+        return made
+    }
+
+    func deleteItineraryRow(id: String) async throws {
+        try check()
+        guard trip.itinerary.contains(where: { $0.id == id }) else { throw Self.notFound() }
+        writes += 1
+        trip.itinerary.removeAll { $0.id == id }
+    }
+
+    /// Makes the next `createNote` succeed on the server but lose its answer, as on a flaky network.
+    func loseNextAnswer() { loseAnswer = true }
+    private var loseAnswer = false
 }
 
 /// One phone: the server copy it last fetched, plus its outbox. What it shows is the copy with the
@@ -138,6 +259,7 @@ struct FakeDevice {
     mutating func drain(to server: FakeTripServer) async {
         let sender = EditSender(server: server)
         while let entry = outbox.next(at: now) {
+            outbox.markSending(entry.id)
             let outcome = await sender.send(entry.edit, tripID: tripID)
             outbox.record(outcome, for: entry.id, sent: entry.edit, at: now)
             if case .retry = outcome { break }

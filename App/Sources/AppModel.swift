@@ -555,6 +555,33 @@ final class AppModel {
         perform(.moveRow(.init(rowID: entry.row.id, title: entry.item.title, toDate: date, toIndex: index)), in: tripID)
     }
 
+    /// Saves edited fields of a place, journey or stay. `item` is the item as shown, so a second
+    /// edit builds on the first.
+    func editItem(_ item: TripPlan.Item, values: [ItemField: FieldValue], tripID: String) {
+        guard let edit = TripEdit.EditItem(item: item, visitID: item.editableVisit?.id, values: values) else { return }
+        perform(.editItem(edit), in: tripID)
+    }
+
+    /// Adds a timestamped line under an item's notes. The time is shown in the item's zone.
+    func appendNote(_ text: String, to item: TripPlan.Item, zone: TimeZone, tripID: String) {
+        guard let kind = TripEdit.EditItem.editableKind(item), FieldValue.clean(text) != nil else { return }
+        let line = TripEdit.AppendNote.line(text, at: now, in: zone)
+        perform(.appendNote(.init(kind: kind, itemID: item.id, visitID: item.editableVisit?.id, title: item.title, line: line)), in: tripID)
+    }
+
+    /// Adds a note at the end of a day, or trip-wide when `date` is nil.
+    func addNote(name: String, content: String, date: CalendarDate?, tripID: String) {
+        var add = TripEdit.AddNote(name: name, content: content, date: date)
+        // Twins already shown, including notes still on their way, tell this note from older ones.
+        add.occurrence = trips[tripID]?.plan.collection.notes.filter(add.isTwin).count ?? 0
+        perform(.addNote(add), in: tripID)
+    }
+
+    /// Takes a row off its day. The item stays in the trip, under Not on a day.
+    func removeFromDay(_ entry: TripPlan.Entry, tripID: String) {
+        perform(.removeRow(.init(rowID: entry.row.id, title: entry.item.title, date: entry.row.date)), in: tripID)
+    }
+
     private func perform(_ edit: TripEdit, in tripID: String) {
         guard credentials != nil else { return }
         outbox.enqueue(edit, tripID: tripID, at: .now)
@@ -951,8 +978,16 @@ final class AppModel {
     /// Keeps this phone's version of a note that was also changed elsewhere.
     func keepMine(_ id: UUID) { changeOutbox { $0.keepMine(id) } }
 
-    /// Drops this phone's edit. For a conflicting note, shows the server's version straight away.
+    /// Drops this phone's edit. For a conflicting note or field, shows the server's version straight away.
     func discard(_ id: UUID) {
+        if let entry = outbox.entries.first(where: { $0.id == id }), case .fieldConflict(let conflict) = entry.state,
+           case .editItem(let edit) = entry.edit, var saved = savedTrips[entry.tripID] {
+            ItemValues.write(conflict.clashes.map { ($0.field, $0.server) }, kind: edit.kind, itemID: edit.itemID,
+                             visitID: edit.visitID, in: &saved.value)
+            savedTrips[entry.tripID] = saved
+            let tripID = entry.tripID
+            Task { await loadTrip(id: tripID) }
+        }
         if let entry = outbox.entries.first(where: { $0.id == id }), case .conflict(let conflict) = entry.state,
            case .editNote(let edit) = entry.edit, var saved = savedTrips[entry.tripID],
            let note = saved.value.notes.firstIndex(where: { $0.id == edit.noteID }) {
@@ -1002,10 +1037,14 @@ final class AppModel {
         var touched = Set<String>()
         while session == started, isCurrent(client), let entry = outbox.next(at: .now) {
             isSyncing = true
+            outbox.markSending(entry.id)
             let outcome = await sender.send(entry.edit, tripID: entry.tripID)
             guard session == started, isCurrent(client) else { return }
             outbox.record(outcome, for: entry.id, sent: entry.edit, at: .now)
             if outcome == .done { settle(entry.edit, in: entry.tripID) }
+            if case .added(let noteID, let rowID) = outcome, case .addNote(let add) = entry.edit {
+                settle(add, noteID: noteID, rowID: rowID, in: entry.tripID)
+            }
             tripRevisions[entry.tripID, default: 0] += 1
             touched.insert(entry.tripID)
             show(entry.tripID)
@@ -1033,6 +1072,18 @@ final class AppModel {
     private func settle(_ edit: TripEdit, in tripID: String) {
         guard var saved = savedTrips[tripID] else { return }
         edit.apply(to: &saved.value)
+        keepSaved(saved, for: tripID)
+    }
+
+    /// A note made on the phone is on the server: the saved copy gets it under the server's ids,
+    /// which edits queued for it now use.
+    private func settle(_ add: TripEdit.AddNote, noteID: String, rowID: String, in tripID: String) {
+        guard var saved = savedTrips[tripID] else { return }
+        add.apply(to: &saved.value, noteID: noteID, rowID: rowID)
+        keepSaved(saved, for: tripID)
+    }
+
+    private func keepSaved(_ saved: TripSnapshotStore.Snapshot<CollectionDetail>, for tripID: String) {
         savedTrips[tripID] = saved
         let detail = saved.value
         let savedAt = saved.savedAt
