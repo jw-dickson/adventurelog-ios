@@ -67,7 +67,14 @@ struct ItemSummaryTests {
         #expect(tour.startText(locale: gb) == "18:30")
         #expect(tour.secondaryTimeText(locale: gb) == "20:30")
         #expect(tour.notes?.contains("Bring a jacket") == true)
+        #if os(Linux)
+        // Linux's ICU data puts a comma after the weekday ("Mon, 8 Mar"); the app only runs on Apple's.
+        let when = try #require(tour.whenText(locale: gb))
+        #expect(when.hasPrefix("Mon"))
+        #expect(when.contains("8 Mar · 18:30–20:30"))
+        #else
         #expect(tour.whenText(locale: gb)?.hasPrefix("Mon 8 Mar · 18:30–20:30") == true)
+        #endif
         #expect(tour.isBooked == false)
     }
 
