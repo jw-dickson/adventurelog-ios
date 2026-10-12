@@ -39,6 +39,45 @@ struct LiveActivityTests {
         #expect(LiveActivityPlanner.current(for: plan, now: at("2027-03-06T20:00:00Z")) == nil)
     }
 
+    /// #39: the companion pushed a 25-minute delay; opening the app keeps it rather than putting
+    /// the schedule back, and the activity lasts until the new departure.
+    @Test func aPushedDelayIsKept() throws {
+        let plan = try plan()
+        let row = try #require(LiveActivityPlanner.current(for: plan, now: at("2027-03-06T18:03:00Z"))).info.rowID
+        let delayed = LiveActivityState(phase: .upcoming, target: at("2027-03-06T19:40:00Z"),
+                                        departure: at("2027-03-06T20:25:00Z"), note: "Delayed 25 min · Gate 23")
+        let now = at("2027-03-06T19:20:00Z")
+        let current = try #require(LiveActivityPlanner.current(for: plan, now: now, pushed: [row: delayed]))
+        #expect(current.state.phase == .upcoming, "boarding moved to 06:40")
+        #expect(current.state.departure == at("2027-03-06T20:25:00Z"))
+        #expect(current.state.note == "Delayed 25 min · Gate 23")
+        #expect(current.end == at("2027-03-06T20:25:00Z"))
+        // Past the old departure it's still there, boarding; at the new one it ends.
+        let later = try #require(LiveActivityPlanner.current(for: plan, now: at("2027-03-06T20:10:00Z"), pushed: [row: delayed]))
+        #expect(later.state.phase == .boarding)
+        #expect(LiveActivityPlanner.current(for: plan, now: at("2027-03-06T20:25:00Z"), pushed: [row: delayed]) == nil)
+    }
+
+    @Test func aPushedTimeNeverMovesBeforeTheSchedule() throws {
+        let plan = try plan()
+        let current = try #require(LiveActivityPlanner.current(for: plan, now: at("2027-03-06T18:03:00Z")))
+        let early = LiveActivityState(phase: .upcoming, target: at("2027-03-06T19:00:00Z"), departure: at("2027-03-06T19:45:00Z"))
+        let kept = try #require(LiveActivityPlanner.current(for: plan, now: at("2027-03-06T18:03:00Z"),
+                                                            pushed: [current.info.rowID: early]))
+        #expect(kept.state.departure == at("2027-03-06T20:00:00Z"))
+        #expect(kept.end == at("2027-03-06T20:00:00Z"))
+    }
+
+    @Test func aCancelledFlightStaysAnHourPastItsDeparture() throws {
+        let plan = try plan()
+        let row = try #require(LiveActivityPlanner.current(for: plan, now: at("2027-03-06T18:03:00Z"))).info.rowID
+        let cancelled = LiveActivityState(phase: .cancelled, target: at("2027-03-06T19:15:00Z"),
+                                          departure: at("2027-03-06T20:00:00Z"), note: "Cancelled")
+        let current = try #require(LiveActivityPlanner.current(for: plan, now: at("2027-03-06T20:30:00Z"), pushed: [row: cancelled]))
+        #expect(current.state.phase == .cancelled)
+        #expect(LiveActivityPlanner.current(for: plan, now: at("2027-03-06T21:00:00Z"), pushed: [row: cancelled]) == nil)
+    }
+
     @Test func theFirstFlightIsNotAConnection() throws {
         let current = try #require(LiveActivityPlanner.current(for: try plan(), now: at("2027-03-05T18:00:00Z")))
         #expect(current.info.eyebrow == "Flight · DEN")

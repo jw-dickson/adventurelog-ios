@@ -216,6 +216,12 @@ struct ReminderSettingsView: View {
                     if let status = model.companionStatus {
                         CompanionStatusLine(status: status)
                     }
+                    if model.companionHasFlightStatus {
+                        Label("Flights show live delays and gates", systemImage: "airplane.departure")
+                            .font(ALFont.footnote)
+                            .foregroundStyle(ALColor.inkMuted)
+                            .accessibilityIdentifier("reminders.companion.flightStatus")
+                    }
                 } header: {
                     Text("Companion service")
                 } footer: {

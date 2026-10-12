@@ -1,5 +1,7 @@
 # Live flight status: design note (#23)
 
+*Built in #39: `Companion/companion/flight_status.py`, and the phone keeps pushed times (`LiveActivityPlanner.current(… pushed:)`). Setup is in `Companion/README.md`.*
+
 A flight's Live Activity knows only what is typed into AdventureLog: the scheduled times and the flight number. This note looks at feeding it real status (delays, gate changes, boarding, cancellations) and recommends how. Prices and terms were checked on 12 Oct 2026 and change often, so check them again before relying on them.
 
 ## Recommendation

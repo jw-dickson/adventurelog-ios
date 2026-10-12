@@ -11,12 +11,14 @@ from __future__ import annotations
 
 import contextlib
 import logging
-from datetime import UTC, datetime
+from dataclasses import replace
+from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from . import planner
 from .adventurelog import AdventureLog, AdventureLogError
 from .apns import APNs, TokenGone
+from .flight_status import Flight, FlightStatusService, alert_for, apply, normalize_number
 from .store import Device, Store
 
 log = logging.getLogger("companion")
@@ -35,26 +37,68 @@ def start_alert(plan: planner.Plan) -> dict:
     return {"title": info["title"], "body": body}
 
 
-async def tick(store: Store, adventurelog: AdventureLog, apns: APNs | None, now: datetime | None = None) -> None:
+# A delayed flight's status is still looked at this long after its planned departure.
+DELAY_HORIZON = timedelta(hours=12)
+
+
+async def tick(
+    store: Store,
+    adventurelog: AdventureLog,
+    apns: APNs | None,
+    now: datetime | None = None,
+    flights: FlightStatusService | None = None,
+) -> None:
     now = now or datetime.now(UTC)
     for device in store.devices():
         # One phone's failure (AdventureLog down for that key, APNs refusing a push) is logged
         # and the pass goes on to the next phone.
         try:
-            await _tick_device(device, store, adventurelog, apns, now)
+            await _tick_device(device, store, adventurelog, apns, now, flights)
         except Exception:
             log.exception("device %s", device.id)
 
 
+async def flight_adjuster(trips: list[dict], now: datetime, flights: FlightStatusService | None):
+    """Live status for the flights near now, as a planner `adjust` (#39); None without a provider."""
+    if flights is None:
+        return None
+    known: dict[tuple[str, str], tuple] = {}
+    for trip in trips:
+        for plan in planner.candidates(trip):
+            number = normalize_number((plan.flight or {}).get("number"))
+            if not number or not (plan.window_start <= now < plan.flight["departure"] + DELAY_HORIZON):
+                continue
+            flight = Flight(number, plan.flight["origin"], plan.flight["departure"], plan.flight["zone"])
+            known[plan.key] = (await flights.status(flight, now), plan.flight["departure"])
+
+    def adjust(plan: planner.Plan) -> planner.Plan | None:
+        if plan.key not in known:
+            return plan
+        status, scheduled = known[plan.key]
+        result = apply(plan.state, scheduled, status, now)
+        if result is None:
+            return None
+        state, end = result
+        return replace(plan, state=state, end=end)
+
+    return adjust
+
+
 async def _tick_device(
-    device: Device, store: Store, adventurelog: AdventureLog, apns: APNs | None, now: datetime
+    device: Device,
+    store: Store,
+    adventurelog: AdventureLog,
+    apns: APNs | None,
+    now: datetime,
+    flights: FlightStatusService | None = None,
 ) -> None:
     try:
         trips = await adventurelog.current_trips(device.api_key, now.date())
     except AdventureLogError as error:
         log.warning("device %s: %s", device.id, error)
         return
-    plans = [p for trip in trips if (p := planner.current(trip, now))]
+    adjust = await flight_adjuster(trips, now, flights)
+    plans = [p for trip in trips if (p := planner.current(trip, now, adjust))]
     plan = min(plans, key=lambda p: p.end) if plans else None
 
     # End whatever no longer matches the plan.
@@ -71,8 +115,11 @@ async def _tick_device(
     activity = store.activity(device.id, *plan.key)
     if activity and activity.push_token and not activity.ended:
         if activity.last_state != plan.state and apns:
+            alert = None
+            if flights and plan.info["kind"] == "flight":
+                alert = alert_for(plan.info["title"], activity.last_state, plan.state, plan.info["zoneIdentifier"])
             try:
-                await apns.update(activity.push_token, device.environment, plan.state, int(plan.end.timestamp()))
+                await apns.update(activity.push_token, device.environment, plan.state, int(plan.end.timestamp()), alert)
                 store.save_state(activity, plan.state)
             except TokenGone:
                 store.mark_ended(activity)

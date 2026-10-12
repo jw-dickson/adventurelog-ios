@@ -1,0 +1,22 @@
+[
+  {
+    "number": "EX 1501",
+    "status": "Delayed",
+    "codeshareStatus": "IsOperator",
+    "isCargo": false,
+    "departure": {
+      "airport": {"icao": "YSSY", "iata": "SYD", "name": "Sydney", "timeZone": "Australia/Sydney"},
+      "scheduledTime": {"utc": "2027-03-06 20:00Z", "local": "2027-03-07 07:00+11:00"},
+      "revisedTime": {"utc": "2027-03-06 20:25Z", "local": "2027-03-07 07:25+11:00"},
+      "terminal": "2",
+      "gate": "23",
+      "quality": ["Basic", "Live"]
+    },
+    "arrival": {
+      "airport": {"icao": "YMHB", "iata": "HBA", "name": "Hobart", "timeZone": "Australia/Hobart"},
+      "scheduledTime": {"utc": "2027-03-06 21:50Z", "local": "2027-03-07 08:50+11:00"},
+      "quality": ["Basic"]
+    },
+    "airline": {"name": "Example Air", "iata": "EX"}
+  }
+]

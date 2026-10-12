@@ -1,0 +1,35 @@
+{
+  "flights": [
+    {
+      "ident": "EXA1501",
+      "ident_iata": "EX1501",
+      "fa_flight_id": "EXA1501-1804000000-schedule-0000",
+      "status": "Scheduled / Delayed",
+      "cancelled": false,
+      "origin": {"code": "YSSY", "code_iata": "SYD", "code_icao": "YSSY", "timezone": "Australia/Sydney"},
+      "destination": {"code": "YMHB", "code_iata": "HBA", "code_icao": "YMHB", "timezone": "Australia/Hobart"},
+      "scheduled_out": "2027-03-06T20:00:00Z",
+      "estimated_out": "2027-03-06T20:25:00Z",
+      "actual_out": null,
+      "scheduled_off": "2027-03-06T20:15:00Z",
+      "estimated_off": "2027-03-06T20:40:00Z",
+      "actual_off": null,
+      "gate_origin": "23",
+      "terminal_origin": "2",
+      "departure_delay": 1500
+    },
+    {
+      "ident": "EXA1501",
+      "ident_iata": "EX1501",
+      "status": "Scheduled",
+      "cancelled": false,
+      "origin": {"code": "YSSY", "code_iata": "SYD"},
+      "scheduled_out": "2027-03-07T20:00:00Z",
+      "estimated_out": "2027-03-07T20:00:00Z",
+      "gate_origin": null,
+      "terminal_origin": null
+    }
+  ],
+  "links": null,
+  "num_pages": 1
+}

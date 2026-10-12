@@ -24,6 +24,7 @@ from . import photo_worker
 from .adventurelog import AdventureLog, AdventureLogError
 from .apns import APNs, APNsConfig
 from .claude import DEFAULT_MODEL, Claude, ClaudeError
+from .flight_status import FlightStatusService, FlightStatusSettings
 from .immich import Immich, ImmichError
 from .photo_worker import PhotoSettings
 from .store import Device, Store
@@ -51,6 +52,8 @@ class Settings:
         self.replan_asks_per_hour = int(env.get("COMPANION_REPLAN_ASKS_PER_HOUR", "20"))
         # Optional (Stage 6): photos to the trip, with Immich and the Lightroom library mounted.
         self.photos = PhotoSettings.from_env(env)
+        # Optional (#39): live flight status on flight Live Activities.
+        self.flight_status = FlightStatusSettings.from_env(env)
         key_path = env.get("APNS_KEY_PATH")
         self.apns = None
         if key_path and env.get("APNS_KEY_ID") and env.get("APNS_TEAM_ID") and env.get("APNS_BUNDLE_ID"):
@@ -121,6 +124,7 @@ def create_app(
     run_worker: bool = True,
     claude: Claude | None = None,
     immich: Immich | None = None,
+    flights: FlightStatusService | None = None,
 ) -> FastAPI:
     settings = settings or Settings()
     store = Store(settings.database)
@@ -130,6 +134,8 @@ def create_app(
     if claude is None and settings.anthropic_api_key:
         claude = Claude(settings.anthropic_api_key, settings.anthropic_model)
     photo_settings = settings.photos
+    if flights is None and settings.flight_status:
+        flights = FlightStatusService(settings.flight_status, store)
     if immich is None and photo_settings:
         immich = Immich(photo_settings.immich_url, photo_settings.immich_api_key)
     verified: dict[str, tuple[str, float]] = {}
@@ -139,7 +145,7 @@ def create_app(
     async def poll_forever():
         while True:
             try:
-                await tick(store, adventurelog, apns)
+                await tick(store, adventurelog, apns, flights=flights)
             except Exception:  # keep polling whatever one pass hits
                 log.exception("poll failed")
             if photo_settings and immich:
@@ -192,6 +198,7 @@ def create_app(
             "pushes": apns is not None,
             "replan": claude is not None,
             "photos": photo_settings is not None,
+            "flightStatus": flights is not None,
         }
 
     @app.post("/v1/devices")

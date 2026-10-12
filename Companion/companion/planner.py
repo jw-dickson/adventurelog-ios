@@ -11,7 +11,8 @@ Times in the output are Unix seconds, matching `LiveActivityInfo` and `LiveActiv
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
+from collections.abc import Callable
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -29,6 +30,8 @@ class Plan:
     state: dict
     end: datetime
     window_start: datetime = field(compare=False)
+    # For a flight: what to look its status up by (#39). Never sent to the phone.
+    flight: dict | None = field(default=None, compare=False)
 
     @property
     def key(self) -> tuple[str, str]:
@@ -149,7 +152,13 @@ def candidates(trip: dict) -> list[Plan]:
                 "target": int((start - BOARDING_BEFORE).timestamp()),
                 "departure": int(start.timestamp()),
             }
-            plans.append(Plan(info=info, state=state, end=start, window_start=window))
+            flight = {
+                "number": leg.get("flight_number"),
+                "origin": _blank(leg.get("start_code")),
+                "departure": start,
+                "zone": leg.get("start_timezone") or "UTC",
+            }
+            plans.append(Plan(info=info, state=state, end=start, window_start=window, flight=flight))
         elif kind == "location" and item_id in locations:
             place = locations[item_id]
             tags = {str(t).lower() for t in place.get("tags") or []}
@@ -189,14 +198,19 @@ def candidates(trip: dict) -> list[Plan]:
     return plans
 
 
-def current(trip: dict, now: datetime) -> Plan | None:
-    """The activity that should be showing at `now`, if any. The sooner-ending one wins."""
-    live = [p for p in candidates(trip) if p.window_start <= now < p.end]
+def current(trip: dict, now: datetime, adjust: Callable[[Plan], Plan | None] | None = None) -> Plan | None:
+    """The activity that should be showing at `now`, if any. The sooner-ending one wins.
+
+    `adjust` lays live flight status over a flight's plan first (#39): it can move the times and
+    the end, or drop the plan (the flight has left).
+    """
+    plans = candidates(trip)
+    if adjust:
+        plans = [q for p in plans if (q := adjust(p)) is not None]
+    live = [p for p in plans if p.window_start <= now < p.end]
     if not live:
         return None
     plan = min(live, key=lambda p: p.end)
-    if plan.info["kind"] == "flight" and now.timestamp() >= plan.state["target"]:
-        plan = Plan(
-            info=plan.info, state={**plan.state, "phase": "boarding"}, end=plan.end, window_start=plan.window_start
-        )
+    if plan.info["kind"] == "flight" and now.timestamp() >= plan.state["target"] and plan.state["phase"] == "upcoming":
+        plan = replace(plan, state={**plan.state, "phase": "boarding"})
     return plan
