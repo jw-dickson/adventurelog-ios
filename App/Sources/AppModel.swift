@@ -688,6 +688,9 @@ final class AppModel {
             // An older companion doesn't say; a newer one says whether it can start activities.
             companionStatus = canStart == false ? "Connected · activities start when you open the app" : "Connected"
             await sendPendingActivityTokens()
+            // A newer token arrived while this was in flight (or this older request finished last):
+            // register again so the companion ends up with the newest one.
+            if let latest = startToken, latest != sending { await connectCompanion() }
         } catch {
             guard session == started else { return }
             companionStatus = Self.describe(error)
