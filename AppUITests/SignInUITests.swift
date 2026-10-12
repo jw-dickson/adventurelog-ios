@@ -136,15 +136,34 @@ final class SignInUITests: XCTestCase {
         let app = launch(["-ALServerURL", server, "-ALAPIKey", key])
         // The app opens on Today; the trip list is on the Trip tab.
         let tripTab = app.tabBars.buttons["Trip"]
-        XCTAssertTrue(tripTab.waitForExistence(timeout: 20))
+        let tabShown = tripTab.waitForExistence(timeout: 20)
+        if !tabShown { keepState(app, "no-trip-tab") }
+        XCTAssertTrue(tabShown)
         tripTab.tap()
 
         // Rows combine their texts for VoiceOver, so match on part of the label.
         let trip = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", "Tasmania Road Trip 2027")).firstMatch
-        XCTAssertTrue(trip.waitForExistence(timeout: 20), "Seed the server with Fixtures/adventurelog-v0.13.0/seed.py first")
+        let tripShown = trip.waitForExistence(timeout: 20)
+        if !tripShown { keepState(app, "trip-row-missing") }
+        XCTAssertTrue(tripShown, "Seed the server with Fixtures/adventurelog-v0.13.0/seed.py first")
         trip.tap()
         // Before the trip starts it opens on its first day, with the overnight flight.
         let flight = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", "EX 7 LAX")).firstMatch
-        XCTAssertTrue(flight.waitForExistence(timeout: 20))
+        let flightShown = flight.waitForExistence(timeout: 20)
+        if !flightShown { keepState(app, "flight-missing") }
+        XCTAssertTrue(flightShown)
+    }
+
+    /// Keeps what was on screen, and the accessibility tree, in the test result when a wait runs out,
+    /// so a failure against a live server says what the app was showing.
+    private func keepState(_ app: XCUIApplication, _ name: String) {
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.name = "\(name)-screen"
+        shot.lifetime = .keepAlways
+        add(shot)
+        let tree = XCTAttachment(string: app.debugDescription)
+        tree.name = "\(name)-tree"
+        tree.lifetime = .keepAlways
+        add(tree)
     }
 }
