@@ -174,8 +174,12 @@ public enum LiveActivityPlanner {
         if pushed.phase == .cancelled {
             return Plan(info: candidate.info, state: pushed, end: candidate.end.addingTimeInterval(cancelledFor))
         }
-        guard pushed.departure > candidate.state.departure else { return candidate }
         var state = candidate.state
+        // The airline said boarding: that stands even before the computed boarding time.
+        if pushed.phase == .boarding { state.phase = .boarding }
+        guard pushed.departure > candidate.state.departure else {
+            return Plan(info: candidate.info, state: state, end: candidate.end)
+        }
         state.departure = pushed.departure
         state.target = max(pushed.target, candidate.state.target)
         state.note = pushed.note

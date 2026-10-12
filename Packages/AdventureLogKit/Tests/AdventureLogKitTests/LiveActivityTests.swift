@@ -68,6 +68,15 @@ struct LiveActivityTests {
         #expect(kept.end == at("2027-03-06T20:00:00Z"))
     }
 
+    @Test func aPushedBoardingStaysBeforeTheComputedTime() throws {
+        let plan = try plan()
+        let row = try #require(LiveActivityPlanner.current(for: plan, now: at("2027-03-06T18:03:00Z"))).info.rowID
+        let boarding = LiveActivityState(phase: .boarding, target: at("2027-03-06T19:15:00Z"),
+                                         departure: at("2027-03-06T20:00:00Z"), note: "Gate 23")
+        let current = try #require(LiveActivityPlanner.current(for: plan, now: at("2027-03-06T19:05:00Z"), pushed: [row: boarding]))
+        #expect(current.state.phase == .boarding, "the airline started boarding ten minutes early")
+    }
+
     @Test func aCancelledFlightStaysAnHourPastItsDeparture() throws {
         let plan = try plan()
         let row = try #require(LiveActivityPlanner.current(for: plan, now: at("2027-03-06T18:03:00Z"))).info.rowID
