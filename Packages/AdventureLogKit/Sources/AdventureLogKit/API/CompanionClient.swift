@@ -19,7 +19,16 @@ public struct CompanionClient: Sendable {
     private let apiKey: String
     private let session: URLSession
 
-    public init(baseURL: URL, apiKey: String, session: URLSession = .shared) {
+    /// Companion requests carry the API key, and a redirect means "not a companion" (a login page
+    /// behind SSO, say), so they never follow one: a 3xx comes back as an error.
+    public static let session = URLSession(configuration: .default, delegate: NoRedirects(), delegateQueue: nil)
+
+    /// A session for tests: their own configuration, the same no-redirect rule.
+    public static func session(configuration: URLSessionConfiguration) -> URLSession {
+        URLSession(configuration: configuration, delegate: NoRedirects(), delegateQueue: nil)
+    }
+
+    public init(baseURL: URL, apiKey: String, session: URLSession = CompanionClient.session) {
         self.baseURL = baseURL
         self.apiKey = apiKey
         self.session = session
@@ -191,5 +200,13 @@ extension CompanionClient: TripPhotosService {
         } catch {
             throw APIError.decoding("The companion's photo summary couldn't be read: \(error.localizedDescription)")
         }
+    }
+}
+
+/// Refuses every redirect, so the 3xx itself is the answer.
+final class NoRedirects: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
+    func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
+                    newRequest request: URLRequest, completionHandler: @escaping (URLRequest?) -> Void) {
+        completionHandler(nil)
     }
 }

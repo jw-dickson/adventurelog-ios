@@ -865,8 +865,11 @@ final class AppModel {
 
     /// Registers this phone (again) with the companion, with the push-to-start token once iOS gives one.
     func connectCompanion() async {
+        // Noted before anything is awaited: a sign-out or another account meanwhile ends this pass.
+        let started = session
         if startToken == nil, let current = liveActivities.startToken { startToken = current }
         await discoverCompanion()
+        guard session == started else { return }
         let companion = self.companion
         // A different (or no) address: the old companion stops pushing and drops the key.
         if let previous = registeredCompanion, previous.baseURL != companion?.baseURL {
@@ -877,6 +880,7 @@ final class AppModel {
             tripPhotosProblem = [:]
             try? await previous.unregister()
         }
+        guard session == started else { return }
         guard let companion else {
             let address = companionAddress.trimmingCharacters(in: .whitespacesAndNewlines)
             if credentials == nil {
@@ -893,7 +897,6 @@ final class AppModel {
             companionCanPhoto = false
             return
         }
-        let started = session
         do {
             let sending = startToken
             let sentToken = sending != nil
