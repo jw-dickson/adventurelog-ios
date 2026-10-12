@@ -47,6 +47,43 @@ public struct CompanionClient: Sendable {
         try await send("DELETE", "v1/devices", nil)
     }
 
+    /// What the companion can do.
+    public struct Health: Decodable, Sendable, Equatable {
+        public var ok: Bool
+        /// APNs is configured.
+        public var pushes: Bool?
+        /// Claude is configured for replan asks (Stage 5b).
+        public var replan: Bool?
+    }
+
+    public func health() async throws -> Health {
+        try JSONDecoder().decode(Health.self, from: try await send("GET", "healthz", nil))
+    }
+
+    /// Claude's take on the rest of today, from what the person asked. The answer is only data
+    /// until `ReplanCheck` passes it.
+    public func replan(situation: Replan.Situation, ask: String, proposal: Replan.Proposal?, tripDays: [CalendarDate]) async throws -> Replan.Proposal {
+        struct Body: Encodable {
+            let situation: Replan.Situation
+            let ask: String
+            let proposal: Replan.Proposal?
+            let tripDays: [CalendarDate]
+        }
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .custom { date, encoder in
+            var container = encoder.singleValueContainer()
+            try container.encode(ISO8601.format(date))
+        }
+        var request = request("POST", "v1/replan", nil)
+        request.httpBody = try encoder.encode(Body(situation: situation, ask: ask, proposal: proposal, tripDays: tripDays))
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        // Claude can take a while to think about a day.
+        request.timeoutInterval = 90
+        var proposal = try JSONDecoder().decode(Replan.Proposal.self, from: try await send(request))
+        proposal.source = .claude
+        return proposal
+    }
+
     /// APNs tokens go over the wire as lowercase hex.
     public static func hex(_ data: Data) -> String {
         data.map { String(format: "%02x", $0) }.joined()
@@ -69,7 +106,11 @@ public struct CompanionClient: Sendable {
 
     @discardableResult
     private func send(_ method: String, _ path: String, _ body: [String: String]?) async throws -> Data {
-        let (data, response) = try await session.data(for: request(method, path, body))
+        try await send(request(method, path, body))
+    }
+
+    private func send(_ request: URLRequest) async throws -> Data {
+        let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse else { throw APIError.transport(code: -1, description: "No HTTP response.") }
         guard (200..<300).contains(http.statusCode) else { throw APIError.from(status: http.statusCode, data: data) }
         return data

@@ -12,6 +12,11 @@ struct ReplanSheet: View {
     @Environment(\.dismiss) private var dismiss
     /// How late the person says they are, when the phone isn't recording.
     @State private var reported: Int?
+    /// Claude's proposal from the last ask (Stage 5b), shown instead of the phone's while it passes the check.
+    @State private var claude: Replan.Proposal?
+    @State private var askText = ""
+    @State private var asking = false
+    @State private var askProblem: String?
 
     static let lateChoices = [15, 30, 45, 60, 90]
 
@@ -36,13 +41,18 @@ struct ReplanSheet: View {
                 }
             }
         }
+        .onChange(of: reported) { claude = nil }
         .accessibilityIdentifier("replan.sheet")
     }
 
     @ViewBuilder
     private func content(_ situation: Replan.Situation) -> some View {
-        let proposal = ReplanPlanner.propose(situation)
-        let problems = ReplanCheck.problems(proposal, situation: situation, tripDays: model.tripDays(tripID))
+        let phone = ReplanPlanner.propose(situation)
+        let tripDays = model.tripDays(tripID)
+        // Claude's plan, while it still passes against the latest situation.
+        let fromClaude = claude.flatMap { ReplanCheck.problems($0, situation: situation, tripDays: tripDays).isEmpty ? $0 : nil }
+        let proposal = fromClaude ?? phone
+        let problems = ReplanCheck.problems(proposal, situation: situation, tripDays: tripDays)
         ScrollView {
             VStack(alignment: .leading, spacing: ALSpace.space4) {
                 Text(proposal.headline)
@@ -55,6 +65,17 @@ struct ReplanSheet: View {
                     Label("From where you are now", systemImage: "location.fill")
                         .font(ALFont.footnote)
                         .foregroundStyle(ALColor.inkMuted)
+                }
+                if fromClaude != nil {
+                    HStack {
+                        Label("Suggested by Claude", systemImage: "sparkles")
+                            .font(ALFont.footnote)
+                            .foregroundStyle(ALColor.secondaryText)
+                        Spacer()
+                        Button("Use the phone's plan") { claude = nil }
+                            .buttonStyle(ALButtonStyle(.plain, small: true))
+                            .accessibilityIdentifier("replan.usePhone")
+                    }
                 }
                 if !proposal.summary.isEmpty {
                     Text(proposal.summary)
@@ -95,8 +116,67 @@ struct ReplanSheet: View {
                 Text("Applying saves the new times on this phone and sends them when it's online. Skipped places stay in the trip.")
                     .font(ALFont.footnote)
                     .foregroundStyle(ALColor.inkMuted)
+                if model.companionCanReplan {
+                    askBox(situation: situation, current: phone)
+                        .padding(.top, ALSpace.space4)
+                }
             }
             .padding(ALSpace.space4)
+        }
+    }
+
+    /// "Ask for a different plan…": through the companion to Claude (Stage 5b).
+    private func askBox(situation: Replan.Situation, current: Replan.Proposal) -> some View {
+        VStack(alignment: .leading, spacing: ALSpace.space2) {
+            HStack(spacing: ALSpace.space2) {
+                Image(systemName: "wand.and.stars").foregroundStyle(ALColor.inkMuted)
+                TextField("Ask for a different plan…", text: $askText, axis: .vertical)
+                    .lineLimit(1...4)
+                    .submitLabel(.send)
+                    .onSubmit { send(situation: situation, current: current) }
+                    .disabled(asking)
+                    .accessibilityIdentifier("replan.ask")
+                if asking {
+                    ProgressView()
+                } else if !askText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    Button("Send", systemImage: "arrow.up.circle.fill") { send(situation: situation, current: current) }
+                        .labelStyle(.iconOnly)
+                        .font(.title2)
+                        .accessibilityIdentifier("replan.ask.send")
+                }
+            }
+            .padding(.horizontal, ALSpace.space4)
+            .padding(.vertical, ALSpace.space3)
+            .background(ALColor.surface200, in: Capsule())
+            if let askProblem {
+                Label(askProblem, systemImage: "exclamationmark.triangle")
+                    .font(ALFont.footnote)
+                    .foregroundStyle(ALColor.errorText)
+            }
+            Text("Sends the rest of today's plan and your words to Claude through your companion.")
+                .font(ALFont.caption)
+                .foregroundStyle(ALColor.inkMuted)
+        }
+    }
+
+    private func send(situation: Replan.Situation, current: Replan.Proposal) {
+        let text = askText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty, !asking else { return }
+        asking = true
+        askProblem = nil
+        Task {
+            defer { asking = false }
+            do {
+                let proposal = try await model.askReplan(text, situation: situation, current: current, tripID: tripID)
+                if let problem = ReplanCheck.problems(proposal, situation: situation, tripDays: model.tripDays(tripID)).first {
+                    askProblem = "Claude's plan didn't fit: " + problem.message
+                } else {
+                    claude = proposal
+                    askText = ""
+                }
+            } catch {
+                askProblem = AppModel.describe(error)
+            }
         }
     }
 
