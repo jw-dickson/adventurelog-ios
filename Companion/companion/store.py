@@ -11,6 +11,7 @@ import json
 import sqlite3
 import uuid
 from dataclasses import asdict, dataclass
+from datetime import date
 from pathlib import Path
 
 SCHEMA = """
@@ -56,6 +57,23 @@ create table if not exists photo_assets (
     state text not null,     -- done, undone, failed, unmatched
     detail text,
     primary key (user_id, trip_id, asset_id)
+);
+-- Live flight status (#39): the provider's last answer per flight and day, shared by everyone
+-- on that flight, and what the provider billed per day.
+create table if not exists flight_status (
+    provider text not null,
+    number text not null,
+    local_date text not null,
+    status text,             -- JSON; null when the provider didn't find the flight
+    fetched_at text not null,
+    unchanged integer not null default 0,
+    primary key (provider, number, local_date)
+);
+create table if not exists flight_units (
+    provider text not null,
+    day text not null,
+    units integer not null default 0,
+    primary key (provider, day)
 );
 -- Every sidecar written, with a copy of what was there before (null: there was no file), and a
 -- hash of what was written, so undo can tell whether Lightroom has changed it since.
@@ -289,6 +307,57 @@ class Store:
             (user_id, trip_id, asset_id, path),
         )
         self.db.commit()
+
+    # Flight status (#39)
+
+    def flight_status(self, provider: str, number: str, local_date: str) -> dict | None:
+        row = self.db.execute(
+            "select * from flight_status where provider = ? and number = ? and local_date = ?",
+            (provider, number, local_date),
+        ).fetchone()
+        if row is None:
+            return None
+        return {
+            "status": json.loads(row["status"]) if row["status"] else None,
+            "fetched_at": row["fetched_at"],
+            "unchanged": row["unchanged"],
+        }
+
+    def save_flight_status(
+        self, provider: str, number: str, local_date: str, status: dict | None, fetched_at: str, unchanged: int
+    ) -> None:
+        self.db.execute(
+            """insert or replace into flight_status (provider, number, local_date, status, fetched_at, unchanged)
+               values (?, ?, ?, ?, ?, ?)""",
+            (
+                provider,
+                number,
+                local_date,
+                json.dumps(status, sort_keys=True) if status else None,
+                fetched_at,
+                unchanged,
+            ),
+        )
+        self.db.commit()
+
+    def add_flight_units(self, provider: str, day: date, units: int) -> None:
+        self.db.execute(
+            """insert into flight_units (provider, day, units) values (?, ?, ?)
+               on conflict(provider, day) do update set units = units + excluded.units""",
+            (provider, day.isoformat(), units),
+        )
+        self.db.commit()
+
+    def flight_units(self, provider: str, day: date) -> tuple[int, int]:
+        """What the provider billed on that day, and in that day's month so far."""
+        today = self.db.execute(
+            "select units from flight_units where provider = ? and day = ?", (provider, day.isoformat())
+        ).fetchone()
+        month = self.db.execute(
+            "select coalesce(sum(units), 0) as units from flight_units where provider = ? and day like ?",
+            (provider, f"{day.isoformat()[:7]}-%"),
+        ).fetchone()
+        return (today["units"] if today else 0, month["units"])
 
     @staticmethod
     def _photo_trip(row) -> PhotoTrip:

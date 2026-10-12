@@ -77,10 +77,12 @@ class APNs:
             },
         )
 
-    async def update(self, token: str, environment: str, state: dict, stale_at: int) -> None:
-        await self.send(
-            token, environment, {"event": "update", "content-state": state, "stale-date": stale_at}, priority=5
-        )
+    async def update(self, token: str, environment: str, state: dict, stale_at: int, alert: dict | None = None) -> None:
+        """A quiet update, or with `alert` one that lights the screen (a delay, a gate change)."""
+        aps = {"event": "update", "content-state": state, "stale-date": stale_at}
+        if alert:
+            aps["alert"] = alert
+        await self.send(token, environment, aps, priority=10 if alert else 5)
 
     async def end(self, token: str, environment: str, state: dict, dismiss_at: int) -> None:
         await self.send(token, environment, {"event": "end", "content-state": state, "dismissal-date": dismiss_at})

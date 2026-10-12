@@ -114,6 +114,7 @@ final class AppModel {
             defaults.set(companionAddress, forKey: Keys.companionAddress)
             // No photo calls to the old address while the new one connects; it says again if it can.
             companionCanPhoto = false
+            companionHasFlightStatus = false
             // A moment after the typing stops, not on every keystroke.
             companionTask?.cancel()
             companionTask = Task { [weak self] in
@@ -422,6 +423,7 @@ final class AppModel {
         lastReplanNotice = nil
         companionCanReplan = false
         companionCanPhoto = false
+        companionHasFlightStatus = false
         discoveredCompanion = nil
         companionStatus = nil
         tripPhotos = [:]
@@ -682,6 +684,9 @@ final class AppModel {
     /// The companion has Claude set up, so the replan sheet offers "Ask for a different plan" (Stage 5b).
     private(set) var companionCanReplan = false
 
+    /// The companion lays live flight status over flight Live Activities (#39).
+    private(set) var companionHasFlightStatus = false
+
     // Photos to the trip (Stage 6): the companion matches them; the phone shows and steers it.
     /// The companion has Immich and the photo library set up.
     var companionCanPhoto = false
@@ -807,8 +812,10 @@ final class AppModel {
             return
         }
         let listed = Set((ownedTrips + sharedTrips).map(\.id))
+        // A delay or cancellation the companion pushed stays until a push changes it (#39).
+        let pushed = liveActivities.runningStates
         let current = trips.filter { listed.contains($0.key) }
-            .compactMap { LiveActivityPlanner.current(for: $0.value.plan, now: now, skipped: skipped[$0.key] ?? []) }
+            .compactMap { LiveActivityPlanner.current(for: $0.value.plan, now: now, skipped: skipped[$0.key] ?? [], pushed: pushed) }
             .min { $0.end < $1.end }
         var onToken: LiveActivityController.TokenHandler?
         if companion != nil {
@@ -895,6 +902,7 @@ final class AppModel {
             }
             companionCanReplan = false
             companionCanPhoto = false
+            companionHasFlightStatus = false
             return
         }
         do {
@@ -921,6 +929,7 @@ final class AppModel {
             if session == started, self.companion?.baseURL == companion.baseURL {
                 companionCanReplan = health?.replan == true
                 companionCanPhoto = health?.photos == true
+                companionHasFlightStatus = health?.flightStatus == true
             }
             await sendPendingActivityTokens()
             // A newer token arrived while this was in flight (or this older request finished last):
@@ -932,6 +941,7 @@ final class AppModel {
                                               address: CompanionClient.displayAddress(companion.baseURL))
             companionCanReplan = false
             companionCanPhoto = false
+            companionHasFlightStatus = false
         }
     }
 

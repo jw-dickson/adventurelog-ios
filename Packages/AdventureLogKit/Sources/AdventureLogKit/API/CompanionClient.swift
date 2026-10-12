@@ -65,6 +65,8 @@ public struct CompanionClient: Sendable {
         public var replan: Bool?
         /// Immich and the photo library are configured (Stage 6).
         public var photos: Bool?
+        /// A flight-status provider is configured (#39): flight Live Activities get delays and gates.
+        public var flightStatus: Bool?
     }
 
     /// - Parameter timeout: short when probing an address that may not have a companion at all.

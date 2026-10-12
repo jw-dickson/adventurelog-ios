@@ -469,3 +469,26 @@ Only after 2 passes: point `PHOTO_PATHS` at the library and turn the trip on.
 4. Set the camera clock to a few minutes slow, turn photos off and on, and check the day is matched again.
 
 ### Results
+
+## Handoff 14 · Live flight status (#39) (2026-10-12)
+
+**Branch:** `flight-status`. **Goal:** a flight's Live Activity shows the airline's delays, gates, boarding and cancellations.
+
+### What changed
+
+- **Companion:** `companion/flight_status.py` (AeroAPI and AeroDataBox, matching, the lookup schedule, the caps), two tables in the store, and alerts on updates that matter. It needs `FLIGHT_STATUS_PROVIDER` and `FLIGHT_STATUS_API_KEY`. See `Companion/README.md`.
+- **Phone:** `LiveActivityPlanner.current(… pushed:)` keeps a pushed later departure and a cancellation, so opening the app doesn't put the schedule back. Reminders says when the companion has flight status.
+
+### 1. Companion
+
+1. Set `FLIGHT_STATUS_PROVIDER=aeroapi` and `FLIGHT_STATUS_API_KEY`, and restart. `GET /healthz` should include `"flightStatus": true`.
+
+### 2. On a phone (TestFlight)
+
+1. Reminders should say "Flights show live delays and gates" under the companion.
+2. On a test trip, add a real flight a little over three hours out, with its flight number and origin airport code. Lock the phone.
+3. The activity should start by push. If the flight has a gate or a delay, the note shows it within 15 minutes.
+4. Open the app: a delay should stay, not jump back to the scheduled time.
+5. After it leaves, the activity should end within 5 minutes.
+
+### Results

@@ -7,7 +7,8 @@ A small self-hosted service that sends the AdventureLog iOS app its Live Activit
 - **Updates** it when the times change in AdventureLog, and when boarding starts.
 - **Ends** it at departure, or when the item is skipped, moved or deleted.
 
-Two optional modules: replan asks to Claude (Stage 5b), and photos to the trip (Stage 6), which
+Optional modules: replan asks to Claude (Stage 5b), live flight status on flight Live Activities
+(#39), and photos to the trip (Stage 6), which
 matches raw photos in Immich to the trip's stops and writes the stop into each photo's XMP sidecar
 for Lightroom Classic and Immich to read. See [Photos to the trip](#photos-to-the-trip).
 
@@ -31,7 +32,7 @@ separate accounts, and it keeps the key to read that person's trips.
 | `GET /v1/trips/{id}/photos` | Optional (Stage 6): the trip's photo setting and what's been matched, by day: `{"enabled", "cameraOffsetMinutes", "lastRun", "lastError", "days": [{"date", "photos", "undone", "failed", "stops": [{"title", "photos"}]}]}`. A stop with an empty title is the day's photos taken between stops. `503` when photos aren't set up, `404` when the key can't see the trip. |
 | `PUT /v1/trips/{id}/photos` | Turns photos on or off for the trip: `{"enabled", "cameraOffsetMinutes"}`. The offset (−1440 to 1440) is added to the camera's times, for a clock that ran slow (positive) or fast. Answers the same as `GET`. |
 | `POST /v1/trips/{id}/photos/undo` | Puts back a day's sidecars and unlinks its photos: `{"date": "2027-03-08"}`. Answers `{"restored", "kept"}` and the `GET` summary. A photo whose sidecar changed since the companion wrote it is kept as it is. Undone photos aren't matched again until the trip is turned off and on. |
-| `GET /healthz` | `{"ok": true, "pushes": true, "replan": true, "photos": true}`: `pushes` when APNs is configured, `replan` when Claude is, `photos` when Immich and the library are. |
+| `GET /healthz` | `{"ok": true, "pushes": true, "replan": true, "photos": true, "flightStatus": true}`: `pushes` when APNs is configured, `replan` when Claude is, `photos` when Immich and the library are, `flightStatus` when a flight-status provider is. |
 
 Push payloads match `Fixtures/live-activity/` at the repository root: `content-state` is the app's
 `LiveActivityState`, with times in Unix seconds.
@@ -99,6 +100,9 @@ volumes:
 | `PHOTO_PATHS` | Where the photo library is mounted: `immich-path=companion-path`, several separated by `;`. For example `/mnt/photos=/photos` when Immich sees the library at `/mnt/photos` and the companion has it mounted read-write at `/photos`. The companion writes only under these folders. |
 | `CAMERA_ZONE` | The zone the camera's clock is set to, such as `Europe/London`, for photos whose EXIF has no time zone. Leave the camera on home time while travelling. |
 | `PHOTO_BACKUPS` | Optional; where the original of each changed sidecar is kept, `/data/sidecar-backups` by default. |
+| `FLIGHT_STATUS_PROVIDER`, `FLIGHT_STATUS_API_KEY` | Optional (#39): live flight status on flight Live Activities. `aeroapi` (FlightAware AeroAPI) or `aerodatabox`, and that provider's key. See [Live flight status](#live-flight-status). |
+| `FLIGHT_STATUS_MONTHLY_UNITS`, `FLIGHT_STATUS_DAILY_UNITS` | Optional caps on what the provider bills: AeroAPI result sets (800 a month by default) or AeroDataBox units (360). The daily cap is a quarter of the monthly by default. Set them from your plan. |
+| `FLIGHT_STATUS_API_HOST` | Optional, AeroDataBox only: its host when not reached through RapidAPI. |
 | `PHOTO_LINKS_PER_STOP` | Optional; how many of each place's photos are shown on it in AdventureLog, 3 by default. |
 
 Replan asks send Anthropic the rest of that day's plan (titles, times, places, which items are
@@ -106,6 +110,28 @@ booked) and the words typed. Nothing about the ask is stored on the companion.
 
 Builds from Xcode push through Apple's sandbox, and TestFlight and App Store builds through
 production. The app says which when it registers.
+
+## Live flight status
+
+With `FLIGHT_STATUS_PROVIDER` and `FLIGHT_STATUS_API_KEY` set, a flight's Live Activity shows what the
+airline says, not only what's typed into AdventureLog. The design, with the providers compared, is
+in [`docs/FLIGHT-STATUS.md`](../docs/FLIGHT-STATUS.md).
+
+- **When it asks:** only for flights in their activity window, from three hours before the planned
+  departure until the flight leaves. Every 15 minutes, then every 5 in the last hour, backing off
+  while nothing changes. People on the same flight share one lookup.
+- **What the activity shows:** a later departure moves the countdown and keeps the activity open
+  until the flight leaves ("Delayed 25 min · Terminal 2 · Gate 23"). Boarding when the airline says
+  so, "Cancelled" for an hour past the planned departure, and the end when it leaves. Delays under
+  15 minutes aren't shown, and nothing moves before the schedule.
+- **Alerts:** a delay that moves by 15 minutes or more, a gate change, boarding (with a gate) and a
+  cancellation light the screen. Everything else updates quietly.
+- **Nothing is written to AdventureLog.** Remove the key and every activity runs on AdventureLog's
+  times again.
+- **Cost:** about 20 lookups a flight. AeroAPI's Personal tier covers that in its free monthly
+  allowance (personal use only). AeroDataBox counts 2 units a lookup; the companion never asks for
+  the flight-plan add-on, which would double it. At 90% of either cap only the last hour before a
+  departure is looked up, and at 100% nothing is.
 
 ## Photos to the trip
 

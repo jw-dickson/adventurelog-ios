@@ -149,16 +149,41 @@ public enum LiveActivityPlanner {
         public let end: Date
     }
 
+    /// How long a flight the companion says is cancelled keeps its activity after the planned departure.
+    public static let cancelledFor: TimeInterval = 3600
+
     /// The activity that should be showing at `now`, if any.
-    public static func current(for plan: TripPlan, now: Date, skipped: Set<String> = []) -> Plan? {
+    /// - Parameter pushed: the running activities' states by row id. A flight's pushed later
+    ///   departure (live flight status from the companion, #39) moves its countdown and its end,
+    ///   so opening the app doesn't put the schedule back. Times never move before the schedule.
+    public static func current(for plan: TripPlan, now: Date, skipped: Set<String> = [],
+                               pushed: [String: LiveActivityState] = [:]) -> Plan? {
         candidates(in: plan, skipped: skipped)
+            .map { overlay($0, pushed: pushed[$0.info.rowID]) }
             .filter { $0.info.windowStart <= now && now < $0.end }
             .min { $0.end < $1.end }
             .map { candidate in
                 var state = candidate.state
-                if now >= state.target, candidate.info.kind == .flight { state.phase = .boarding }
+                if now >= state.target, candidate.info.kind == .flight, state.phase == .upcoming { state.phase = .boarding }
                 return Plan(info: candidate.info, state: state, end: candidate.end)
             }
+    }
+
+    static func overlay(_ candidate: Plan, pushed: LiveActivityState?) -> Plan {
+        guard let pushed, candidate.info.kind == .flight else { return candidate }
+        if pushed.phase == .cancelled {
+            return Plan(info: candidate.info, state: pushed, end: candidate.end.addingTimeInterval(cancelledFor))
+        }
+        var state = candidate.state
+        // The airline said boarding: that stands even before the computed boarding time.
+        if pushed.phase == .boarding { state.phase = .boarding }
+        guard pushed.departure > candidate.state.departure else {
+            return Plan(info: candidate.info, state: state, end: candidate.end)
+        }
+        state.departure = pushed.departure
+        state.target = max(pushed.target, candidate.state.target)
+        state.note = pushed.note
+        return Plan(info: candidate.info, state: state, end: pushed.departure)
     }
 
     /// When the next activity after `now` should start, so the app can ask to run then.

@@ -80,6 +80,15 @@ struct LiveActivityController: Sendable {
         }
     }
 
+    /// What each running activity shows now, by row id: the companion's pushes included.
+    var runningStates: [String: LiveActivityState] {
+        var states: [String: LiveActivityState] = [:]
+        for activity in Activity<TripActivityAttributes>.activities {
+            states[activity.attributes.info.rowID] = activity.content.state
+        }
+        return states
+    }
+
     /// iOS's current push-to-start token, if it has issued one.
     var startToken: Data? { Activity<TripActivityAttributes>.pushToStartToken }
 
