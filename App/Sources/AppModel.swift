@@ -564,7 +564,10 @@ final class AppModel {
 
     /// Adds a note at the end of a day, or trip-wide when `date` is nil.
     func addNote(name: String, content: String, date: CalendarDate?, tripID: String) {
-        perform(.addNote(.init(name: name, content: content, date: date)), in: tripID)
+        var add = TripEdit.AddNote(name: name, content: content, date: date)
+        // Twins already shown, including notes still on their way, tell this note from older ones.
+        add.occurrence = trips[tripID]?.plan.collection.notes.filter(add.isTwin).count ?? 0
+        perform(.addNote(add), in: tripID)
     }
 
     /// Takes a row off its day. The item stays in the trip, under Not on a day.

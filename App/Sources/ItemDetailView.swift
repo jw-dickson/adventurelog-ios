@@ -14,7 +14,9 @@ struct ItemDetailView: View {
 
     var body: some View {
         Group {
-            if let plan = model.trip(route.tripID)?.plan, let item = Self.find(route.itemID, in: plan) {
+            if let plan = model.trip(route.tripID)?.plan,
+               let item = Self.entry(route.itemID, on: route.day, in: plan)?.item ?? Self.find(route.itemID, in: plan) {
+                // The placement that was opened, so a place on two days edits that day's visit.
                 ItemDetailContent(summary: ItemSummary(item, day: route.day, tripZone: plan.timeZone), item: item,
                                   entry: Self.entry(route.itemID, on: route.day, in: plan), tripID: route.tripID)
             } else {

@@ -210,6 +210,22 @@ struct ItemEditTests {
         #expect(!phone.titles(on: d1).contains("Fuel"))
     }
 
+    @Test func twoIdenticalNotesAreBothAdded() async throws {
+        let server = FakeTripServer(trip: try Fixture.trip())
+        var phone = FakeDevice(try Fixture.trip())
+        // As the app does: each counts the twins already shown, including ones not yet sent.
+        for _ in 0..<2 {
+            var add = TripEdit.AddNote(name: "Fuel", content: "Fill up.", date: d1)
+            add.occurrence = phone.shown.notes.filter(add.isTwin).count
+            phone.make(.addNote(add))
+        }
+        await phone.drain(to: server)
+        #expect(phone.outbox.entries.isEmpty)
+        #expect(await server.createdNotes == 2)
+        try await phone.refresh(from: server)
+        #expect(phone.titles(on: d1).filter { $0 == "Fuel" }.count == 2)
+    }
+
     @Test func movingOrRemovingANoteBeforeItsSentChangesWhatIsAdded() throws {
         var phone = FakeDevice(try Fixture.trip())
         let add = TripEdit.AddNote(name: "Fuel", content: "Fill up in Swansea.", date: d1)

@@ -285,12 +285,22 @@ extension TripEdit {
         public var content: String
         /// `nil` for trip-wide.
         public var date: CalendarDate?
+        /// How many notes with this title, text and day the trip already had (counting ones still
+        /// on their way), so a resend after a lost answer can tell its own note from an older twin.
+        public var occurrence: Int
 
-        public init(localID: String = "local-" + UUID().uuidString.lowercased(), name: String, content: String, date: CalendarDate?) {
+        public init(localID: String = "local-" + UUID().uuidString.lowercased(), name: String, content: String,
+                    date: CalendarDate?, occurrence: Int = 0) {
             self.localID = localID
             self.name = name
             self.content = content
             self.date = date
+            self.occurrence = occurrence
+        }
+
+        /// Whether `note` has this note's title, text and day.
+        public func isTwin(_ note: Note) -> Bool {
+            note.name == title && (note.content ?? "") == content && note.date == date
         }
 
         public var rowID: String { "local-row-" + localID.dropFirst("local-".count) }
@@ -302,10 +312,11 @@ extension TripEdit {
         /// Adds the note and its row at the end of its day, under the given ids: the local ones
         /// before it's sent, the server's once it has them.
         public func apply(to trip: inout CollectionDetail, noteID: String, rowID: String) {
-            guard !trip.notes.contains(where: { $0.id == noteID }) else { return }
-            trip.notes.append(Note(id: noteID, user: nil, name: title, content: content, date: date,
-                                   links: DefaultEmpty(wrappedValue: []), isPublic: false, collection: trip.id,
-                                   createdAt: nil, updatedAt: nil))
+            if !trip.notes.contains(where: { $0.id == noteID }) {
+                trip.notes.append(Note(id: noteID, user: nil, name: title, content: content, date: date,
+                                       links: DefaultEmpty(wrappedValue: []), isPublic: false, collection: trip.id,
+                                       createdAt: nil, updatedAt: nil))
+            }
             guard !trip.itinerary.contains(where: { $0.id == rowID }) else { return }
             let order = (ItineraryLayout.group(date, in: trip.itinerary).map(\.order).max() ?? -1) + 1
             trip.itinerary.append(ItineraryRow(id: rowID, collection: trip.id, objectId: noteID,

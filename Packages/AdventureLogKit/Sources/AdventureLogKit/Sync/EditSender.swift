@@ -207,10 +207,12 @@ public struct EditSender: Sendable {
         // A day that left the trip: the note goes trip-wide rather than being lost.
         var date = edit.date
         if let day = date, let start = trip.startDate, let end = trip.endDate, day < start || day > end { date = nil }
-        // Sent before but the answer was lost: the note is already there.
+        // Sent before but the answer was lost: there's one more twin than when the note was made,
+        // and the newest is this one.
+        let twins = trip.notes.filter(edit.isTwin).sorted { ($0.createdAt ?? .distantPast, $0.id) < ($1.createdAt ?? .distantPast, $1.id) }
         let note: Note
-        if let existing = trip.notes.first(where: { $0.name == edit.title && ($0.content ?? "") == edit.content && $0.date == edit.date }) {
-            note = existing
+        if twins.count > edit.occurrence {
+            note = twins[edit.occurrence]
         } else {
             note = try await server.createNote(NoteCreate(collection: tripID, name: edit.title, content: edit.content, date: edit.date))
             trip.notes.append(note)
