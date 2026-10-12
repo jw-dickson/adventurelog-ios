@@ -286,7 +286,7 @@ struct CompanionRedirectTests {
         let response = try #require(HTTPURLResponse(url: url, statusCode: 302, httpVersion: nil,
                                                     headerFields: ["Location": "https://sso.example.com/login"]))
         let login = URLRequest(url: try #require(URL(string: "https://sso.example.com/login")))
-        nonisolated(unsafe) var followed: URLRequest? = login
+        var followed: URLRequest? = login
         delegate.urlSession(CompanionClient.session, task: CompanionClient.session.dataTask(with: url),
                             willPerformHTTPRedirection: response, newRequest: login) { followed = $0 }
         #expect(followed == nil)
