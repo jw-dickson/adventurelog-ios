@@ -294,20 +294,28 @@ public struct TimelineRow: View {
                 .accessibilityElement(children: .combine)
         } else {
             HStack(alignment: .top, spacing: ALSpace.space2) {
-                VStack(alignment: .trailing, spacing: 0) {
-                    Text(content.time ?? "")
-                        .font(ALFont.time)
-                        .monospacedDigit()
-                        .foregroundStyle(ALColor.ink)
+                TimeColumn {
+                    // The column is as wide as the widest time this locale writes ("10:58 PM" or
+                    // "22:58"), the same on every row, so no time is ever cut short.
+                    ZStack(alignment: .trailing) {
+                        ForEach(Self.widestTimes, id: \.self) { Text($0).hidden().accessibilityHidden(true) }
+                    }
+                    .frame(minWidth: timeWidth, alignment: .trailing)
+                    .overlay(alignment: .trailing) {
+                        // Anything wider than a time ("All day") shrinks to the column.
+                        Text(content.time ?? "").minimumScaleFactor(0.6)
+                    }
+                    .font(ALFont.time)
+                    .monospacedDigit()
+                    .foregroundStyle(ALColor.ink)
                     if let secondary = content.secondaryTime {
                         Text(secondary)
                             .font(.caption)
                             .foregroundStyle(ALColor.inkMuted)
+                            .minimumScaleFactor(0.75)
                     }
                 }
                 .lineLimit(1)
-                .minimumScaleFactor(0.75)
-                .frame(width: timeWidth, alignment: .trailing)
                 .padding(.top, 14)
 
                 rail.frame(width: 20)
@@ -315,6 +323,16 @@ public struct TimelineRow: View {
                 card(showTime: false).padding(.bottom, ALSpace.space2)
             }
             .accessibilityElement(children: .combine)
+        }
+    }
+
+    /// The widest times the current locale writes: one before noon and one after, with two-digit hours.
+    static var widestTimes: [String] {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .gmt
+        let style = Date.FormatStyle(date: .omitted, time: .shortened, locale: .autoupdatingCurrent, calendar: calendar, timeZone: .gmt)
+        return [10, 22].compactMap { hour in
+            calendar.date(from: DateComponents(year: 2027, month: 3, day: 8, hour: hour, minute: 58)).map { $0.formatted(style) }
         }
     }
 
@@ -411,4 +429,26 @@ public struct TimelineRow: View {
         .padding()
     }
     .background(ALColor.surface100)
+}
+
+/// A timeline's time column: as wide as its first view (the start time); what's under it (the end
+/// time or date) gets that width and shrinks or is cut short rather than widening the column.
+struct TimeColumn: Layout {
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        guard let first = subviews.first else { return .zero }
+        let width = first.sizeThatFits(.unspecified).width
+        let height = subviews.reduce(0) { $0 + $1.sizeThatFits(ProposedViewSize(width: width, height: nil)).height }
+        return CGSize(width: width, height: height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        guard let first = subviews.first else { return }
+        let width = first.sizeThatFits(.unspecified).width
+        var y = bounds.minY
+        for subview in subviews {
+            let size = ProposedViewSize(width: width, height: nil)
+            subview.place(at: CGPoint(x: bounds.maxX, y: y), anchor: .topTrailing, proposal: size)
+            y += subview.sizeThatFits(size).height
+        }
+    }
 }
