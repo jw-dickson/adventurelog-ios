@@ -548,6 +548,30 @@ final class AppModel {
         perform(.moveRow(.init(rowID: entry.row.id, title: entry.item.title, toDate: date, toIndex: index)), in: tripID)
     }
 
+    /// Saves edited fields of a place, journey or stay. `item` is the item as shown, so a second
+    /// edit builds on the first.
+    func editItem(_ item: TripPlan.Item, values: [ItemField: FieldValue], tripID: String) {
+        guard let edit = TripEdit.EditItem(item: item, visitID: item.editableVisit?.id, values: values) else { return }
+        perform(.editItem(edit), in: tripID)
+    }
+
+    /// Adds a timestamped line under an item's notes. The time is shown in the item's zone.
+    func appendNote(_ text: String, to item: TripPlan.Item, zone: TimeZone, tripID: String) {
+        guard let kind = TripEdit.EditItem.editableKind(item), FieldValue.clean(text) != nil else { return }
+        let line = TripEdit.AppendNote.line(text, at: now, in: zone)
+        perform(.appendNote(.init(kind: kind, itemID: item.id, visitID: item.editableVisit?.id, title: item.title, line: line)), in: tripID)
+    }
+
+    /// Adds a note at the end of a day, or trip-wide when `date` is nil.
+    func addNote(name: String, content: String, date: CalendarDate?, tripID: String) {
+        perform(.addNote(.init(name: name, content: content, date: date)), in: tripID)
+    }
+
+    /// Takes a row off its day. The item stays in the trip, under Not on a day.
+    func removeFromDay(_ entry: TripPlan.Entry, tripID: String) {
+        perform(.removeRow(.init(rowID: entry.row.id, title: entry.item.title, date: entry.row.date)), in: tripID)
+    }
+
     private func perform(_ edit: TripEdit, in tripID: String) {
         guard credentials != nil else { return }
         outbox.enqueue(edit, tripID: tripID, at: .now)
@@ -922,8 +946,16 @@ final class AppModel {
     /// Keeps this phone's version of a note that was also changed elsewhere.
     func keepMine(_ id: UUID) { changeOutbox { $0.keepMine(id) } }
 
-    /// Drops this phone's edit. For a conflicting note, shows the server's version straight away.
+    /// Drops this phone's edit. For a conflicting note or field, shows the server's version straight away.
     func discard(_ id: UUID) {
+        if let entry = outbox.entries.first(where: { $0.id == id }), case .fieldConflict(let conflict) = entry.state,
+           case .editItem(let edit) = entry.edit, var saved = savedTrips[entry.tripID] {
+            ItemValues.write(conflict.clashes.map { ($0.field, $0.server) }, kind: edit.kind, itemID: edit.itemID,
+                             visitID: edit.visitID, in: &saved.value)
+            savedTrips[entry.tripID] = saved
+            let tripID = entry.tripID
+            Task { await loadTrip(id: tripID) }
+        }
         if let entry = outbox.entries.first(where: { $0.id == id }), case .conflict(let conflict) = entry.state,
            case .editNote(let edit) = entry.edit, var saved = savedTrips[entry.tripID],
            let note = saved.value.notes.firstIndex(where: { $0.id == edit.noteID }) {

@@ -9,6 +9,8 @@ public struct PendingEdit: Codable, Sendable, Hashable, Identifiable {
         case waiting
         /// Someone else changed the same note. Shown as the person's version until they choose.
         case conflict(NoteConflict)
+        /// Someone else changed some of the same fields of an item; the edit holds only those now.
+        case fieldConflict(FieldConflict)
         /// The server refused it. Not shown on the trip; the person can retry or discard it.
         case failed(String)
     }
@@ -89,6 +91,15 @@ public struct Outbox: Codable, Sendable, Hashable {
             }
 
         case .editNote(let new):
+            // Editing a note that hasn't been sent yet changes what will be added.
+            if TripEdit.AddNote.isLocal(new.noteID), let index = entries.lastIndex(where: { entry in
+                guard entry.isWaiting, entry.tripID == tripID, case .addNote(let add) = entry.edit else { return false }
+                return add.localID == new.noteID
+            }), case .addNote(var add) = entries[index].edit {
+                add.content = new.content
+                entries[index].edit = .addNote(add)
+                return
+            }
             if let index = entries.lastIndex(where: { entry in
                 guard entry.tripID == tripID, case .editNote(let old) = entry.edit, old.noteID == new.noteID else { return false }
                 if case .failed = entry.state { return false }
@@ -105,7 +116,41 @@ public struct Outbox: Codable, Sendable, Hashable {
             }
             if new.content == new.baseContent { return }
 
+        case .editItem(let new):
+            if let index = entries.lastIndex(where: { entry in
+                guard entry.isWaiting, entry.tripID == tripID, case .editItem(let old) = entry.edit else { return false }
+                return old.sameItem(as: new)
+            }), case .editItem(var old) = entries[index].edit {
+                old.absorb(new)
+                if old.changes.isEmpty {
+                    entries.remove(at: index) // edited back to where it started
+                } else {
+                    entries[index].edit = .editItem(old)
+                }
+                return
+            }
+            if new.changes.isEmpty { return }
+
+        case .appendNote:
+            break
+
+        case .addNote:
+            break
+
+        case .removeRow(let new):
+            // Removing a note that hasn't been sent yet: it simply isn't added.
+            if let index = waitingAddNote(rowID: new.rowID, tripID: tripID) {
+                entries.remove(at: index)
+                return
+            }
+
         case .moveRow(let new):
+            // A note that hasn't been sent yet goes to its new day when it is added.
+            if let index = waitingAddNote(rowID: new.rowID, tripID: tripID), case .addNote(var add) = entries[index].edit {
+                add.date = new.toDate
+                entries[index].edit = .addNote(add)
+                return
+            }
             // Only the very last edit, so other moves made in between still replay in order.
             if let last = entries.indices.last, entries[last].isWaiting, entries[last].tripID == tripID,
                case .moveRow(let old) = entries[last].edit, old.rowID == new.rowID {
@@ -114,6 +159,13 @@ public struct Outbox: Codable, Sendable, Hashable {
             }
         }
         entries.append(PendingEdit(id: id, tripID: tripID, edit: edit, createdAt: now))
+    }
+
+    private func waitingAddNote(rowID: String, tripID: String) -> Int? {
+        entries.lastIndex { entry in
+            guard entry.isWaiting, entry.tripID == tripID, case .addNote(let add) = entry.edit else { return false }
+            return add.rowID == rowID
+        }
     }
 
     // MARK: Sending
@@ -145,6 +197,14 @@ public struct Outbox: Codable, Sendable, Hashable {
                     newer.baseContent = old.content
                     entries[index].edit = .editNote(newer)
                 }
+                if case .editItem(let old) = sent, case .editItem(var newer) = entries[index].edit, outcome == .done {
+                    newer.rebase(onSaved: old)
+                    if newer.changes.isEmpty {
+                        entries.remove(at: index)
+                        return
+                    }
+                    entries[index].edit = .editItem(newer)
+                }
                 if case .retry = outcome {
                     break
                 }
@@ -158,7 +218,7 @@ public struct Outbox: Codable, Sendable, Hashable {
                 entries[index].notBefore = nil
                 entries[index].lastError = nil
                 return
-            case .conflict, .unauthorized:
+            case .conflict, .fieldConflict, .unauthorized:
                 break
             }
         }
@@ -168,10 +228,31 @@ public struct Outbox: Codable, Sendable, Hashable {
         case .dropped(let message):
             let entry = entries.remove(at: index)
             var kept: String?
-            if case .editNote(let edit) = entry.edit { kept = edit.content }
+            switch entry.edit {
+            case .editNote(let edit): kept = edit.content
+            case .appendNote(let edit): kept = edit.line
+            case .addNote(let edit): kept = edit.content
+            case .editItem(let edit): kept = edit.changes.compactMap { $0.field == .description || $0.field == .visitNotes ? $0.value.text : nil }.first
+            default: break
+            }
             notices.append(SyncNotice(tripID: entry.tripID, message: message, keptText: kept, createdAt: now))
         case .conflict(let conflict):
             entries[index].state = .conflict(conflict)
+            entries[index].notBefore = nil
+            entries[index].lastError = nil
+        case .fieldConflict(let conflict):
+            // The other fields were saved; only the clashing ones are left to decide.
+            if case .editItem(var edit) = entries[index].edit {
+                let clashing = Set(conflict.clashes.map(\.field))
+                if case .editItem(let old) = sent ?? entries[index].edit {
+                    // Fields that were sent and didn't clash are on the server now.
+                    var saved = old
+                    saved.changes.removeAll { clashing.contains($0.field) }
+                    edit.rebase(onSaved: saved)
+                }
+                entries[index].edit = .editItem(edit)
+            }
+            entries[index].state = .fieldConflict(conflict)
             entries[index].notBefore = nil
             entries[index].lastError = nil
         case .retry(let message), .unauthorized(let message):
@@ -203,12 +284,19 @@ public struct Outbox: Codable, Sendable, Hashable {
     /// Keeps this phone's version of a conflicting note: it is sent again over the server's version
     /// that was shown. If the note changed yet again, that is a new conflict.
     public mutating func keepMine(_ id: UUID) {
-        guard let index = entries.firstIndex(where: { $0.id == id }),
-              case .conflict(let conflict) = entries[index].state,
-              case .editNote(var edit) = entries[index].edit
-        else { return }
-        edit.baseContent = conflict.serverContent
-        entries[index].edit = .editNote(edit)
+        guard let index = entries.firstIndex(where: { $0.id == id }) else { return }
+        switch (entries[index].state, entries[index].edit) {
+        case (.conflict(let conflict), .editNote(var edit)):
+            edit.baseContent = conflict.serverContent
+            entries[index].edit = .editNote(edit)
+        case (.fieldConflict(let conflict), .editItem(var edit)):
+            for clash in conflict.clashes {
+                if let change = edit.changes.firstIndex(where: { $0.field == clash.field }) { edit.changes[change].base = clash.server }
+            }
+            entries[index].edit = .editItem(edit)
+        default:
+            return
+        }
         entries[index].state = .waiting
         entries[index].attempts = 0
         entries[index].notBefore = nil
@@ -265,7 +353,10 @@ public struct Outbox: Codable, Sendable, Hashable {
             switch entry.edit {
             case .checkItem(let edit): return edit.checklistID == itemID
             case .editNote(let edit): return edit.noteID == itemID
-            case .moveRow: return false
+            case .editItem(let edit): return edit.itemID == itemID
+            case .appendNote(let edit): return edit.itemID == itemID
+            case .addNote(let edit): return edit.localID == itemID
+            case .moveRow, .removeRow: return false
             }
         }
     }

@@ -9,6 +9,7 @@ The app is built in stages. Each ends in something that runs in the Simulator an
 | **1 · Read-only offline client** | Sign-in, trip list (owned and shared), day timeline, item detail, trip-wide notes and checklists, map with pins, offline pack | Browse a seeded trip with the network off; snapshot tests light, dark and Dynamic Type XXL |
 | **2 · Today, editing, sync** | Today tab, checklist ticks, note edits, reorder and move between days, outbox with retry, conflicts, shared-trip rules | Offline edits reach the server on reconnect; two Simulators on one trip converge |
 | **Design review 2** ✅ | Simulator snapshot gallery beside the mockups ([`Design/review-2`](../Design/review-2/README.md)) | Signed off 11 Oct 2026; first TestFlight build |
+| **Editing items** *(issue #22, [`Design/editing`](../Design/editing/README.md))* | Notes, times and details of places, journeys and stays; quick timestamped notes; new notes on a day; remove from a day | Item edits made offline reach the server; a clash on one field asks without losing the others |
 | **3 · Reminders and tracking** *(3a reminders, 3b tracking)* | Leave-by and heads-up reminders, rolling geofence window, background tracking, stop detection, plan vs actual on the phone (server write-back decided later), GPX capture, the Log tab | A replayed drive fires the right reminders in the trip's zone and detects the planned stops |
 | **4 · Companion service and Live Activities** *(optional module)* | Self-hosted companion: device registration, APNs, track ingest, fixed/flexible flags; Live Activities for connections and booked tours | `simctl push` payloads render every state; a server push reaches a TestFlight build |
 | **5 · Replan assistant** *(optional module)* | Proposes a revised day around booked items; the user accepts, edits or dismisses | Golden scenarios produce valid proposals; a UI test accepts one end to end |
@@ -27,6 +28,18 @@ Edits are kept on the phone first and sent when the server can be reached: a tic
 - **In order, with retry.** Edits go one at a time, in the order they were made. A send that fails because the server can't be reached waits 5 s, then 10, 20… up to 5 minutes. It goes again as soon as the network comes back, the app comes to the front, or the person pulls to refresh. An edit whose item was deleted elsewhere is dropped with a notice; if it was note text, the text can be copied. The server refusing an edit is listed for a retry or discard.
 - **Shared trips.** Every PATCH carries the trip's `collection`, which AdventureLog requires from collaborators. Collaborators can tick, edit notes and reorder like the owner. Changing the trip itself (name, dates, sharing) stays with the owner and isn't in the app.
 - **Converging.** After sending, the app fetches the trip again. It also refreshes the open trip every two minutes while it's on screen, and when the app comes to the front, so a second phone's changes show up.
+
+## How item edits sync
+
+Item edits use the same outbox as Stage 2 (above): saved on the phone, replayed onto the server's current copy when sent.
+
+- **Fields remember where they started.** An edit to a place, journey or stay carries each changed field's starting value and new value (`TripEdit.EditItem`). When it's sent, a field the server still has at its starting value is saved; one that already has the new value is done; one someone else changed is a clash. The fields that don't clash are saved straight away, and the person picks *Keep mine* or *Keep server's* for the rest.
+- **A place lives in two objects.** Its name, address, link and general notes are on the location; the times and notes for this trip's visit are on the visit, which is edited with `PATCH /api/visits/{id}/`. A PATCH to the location never sends `visits`, which would replace every visit.
+- **Quick notes never clash.** *Add a note* appends a line stamped with the time in the item's zone (`TripEdit.AppendNote`). When sent, it goes after whatever the server's notes say; sending it twice doesn't add it twice.
+- **New notes have a local id until they're sent** (`local-…`). Editing, moving or removing one before it's sent changes what will be added instead of queueing an edit the server couldn't apply. Sending creates the note and then its row at the end of the day; a resend after a lost answer finds the note it already made.
+- **Removing from a day** deletes the row with `preserve_visits=true`, so a place keeps its visit and moves to Not on a day.
+- **Collaborators** can edit items like the owner; every journey and stay PATCH carries `collection`. The trip itself (name, dates, sharing) stays out of the app.
+- **Not yet:** adding places (needs place search), photos and attachments.
 
 ## How Stage 3 reminds
 

@@ -11,6 +11,10 @@ public enum TripEdit: Codable, Sendable, Hashable {
     case checkItem(CheckItem)
     case editNote(EditNote)
     case moveRow(MoveRow)
+    case editItem(EditItem)
+    case appendNote(AppendNote)
+    case addNote(AddNote)
+    case removeRow(RemoveRow)
 
     /// Tick or untick one checklist item.
     public struct CheckItem: Codable, Sendable, Hashable {
@@ -100,6 +104,14 @@ public enum TripEdit: Codable, Sendable, Hashable {
             return "Edit “\(edit.noteName)”"
         case .moveRow(let edit):
             return "Move “\(edit.title)”"
+        case .editItem(let edit):
+            return "Edit “\(edit.title)”"
+        case .appendNote(let edit):
+            return "Add a note to “\(edit.title)”"
+        case .addNote(let edit):
+            return "Add “\(edit.title)”"
+        case .removeRow(let edit):
+            return "Remove “\(edit.title)” from its day"
         }
     }
 
@@ -121,6 +133,28 @@ public enum TripEdit: Codable, Sendable, Hashable {
             if let moved = ItineraryLayout.move(edit.rowID, to: edit.toDate, at: edit.toIndex, in: trip.itinerary) {
                 trip.itinerary = moved.rows
             }
+
+        case .editItem(let edit):
+            ItemValues.write(edit.changes.map { ($0.field, $0.value) }, kind: edit.kind, itemID: edit.itemID, visitID: edit.visitID, in: &trip)
+
+        case .appendNote(let edit):
+            guard let current = ItemValues.read(edit.field, kind: edit.kind, itemID: edit.itemID, visitID: edit.visitID, in: trip),
+                  !edit.isIn(current.text) else { return }
+            ItemValues.write([(edit.field, .text(edit.appended(to: current.text)))], kind: edit.kind, itemID: edit.itemID, visitID: edit.visitID, in: &trip)
+
+        case .addNote(let edit):
+            guard !trip.notes.contains(where: { $0.id == edit.localID }) else { return }
+            trip.notes.append(Note(id: edit.localID, user: nil, name: edit.title, content: edit.content, date: edit.date,
+                                   links: DefaultEmpty(wrappedValue: []), isPublic: false, collection: trip.id,
+                                   createdAt: nil, updatedAt: nil))
+            let order = (ItineraryLayout.group(edit.date, in: trip.itinerary).map(\.order).max() ?? -1) + 1
+            trip.itinerary.append(ItineraryRow(id: edit.rowID, collection: trip.id, objectId: edit.localID,
+                                               item: .init(id: edit.localID, type: .note), objectName: "note",
+                                               date: edit.date, isGlobal: edit.date == nil, order: order,
+                                               startDatetime: nil, endDatetime: nil))
+
+        case .removeRow(let edit):
+            trip.itinerary.removeAll { $0.id == edit.rowID }
         }
     }
 }

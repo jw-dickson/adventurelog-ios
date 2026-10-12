@@ -15,7 +15,8 @@ struct ItemDetailView: View {
     var body: some View {
         Group {
             if let plan = model.trip(route.tripID)?.plan, let item = Self.find(route.itemID, in: plan) {
-                ItemDetailContent(summary: ItemSummary(item, day: route.day, tripZone: plan.timeZone), item: item, tripID: route.tripID)
+                ItemDetailContent(summary: ItemSummary(item, day: route.day, tripZone: plan.timeZone), item: item,
+                                  entry: Self.entry(route.itemID, on: route.day, in: plan), tripID: route.tripID)
             } else {
                 ContentUnavailableView("Not in this trip any more", systemImage: "questionmark.circle")
             }
@@ -31,6 +32,15 @@ struct ItemDetailView: View {
         if let entry = plan.tripWide.first(where: { $0.item.id == id }) { return entry.item }
         return plan.unscheduled.first { $0.id == id }
     }
+
+    /// The row placing the item on `day`, else its first row anywhere.
+    static func entry(_ id: String, on day: CalendarDate?, in plan: TripPlan) -> TripPlan.Entry? {
+        if let day, let entry = plan.day(for: day)?.entries.first(where: { $0.item.id == id }) { return entry }
+        for day in plan.days {
+            if let entry = day.entries.first(where: { $0.item.id == id }) { return entry }
+        }
+        return plan.tripWide.first { $0.item.id == id }
+    }
 }
 
 struct Fact: Identifiable, Hashable {
@@ -42,11 +52,23 @@ struct Fact: Identifiable, Hashable {
 private struct ItemDetailContent: View {
     let summary: ItemSummary
     let item: TripPlan.Item
+    let entry: TripPlan.Entry?
     let tripID: String
     @Environment(AppModel.self) private var model
     @Environment(\.openURL) private var openURL
-    @State private var copied = false
+    @State private var toast: Toast?
     @State private var editingNote: Note?
+    @State private var editingItem = false
+    @State private var addingNote = false
+
+    private enum Toast {
+        case copied, saved
+
+        var text: String { self == .copied ? "Copied" : "Saved on this phone · syncs when online" }
+        var symbol: String { self == .copied ? "doc.on.doc" : "arrow.triangle.2.circlepath" }
+    }
+
+    private var isEditable: Bool { TripEdit.EditItem.editableKind(item) != nil }
 
     var body: some View {
         ScrollView {
@@ -58,6 +80,8 @@ private struct ItemDetailContent: View {
                     facts
                     if case .note(let note) = item {
                         noteSection(note)
+                    } else if isEditable {
+                        itemNotesSection
                     } else if let notes = summary.notes {
                         Overline("Notes").padding(.top, ALSpace.space2)
                         Text(Self.markdown(notes))
@@ -106,8 +130,8 @@ private struct ItemDetailContent: View {
         }
         .ignoresSafeArea(edges: summary.imageURL == nil ? Edge.Set() : .top)
         .overlay(alignment: .bottom) {
-            if copied {
-                Label("Copied", systemImage: "doc.on.doc")
+            if let toast {
+                Label(toast.text, systemImage: toast.symbol)
                     .font(ALFont.subheadline.weight(.semibold))
                     .foregroundStyle(ALColor.onNeutral)
                     .padding(.horizontal, ALSpace.space4)
@@ -124,10 +148,58 @@ private struct ItemDetailContent: View {
                     Button("Edit") { editingNote = note }
                         .accessibilityIdentifier("note.edit")
                 }
+            } else if isEditable {
+                ToolbarItem(placement: .primaryAction) {
+                    Button("Edit") { editingItem = true }
+                        .accessibilityIdentifier("item.edit")
+                }
             }
         }
         .sheet(item: $editingNote) { note in
             NoteEditor(note: note, tripID: tripID)
+        }
+        .sheet(isPresented: $editingItem) {
+            ItemEditor(item: item, summary: summary, entry: entry, tripID: tripID)
+        }
+        .sheet(isPresented: $addingNote) {
+            QuickNoteSheet(item: item, zone: summary.startZone, tripID: tripID) { show(.saved) }
+        }
+    }
+
+    private func show(_ kind: Toast) {
+        withAnimation { toast = kind }
+        Task {
+            try? await Task.sleep(for: .seconds(kind == .copied ? 1.5 : 2.5))
+            withAnimation { if toast == kind { toast = nil } }
+        }
+    }
+
+    /// A place's, journey's or stay's notes, with Add a note at the foot (Design/editing, 01).
+    @ViewBuilder private var itemNotesSection: some View {
+        Overline("Notes").padding(.top, ALSpace.space2)
+        ALGroup {
+            if let notes = summary.notes {
+                Text(Self.markdown(notes))
+                    .font(ALFont.body)
+                    .foregroundStyle(ALColor.ink)
+                    .tint(ALColor.primaryText)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(ALSpace.space3)
+                    .textSelection(.enabled)
+                    .accessibilityIdentifier("item.notes")
+            }
+            Button {
+                addingNote = true
+            } label: {
+                Label("Add a note", systemImage: "plus")
+                    .font(ALFont.subheadline.weight(.medium))
+                    .foregroundStyle(ALColor.primaryText)
+                    .padding(ALSpace.space3)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("item.addNote")
         }
     }
 
@@ -218,11 +290,7 @@ private struct ItemDetailContent: View {
                 if let reference = summary.reference {
                     Button {
                         UIPasteboard.general.string = reference
-                        withAnimation { copied = true }
-                        Task {
-                            try? await Task.sleep(for: .seconds(1.5))
-                            withAnimation { copied = false }
-                        }
+                        show(.copied)
                     } label: {
                         KeyValueRow(Self.referenceLabel(for: item)) {
                             HStack(spacing: 6) {
