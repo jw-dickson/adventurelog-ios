@@ -116,7 +116,8 @@ public enum FieldValue: Codable, Sendable, Hashable {
         return nil
     }
 
-    static func clean(_ text: String?) -> String? {
+    /// `text`, or `nil` when it's empty or only whitespace.
+    public static func clean(_ text: String?) -> String? {
         guard let text else { return nil }
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : text

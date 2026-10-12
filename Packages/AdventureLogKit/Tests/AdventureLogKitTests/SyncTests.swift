@@ -281,6 +281,7 @@ struct EditSenderTests {
         case .done: name = "done"
         case .dropped: name = "dropped"
         case .conflict: name = "conflict"
+        case .fieldConflict: name = "fieldConflict"
         case .retry: name = "retry"
         case .failed: name = "failed"
         case .unauthorized: name = "unauthorized"
