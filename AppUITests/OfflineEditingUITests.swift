@@ -173,7 +173,10 @@ final class OfflineEditingUITests: XCTestCase {
     func testAddingANoteToADay() throws {
         let app = try OfflineBrowseUITests.launchOffline()
         openTripDay(app)
-        app.buttons["trip.add"].tap()
+        // A menu in the navigation bar can't be scrolled to, so tap it where it is.
+        let add = app.buttons["trip.add"].firstMatch
+        XCTAssertTrue(add.waitForExistence(timeout: 5))
+        add.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
         let newNote = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "New note on")).firstMatch
         XCTAssertTrue(newNote.waitForExistence(timeout: 5))
         newNote.tap()
