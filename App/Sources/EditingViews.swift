@@ -156,6 +156,30 @@ private struct IssueRow: View {
                         .buttonStyle(ALButtonStyle(.secondary, small: true))
                         .accessibilityIdentifier("sync.keepTheirs")
                 }
+            case .fieldConflict(let conflict):
+                if case .editItem(let edit) = entry.edit {
+                    let names = conflict.clashes.map { $0.field.label(for: edit.kind) }
+                    Text("Someone else changed the \(ListFormatter.localizedString(byJoining: names)) too. Your other changes were saved.")
+                        .font(ALFont.subheadline).foregroundStyle(ALColor.inkMuted)
+                    ForEach(conflict.clashes, id: \.field) { clash in
+                        let mine = edit.changes.first { $0.field == clash.field }?.value
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(clash.field.label(for: edit.kind).capitalized).font(ALFont.footnote.weight(.semibold))
+                            Text("Yours: \(describe(mine, field: clash.field, edit: edit))")
+                            Text("On your server: \(describe(clash.server, field: clash.field, edit: edit))")
+                        }
+                        .font(ALFont.subheadline)
+                        .foregroundStyle(ALColor.ink)
+                    }
+                }
+                HStack {
+                    Button("Keep mine") { model.keepMine(entry.id) }
+                        .buttonStyle(ALButtonStyle(.primary, small: true))
+                        .accessibilityIdentifier("sync.keepMine")
+                    Button("Keep server's") { model.discard(entry.id) }
+                        .buttonStyle(ALButtonStyle(.secondary, small: true))
+                        .accessibilityIdentifier("sync.keepTheirs")
+                }
             case .failed(let message):
                 Text("Your server didn't accept this: \(message)")
                     .font(ALFont.subheadline).foregroundStyle(ALColor.inkMuted)
@@ -171,6 +195,24 @@ private struct IssueRow: View {
         }
         .padding(.vertical, ALSpace.space1)
         .listRowBackground(ALColor.surface200)
+    }
+
+    /// A field's value as the person would read it: times in the item's own zone.
+    private func describe(_ value: FieldValue?, field: ItemField, edit: TripEdit.EditItem) -> String {
+        switch value {
+        case .time(let date?):
+            var zone = TimeZone.current
+            if let plan = model.trip(entry.tripID)?.plan, let item = ItemDetailView.find(edit.itemID, in: plan) {
+                let summary = ItemSummary(item, day: nil, tripZone: plan.timeZone)
+                zone = field == .end ? summary.endZone : summary.startZone
+            }
+            let day = date.formatted(Date.FormatStyle(timeZone: zone).weekday(.abbreviated).day().month(.abbreviated))
+            return day + " · " + TripTime.shortTime(date, in: zone)
+        case .text(let text?) where FieldValue.clean(text) != nil:
+            return text
+        default:
+            return "nothing"
+        }
     }
 }
 
