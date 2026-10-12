@@ -15,6 +15,8 @@ import SwiftUI
 ///   the offline browsing test. Needs `-ALResetState YES`. `AL_SEED_TRACK` (JSON lines of
 ///   `TrackPoint`) adds a recorded route to the seed trip, for the Log tab. `AL_SEED_IMAGES` (a JSON
 ///   object of image URL → base64 data) saves photos in the offline pack, for the gallery.
+///   `AL_SEED_PHOTOS` (a companion photo summary, `TripPhotos` JSON) stands in for a companion
+///   with photos set up, for the seed trip.
 /// - `-ALAppearance light|dark` forces an appearance for screenshot runs.
 struct LaunchOptions: Sendable {
     var resetState = false
@@ -26,6 +28,7 @@ struct LaunchOptions: Sendable {
     var seedTrip: Data?
     var seedTrack: Data?
     var seedImages: Data?
+    var seedPhotos: Data?
     /// "light" or "dark"; nil follows the system.
     var appearance: String?
 
@@ -42,6 +45,7 @@ struct LaunchOptions: Sendable {
         options.seedTrip = env["AL_SEED_TRIP"].map { Data($0.utf8) }
         options.seedTrack = env["AL_SEED_TRACK"].map { Data($0.utf8) }
         options.seedImages = env["AL_SEED_IMAGES"].map { Data($0.utf8) }
+        options.seedPhotos = env["AL_SEED_PHOTOS"].map { Data($0.utf8) }
         options.appearance = defaults.string(forKey: "ALAppearance")
         return options
     }

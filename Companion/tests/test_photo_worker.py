@@ -289,6 +289,21 @@ def test_a_lightroom_save_during_the_merge_wins(tmp_path, library, monkeypatch):
     assert b"Wineglass Bay Lookout" in merged and b"saved by Lightroom" in merged
 
 
+def test_turning_a_trip_off_and_on_matches_undone_photos_again(tmp_path, library):
+    store, adventurelog, immich, config = setup(tmp_path, ASSETS[:2])
+    run(photo_worker.run(store, adventurelog.client, immich.client, config))
+    run(photo_worker.undo_day(USER, TRIP["id"], "2027-03-08", store, adventurelog.client, immich.client, config))
+    store.save_photo_trip(USER, TRIP["id"], True, 5)  # still on: an offset change alone keeps them undone
+    run(photo_worker.run(store, adventurelog.client, immich.client, config))
+    assert not (library / "DSC00002.xmp").exists()
+
+    store.save_photo_trip(USER, TRIP["id"], False, 5)
+    store.save_photo_trip(USER, TRIP["id"], True, 5)
+    run(photo_worker.run(store, adventurelog.client, immich.client, config))
+    assert "Wineglass Bay Lookout" in (library / "DSC00002.xmp").read_text()
+    assert [a.state for a in store.photo_assets(USER, TRIP["id"])] == ["done", "done"]
+
+
 def test_a_photo_outside_the_library_or_behind_a_link_is_left_alone(tmp_path, library):
     outside = tmp_path / "elsewhere"
     outside.mkdir()

@@ -22,7 +22,11 @@ final class OfflineBrowseUITests: XCTestCase {
     /// - Parameters:
     ///   - track: also seed a recorded route for the day (``SyntheticTrack``).
     ///   - photos: also give a few items, and the trip, drawn photos (``GalleryPhotos``).
-    static func launchOffline(_ extra: [String] = [], track: Bool = false, photos: Bool = false) throws -> XCUIApplication {
+    /// - Parameters:
+    ///   - photos: drawn photos on the seed trip's places (the gallery's).
+    ///   - matchedPhotos: a companion with photos set up, with `SyntheticPhotos` matched (Stage 6).
+    static func launchOffline(_ extra: [String] = [], track: Bool = false, photos: Bool = false,
+                              matchedPhotos: Bool = false) throws -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["-ALResetState", "YES", "-ALOfflineSeed", "YES", "-ALNow", "2027-03-08T07:00:00Z"] + extra
         app.launchEnvironment["AL_SEED_LIST"] = try fixture("collections__all")
@@ -35,6 +39,7 @@ final class OfflineBrowseUITests: XCTestCase {
             app.launchEnvironment["AL_SEED_TRIP"] = trip
         }
         if track { app.launchEnvironment["AL_SEED_TRACK"] = SyntheticTrack.jsonLines }
+        if matchedPhotos { app.launchEnvironment["AL_SEED_PHOTOS"] = SyntheticPhotos.json }
         // The phone is in the trip's zone, whatever zone the Mac running the Simulator is in.
         app.launchEnvironment["TZ"] = "Australia/Hobart"
         app.launch()

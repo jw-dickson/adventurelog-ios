@@ -112,6 +112,8 @@ final class AppModel {
     var companionAddress: String {
         didSet {
             defaults.set(companionAddress, forKey: Keys.companionAddress)
+            // No photo calls to the old address while the new one connects; it says again if it can.
+            companionCanPhoto = false
             // A moment after the typing stops, not on every keystroke.
             companionTask?.cancel()
             companionTask = Task { [weak self] in
@@ -225,9 +227,14 @@ final class AppModel {
         if options.offlineSeed, let data = options.seedImages {
             Self.seedImages(data, directory: directory.appending(path: "Images"))
         }
-        return AppModel(credentialStore: credentials, snapshots: snapshots, images: ImageStore(directory: directory.appending(path: "Images")),
-                        deviceState: DeviceStateStore(directory: directory.appending(path: "Device")), tracks: tracks,
-                        defaults: defaults, now: options.now)
+        let model = AppModel(credentialStore: credentials, snapshots: snapshots, images: ImageStore(directory: directory.appending(path: "Images")),
+                             deviceState: DeviceStateStore(directory: directory.appending(path: "Device")), tracks: tracks,
+                             defaults: defaults, now: options.now)
+        if options.offlineSeed, let data = options.seedPhotos, let tripID = options.seedTripID,
+           let photos = try? JSONDecoder().decode(TripPhotos.self, from: data) {
+            model.seededPhotos = SeededTripPhotos(tripID: tripID, photos: photos)
+        }
+        return model
     }
 
     /// Writes the seed trips the way a previous session would have, and signs in to a server that
@@ -412,6 +419,9 @@ final class AppModel {
         replanNoticeKey = nil
         lastReplanNotice = nil
         companionCanReplan = false
+        companionCanPhoto = false
+        tripPhotos = [:]
+        tripPhotosProblem = [:]
     }
 
     // MARK: Trip list
@@ -668,6 +678,33 @@ final class AppModel {
     /// The companion has Claude set up, so the replan sheet offers "Ask for a different plan" (Stage 5b).
     private(set) var companionCanReplan = false
 
+    // Photos to the trip (Stage 6): the companion matches them; the phone shows and steers it.
+    /// The companion has Immich and the photo library set up.
+    var companionCanPhoto = false
+    /// Each trip's photo summary, as the companion last sent it.
+    var tripPhotos: [String: TripPhotos] = [:]
+    /// Why a trip's photos couldn't be read or changed, by trip.
+    var tripPhotosProblem: [String: String] = [:]
+    /// Bumped by every photo request for a trip, so only the newest one's reply is shown.
+    var tripPhotosRevision: [String: Int] = [:]
+    /// A stand-in for the companion in UI tests (`AL_SEED_PHOTOS`).
+    var seededPhotos: (any TripPhotosService)?
+
+    /// Which session and photo source a photo request was made for: a reply is only used while
+    /// both are still current (not after sign-out, or once the companion address changed).
+    var photoSourceKey: String? {
+        guard photoService != nil else { return nil }
+        let source = seededPhotos != nil ? "seed" : (registeredCompanion ?? companion)?.baseURL.absoluteString ?? ""
+        return "\(session)|\(source)"
+    }
+
+    /// Where trip photos come from: the companion, when it says it has photos set up.
+    var photoService: (any TripPhotosService)? {
+        if let seededPhotos { return seededPhotos }
+        guard companionCanPhoto, let companion = registeredCompanion ?? self.companion else { return nil }
+        return companion
+    }
+
     /// Claude's take on the rest of today, through the companion. Checked by the sheet before it's shown.
     func askReplan(_ ask: String, situation: Replan.Situation, current: Replan.Proposal, tripID: String) async throws -> Replan.Proposal {
         guard let companion = registeredCompanion ?? self.companion else { throw APIError.transport(code: -1, description: "No companion is set up.") }
@@ -805,12 +842,16 @@ final class AppModel {
         if let previous = registeredCompanion, previous.baseURL != companion?.baseURL {
             registeredCompanion = nil
             registeredStartToken = nil
+            // That companion's photo summaries aren't this one's.
+            tripPhotos = [:]
+            tripPhotosProblem = [:]
             try? await previous.unregister()
         }
         guard let companion else {
             let address = companionAddress.trimmingCharacters(in: .whitespacesAndNewlines)
             companionStatus = address.isEmpty || credentials == nil ? nil : "Use an https:// address."
             companionCanReplan = false
+            companionCanPhoto = false
             return
         }
         let started = session
@@ -833,6 +874,7 @@ final class AppModel {
             let health = try? await companion.health()
             if session == started, self.companion?.baseURL == companion.baseURL {
                 companionCanReplan = health?.replan == true
+                companionCanPhoto = health?.photos == true
             }
             await sendPendingActivityTokens()
             // A newer token arrived while this was in flight (or this older request finished last):
@@ -842,6 +884,7 @@ final class AppModel {
             guard session == started else { return }
             companionStatus = Self.describe(error)
             companionCanReplan = false
+            companionCanPhoto = false
         }
     }
 
