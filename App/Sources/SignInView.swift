@@ -111,7 +111,7 @@ struct SignInView: View {
         .scrollDismissesKeyboard(.interactively)
         .background(ALColor.surface100)
         .task(id: serverURL) { await loadProviders() }
-        .task { await signInWithTestKey() }
+        .task { signInWithTestKey() }
         .sheet(item: $web) { target in
             WebSignInSheet(target: target) { token in
                 finish(url: target.server, sessionToken: token)
@@ -254,14 +254,20 @@ struct SignInView: View {
 
     /// Test seam: `-ALServerURL` with `-ALAPIKey` signs straight in with that key (UI tests against
     /// a disposable server). There is no way to paste a key in the app itself.
-    private func signInWithTestKey() async {
+    ///
+    /// It runs as a task of its own, like `connect()` and `finish(url:sessionToken:)`. Signing in swaps
+    /// this view for the tabs, which cancels the view's `.task`; awaiting the sign-in there cancelled
+    /// its first fetch of the trip list, and the list stayed empty with "Can't reach your server".
+    private func signInWithTestKey() {
         guard let key = LaunchOptions.current.apiKey, let server = LaunchOptions.current.serverURL else { return }
         isConnecting = true
-        defer { isConnecting = false }
-        do {
-            try await model.signIn(server: server, apiKey: key)
-        } catch {
-            errorMessage = error.localizedDescription
+        Task {
+            defer { isConnecting = false }
+            do {
+                try await model.signIn(server: server, apiKey: key)
+            } catch {
+                errorMessage = error.localizedDescription
+            }
         }
     }
 
