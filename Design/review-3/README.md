@@ -38,6 +38,11 @@ Review 2's follow-ups:
 - **Sign in at XXL.** The server address wraps instead of being cut short.
 - **The car hire on Today.** It no longer shows "361 h". Its return date stays under the start time, because overnight flights and stays use that line for the date they end, and dropping it would hide when the hire ends.
 
+Asked for during the review:
+
+- **Photos in the timeline.** A place, stay or journey with a photo shows it as a rounded square at the right of its card, in Trip and Today. At XXL it's a strip across the top of the card instead, so the title keeps the full width. Photos come from the copy saved on the phone, so they show offline.
+- **The trip's cover on Whole trip.** This is the cover chosen in AdventureLog, or else the first place with a photo, which is what AdventureLog's own trip list shows. The sample trip has only one tiny photo, so for these snapshots the gallery gives the lookout, the cruise, the holiday park and the trip plain drawn pictures (`scripts/gallery-photos.py`). The fixture itself is unchanged.
+
 Found while collecting these:
 
 - **Log** used a narrower time column of its own, which wrapped "8:55 AM" onto two lines. It now shares the timeline's.

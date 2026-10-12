@@ -395,11 +395,11 @@ struct SavedPhoto: View {
 /// The trip's cover photo at the top of Whole trip.
 private struct TripCover: View {
     let url: URL
-    @ScaledMetric private var height: CGFloat = 180
 
     var body: some View {
+        // A photo, not text: the same height at every text size, so it doesn't fill the screen at XXL.
         Color.clear
-            .frame(height: height)
+            .frame(height: 180)
             .frame(maxWidth: .infinity)
             .overlay { SavedPhoto(url: url) }
             .clipShape(RoundedRectangle(cornerRadius: ALRadius.box, style: .continuous))
