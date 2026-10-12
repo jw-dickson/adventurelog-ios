@@ -20,7 +20,7 @@ separate accounts, and it keeps the key to read that person's trips.
 
 | Call | What it does |
 | --- | --- |
-| `POST /v1/devices` | Registers the phone: `{"environment": "production" or "sandbox", "startToken": "…"}`. The start token is the app's Live Activity push-to-start token. |
+| `POST /v1/devices` | Registers the phone: `{"environment": "production" or "sandbox", "startToken": "…"}`. The start token is the app's Live Activity push-to-start token. Answers `{"id", "canStart"}`: `canStart` says whether it holds a start token, so it can start activities while the app is closed. A registration without a token keeps the one already held. |
 | `PUT /v1/activities` | Gives the companion a running activity's push token: `{"tripID", "rowID", "pushToken"}`. |
 | `DELETE /v1/devices` | Unregisters the phone (the app does this on sign-out). |
 | `GET /healthz` | `{"ok": true, "pushes": true}` when APNs is configured. |

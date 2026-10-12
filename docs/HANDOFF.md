@@ -327,3 +327,26 @@ A build from Xcode registers as `sandbox`, and TestFlight builds as `production`
 
 ### Results
 
+## Handoff 9 · The push-to-start token (2026-10-11)
+
+**Branch:** `live-activity-start-token`. **Goal:** the companion gets the phone's push-to-start token, so it can start a Live Activity while the app is closed. Issue #24.
+
+### What changed
+
+- At launch, on registering, and whenever the app comes to the front, the app reads iOS's current push-to-start token (`Activity.pushToStartToken`) as well as watching for new ones. The stream alone may not replay a token iOS issued earlier.
+- The app registers for remote notifications at launch. Some iOS versions only issue a push-to-start token after that. The device token itself isn't used.
+- The companion's register reply says whether it holds a start token (`canStart`). Reminders shows "Connected" when it does, and "Connected · activities start when you open the app" when it doesn't.
+- The app logs, privately, when iOS issues a start token and when it registers (Console.app, subsystem `AdventureLog`, category `companion`).
+
+### 1. Check the build
+
+1. In the TestFlight build, `aps-environment` should be `production`: `codesign -d --entitlements :- AdventureLog.app` on the exported app. The App ID needs Push Notifications turned on.
+
+### 2. On a phone (TestFlight)
+
+1. Open the app, then Reminders. The companion line should say "Connected" with no suffix. If it still says "activities start when you open the app", connect the phone to the Mac, open Console.app, filter on subsystem `AdventureLog`, and reopen the app. Note whether "iOS issued a push-to-start token" appears.
+2. On the companion, the device row should now have a `start_token`.
+3. Repeat Handoff 7's step 3.2 (a flight about 3 h 10 min out, phone locked, app closed): the activity should appear by itself.
+
+### Results
+

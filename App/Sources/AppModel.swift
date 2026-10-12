@@ -7,6 +7,8 @@ import CoreLocation
 import Foundation
 import Network
 import Observation
+import os
+import UIKit
 import UserNotifications
 
 /// App-wide state: who is signed in, the trip list, the trips opened so far, and edits on their
@@ -651,6 +653,7 @@ final class AppModel {
 
     /// Registers this phone (again) with the companion, with the push-to-start token once iOS gives one.
     func connectCompanion() async {
+        if startToken == nil, let current = liveActivities.startToken { startToken = current }
         let companion = self.companion
         // A different (or no) address: the old companion stops pushing and drops the key.
         if let previous = registeredCompanion, previous.baseURL != companion?.baseURL {
@@ -664,7 +667,9 @@ final class AppModel {
         }
         let started = session
         do {
-            try await companion.register(environment: Self.pushEnvironment, startToken: startToken)
+            let sentToken = startToken != nil
+            let canStart = try await companion.register(environment: Self.pushEnvironment, startToken: startToken)
+            Self.companionLog.info("Registered with the companion; start token sent: \(sentToken, privacy: .public), companion can start: \(String(describing: canStart), privacy: .public)")
             // The address changed (or sign-out happened) while this was in flight: undo it, so a
             // slower, older registration can't replace the current one.
             guard session == started, self.companion?.baseURL == companion.baseURL else {
@@ -672,7 +677,8 @@ final class AppModel {
                 return
             }
             registeredCompanion = companion
-            companionStatus = "Connected"
+            // An older companion doesn't say; a newer one says whether it can start activities.
+            companionStatus = canStart == false ? "Connected · activities start when you open the app" : "Connected"
             await sendPendingActivityTokens()
         } catch {
             guard session == started else { return }
@@ -690,9 +696,21 @@ final class AppModel {
     }
 
     private func receivedStartToken(_ token: Data) async {
+        Self.companionLog.info("iOS issued a push-to-start token (\(token.count, privacy: .public) bytes)")
+        guard token != startToken || registeredCompanion == nil else { return }
         startToken = token
         await connectCompanion()
     }
+
+    /// Lets iOS issue Live Activity push tokens: some versions only issue a push-to-start token once
+    /// the app has registered for remote notifications (#24). The device token itself isn't used.
+    func registerForPushes() {
+        guard liveActivitiesEnabled else { return }
+        UIApplication.shared.registerForRemoteNotifications()
+    }
+
+    /// Private to the device's log (Console.app), so a test run shows which side drops a token.
+    nonisolated static let companionLog = Logger(subsystem: "AdventureLog", category: "companion")
 
     private func receivedActivityToken(_ token: Data, tripID: String, rowID: String) async {
         pendingActivityTokens[tripID + "/" + rowID] = (token, tripID, rowID)
@@ -1055,6 +1073,9 @@ final class AppModel {
     func becameActive() {
         guard credentials != nil else { return }
         syncNow()
+        if let current = liveActivities.startToken, current != startToken {
+            Task { await receivedStartToken(current) }
+        }
         Task {
             await refreshOpenTrip()
             await refreshReminderPermission()

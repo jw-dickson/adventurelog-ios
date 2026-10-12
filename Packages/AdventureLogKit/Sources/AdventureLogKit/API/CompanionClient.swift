@@ -23,10 +23,15 @@ public struct CompanionClient: Sendable {
     }
 
     /// Registers this phone, with its push-to-start token when it has one.
-    public func register(environment: Environment, startToken: Data?) async throws {
+    /// - Returns: whether the companion holds a push-to-start token for this phone, so it can start
+    ///   activities while the app is closed; `nil` from a companion too old to say.
+    @discardableResult
+    public func register(environment: Environment, startToken: Data?) async throws -> Bool? {
         var body = ["environment": environment.rawValue]
         if let startToken { body["startToken"] = Self.hex(startToken) }
-        try await send("POST", "v1/devices", body)
+        let data = try await send("POST", "v1/devices", body)
+        struct Registered: Decodable { var canStart: Bool? }
+        return (try? JSONDecoder().decode(Registered.self, from: data))?.canStart
     }
 
     /// Hands over a running activity's push token, so the companion can update and end it.
@@ -59,9 +64,11 @@ public struct CompanionClient: Sendable {
         return request
     }
 
-    private func send(_ method: String, _ path: String, _ body: [String: String]?) async throws {
+    @discardableResult
+    private func send(_ method: String, _ path: String, _ body: [String: String]?) async throws -> Data {
         let (data, response) = try await session.data(for: request(method, path, body))
         guard let http = response as? HTTPURLResponse else { throw APIError.transport(code: -1, description: "No HTTP response.") }
         guard (200..<300).contains(http.statusCode) else { throw APIError.from(status: http.statusCode, data: data) }
+        return data
     }
 }
