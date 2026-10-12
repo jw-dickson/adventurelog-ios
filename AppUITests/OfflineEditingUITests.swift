@@ -213,6 +213,9 @@ final class OfflineEditingUITests: XCTestCase {
         title.typeText("Dinner change")
         app.buttons["newNote.add"].tap()
 
-        XCTAssertTrue(element(app, containing: "Dinner change").waitForExistence(timeout: 5))
+        // It goes at the end of the day, which can be below the fold in a lazily built list.
+        let note = element(app, containing: "Dinner change")
+        for _ in 0..<4 where !note.waitForExistence(timeout: 2) { app.swipeUp() }
+        XCTAssertTrue(note.waitForExistence(timeout: 5))
     }
 }
