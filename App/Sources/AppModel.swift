@@ -127,8 +127,10 @@ final class AppModel {
     /// The companion this phone last registered with, so a changed or cleared address (or
     /// sign-out) unregisters it rather than leaving it with the key.
     private var registeredCompanion: CompanionClient?
-    /// "Connected", or why not; nil when no companion is set.
-    private(set) var companionStatus: String?
+    /// "Connected", or why not; nil when no companion is set or looked for.
+    private(set) var companionStatus: CompanionStatus?
+    /// The companion found at `<server>/companion` when no address is typed (#21).
+    private(set) var discoveredCompanion: URL?
     private var startToken: Data?
     /// The start token the companion last accepted. A token that failed to register differs from
     /// it, so the next callback or foregrounding tries again.
@@ -420,6 +422,8 @@ final class AppModel {
         lastReplanNotice = nil
         companionCanReplan = false
         companionCanPhoto = false
+        discoveredCompanion = nil
+        companionStatus = nil
         tripPhotos = [:]
         tripPhotosProblem = [:]
     }
@@ -820,9 +824,34 @@ final class AppModel {
     /// The companion, when an HTTPS address is set and someone is signed in. Every request carries
     /// the AdventureLog API key, so plain http is never used.
     var companion: CompanionClient? {
-        guard let credentials, let url = AdventureLogClient.normalizedServerURL(companionAddress),
-              url.scheme?.lowercased() == "https" else { return nil }
+        guard let credentials, let url = companionURL else { return nil }
         return CompanionClient(baseURL: url, apiKey: credentials.apiKey)
+    }
+
+    /// The address typed in Reminders, or else the companion found beside the server.
+    var companionURL: URL? {
+        let typed = companionAddress.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !typed.isEmpty else { return discoveredCompanion }
+        guard let url = AdventureLogClient.normalizedServerURL(typed), url.scheme?.lowercased() == "https" else { return nil }
+        return url
+    }
+
+    /// With no address typed, looks for a companion at `<server>/companion` and uses it only if it
+    /// answers like one. The probe carries the API key: behind SSO forward-auth, a keyless request
+    /// gets the login page instead. Anything else (404, HTML, a redirect, no answer) quietly means
+    /// there's no companion there.
+    private func discoverCompanion() async {
+        guard let credentials, companionAddress.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              let address = CompanionClient.defaultAddress(forServer: credentials.serverURL) else {
+            discoveredCompanion = nil
+            return
+        }
+        let started = session
+        let health = try? await CompanionClient(baseURL: address, apiKey: credentials.apiKey).health(timeout: 10)
+        // Signed out, or an address typed, while it was looking: that wins.
+        guard session == started, companionAddress.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        discoveredCompanion = health?.ok == true ? address : nil
+        Self.companionLog.info("Companion beside the server: \(self.discoveredCompanion != nil ? "found" : "none", privacy: .public)")
     }
 
     /// Builds from Xcode get pushes through Apple's sandbox; TestFlight and the App Store don't.
@@ -837,6 +866,7 @@ final class AppModel {
     /// Registers this phone (again) with the companion, with the push-to-start token once iOS gives one.
     func connectCompanion() async {
         if startToken == nil, let current = liveActivities.startToken { startToken = current }
+        await discoverCompanion()
         let companion = self.companion
         // A different (or no) address: the old companion stops pushing and drops the key.
         if let previous = registeredCompanion, previous.baseURL != companion?.baseURL {
@@ -849,7 +879,16 @@ final class AppModel {
         }
         guard let companion else {
             let address = companionAddress.trimmingCharacters(in: .whitespacesAndNewlines)
-            companionStatus = address.isEmpty || credentials == nil ? nil : "Use an https:// address."
+            if credentials == nil {
+                companionStatus = nil
+            } else if !address.isEmpty {
+                companionStatus = CompanionStatus(text: "Use an https:// address.", tone: .problem)
+            } else if let credentials, CompanionClient.defaultAddress(forServer: credentials.serverURL) != nil {
+                // Nothing found beside the server: not an error, Live Activities just stay on the phone.
+                companionStatus = CompanionStatus(text: "No companion found on your server", tone: .quiet)
+            } else {
+                companionStatus = nil
+            }
             companionCanReplan = false
             companionCanPhoto = false
             return
@@ -869,7 +908,11 @@ final class AppModel {
             registeredCompanion = companion
             if let sending { registeredStartToken = sending }
             // An older companion doesn't say; a newer one says whether it can start activities.
-            companionStatus = canStart == false ? "Connected · activities start when you open the app" : "Connected"
+            companionStatus = CompanionStatus(
+                text: canStart == false ? "Connected · activities start when you open the app" : "Connected",
+                tone: .connected,
+                address: CompanionClient.displayAddress(companion.baseURL),
+                found: discoveredCompanion == companion.baseURL)
             // Whether replan asks can go to Claude (Stage 5b); an older companion doesn't say.
             let health = try? await companion.health()
             if session == started, self.companion?.baseURL == companion.baseURL {
@@ -882,7 +925,8 @@ final class AppModel {
             if let latest = startToken, latest != sending { await connectCompanion() }
         } catch {
             guard session == started else { return }
-            companionStatus = Self.describe(error)
+            companionStatus = CompanionStatus(text: Self.describe(error), tone: .problem,
+                                              address: CompanionClient.displayAddress(companion.baseURL))
             companionCanReplan = false
             companionCanPhoto = false
         }
@@ -1371,4 +1415,21 @@ final class AppModel {
         if let api = error as? APIError, case .transport = api { return "Can't reach your server. Showing the copy saved on this phone." }
         return error.localizedDescription
     }
+}
+
+/// What Reminders says about the companion.
+struct CompanionStatus: Equatable {
+    enum Tone: Equatable {
+        case connected
+        /// Not a problem: nothing found where one might have been.
+        case quiet
+        case problem
+    }
+
+    var text: String
+    var tone: Tone
+    /// "trips.example.com/companion": which companion this is about.
+    var address: String?
+    /// Found beside the server rather than typed.
+    var found = false
 }

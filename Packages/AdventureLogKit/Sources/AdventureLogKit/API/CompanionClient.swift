@@ -58,8 +58,35 @@ public struct CompanionClient: Sendable {
         public var photos: Bool?
     }
 
-    public func health() async throws -> Health {
-        try JSONDecoder().decode(Health.self, from: try await send("GET", "healthz", nil))
+    /// - Parameter timeout: short when probing an address that may not have a companion at all.
+    public func health(timeout: TimeInterval? = nil) async throws -> Health {
+        var request = request("GET", "healthz", nil)
+        if let timeout { request.timeoutInterval = timeout }
+        return try JSONDecoder().decode(Health.self, from: try await send(request))
+    }
+
+    /// Where a companion served beside the AdventureLog server would be: `<server>/companion`
+    /// (the reference deployment, behind the same reverse proxy and certificate). Only for HTTPS
+    /// servers, since every companion request carries the API key.
+    public static func defaultAddress(forServer server: URL) -> URL? {
+        guard server.scheme?.lowercased() == "https", var components = URLComponents(url: server, resolvingAgainstBaseURL: false),
+              components.host != nil else { return nil }
+        components.query = nil
+        components.fragment = nil
+        var path = components.path
+        while path.hasSuffix("/") { path.removeLast() }
+        components.path = path + "/companion"
+        return components.url
+    }
+
+    /// "trips.example.com/companion": the address without its scheme, for status lines.
+    public static func displayAddress(_ url: URL) -> String {
+        var text = url.absoluteString
+        for prefix in ["https://", "http://"] where text.lowercased().hasPrefix(prefix) {
+            text.removeFirst(prefix.count)
+        }
+        while text.hasSuffix("/") { text.removeLast() }
+        return text
     }
 
     /// Claude's take on the rest of today, from what the person asked. The answer is only data

@@ -40,6 +40,29 @@ Push payloads match `Fixtures/live-activity/` at the repository root: `content-s
 
 It runs as one container next to AdventureLog. Put it behind the same reverse proxy, on HTTPS.
 
+### At /companion on the AdventureLog host (recommended)
+
+The companion doesn't need a hostname of its own. Serve it as a path on the AdventureLog host,
+`https://<adventurelog host>/companion/…`, with the `/companion` prefix stripped. It shares the
+server's name, certificate and proxy, and the app finds it by itself: with no address typed in
+Reminders, it asks `<server>/companion/healthz` and uses the companion if it answers. In nginx:
+
+```nginx
+location /companion/ {
+    proxy_pass http://adventurelog-companion:8080/;   # the trailing slash strips the prefix
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
+
+With SSO forward-auth in front of AdventureLog, requests carrying `X-API-Key` have to bypass it for
+`/companion/`, as they do for `/api/`, `/auth/` and `/media/`. The companion checks the key against
+AdventureLog itself. The app's probe carries the key, so it gets the companion rather than the
+login page.
+
+A companion somewhere else still works: type its address in Reminders.
+
 ```yaml
 services:
   adventurelog-companion:

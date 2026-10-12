@@ -255,3 +255,23 @@ struct CompanionPhotosTests {
         #expect(day.stopsText.isEmpty)
     }
 }
+
+@Suite("The companion's default address")
+struct CompanionDefaultAddressTests {
+    @Test func sitsBesideTheServer() {
+        #expect(CompanionClient.defaultAddress(forServer: URL(string: "https://trips.example.com")!)?.absoluteString
+                == "https://trips.example.com/companion")
+        #expect(CompanionClient.defaultAddress(forServer: URL(string: "https://example.com/adventurelog/")!)?.absoluteString
+                == "https://example.com/adventurelog/companion")
+        #expect(CompanionClient.defaultAddress(forServer: URL(string: "https://trips.example.com:8443?x=1")!)?.absoluteString
+                == "https://trips.example.com:8443/companion")
+    }
+
+    @Test func neverOverPlainHTTP() {
+        #expect(CompanionClient.defaultAddress(forServer: URL(string: "http://192.0.2.10:8015")!) == nil)
+    }
+
+    @Test func readsWithoutItsScheme() {
+        #expect(CompanionClient.displayAddress(URL(string: "https://trips.example.com/companion/")!) == "trips.example.com/companion")
+    }
+}
