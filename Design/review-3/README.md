@@ -11,6 +11,7 @@ Mockups and snapshots differ in device size and in the data shown, so compare la
 | Sign in | ![](../review-1/01-sign-in.png) | ![](01-sign-in-light.png) | [dark](01-sign-in-dark.png) | [XXL](01-sign-in-xxl.png) |
 | Today | ![](../review-1/02-today.png) | ![](02-today-light.png) | [dark](02-today-dark.png) · mockup: [dark](../review-1/10-today-dark.png) | [XXL](02-today-xxl.png) |
 | Trip · day | ![](../review-1/03-trip-day.png) | ![](03-trip-day-light.png) | [dark](03-trip-day-dark.png) · mockup: [dark](../review-1/11-trip-day-dark.png) | [XXL](03-trip-day-xxl.png) |
+| Trip · travel day | no mockup | ![](03c-travel-day-light.png) | [dark](03c-travel-day-dark.png) | [XXL](03c-travel-day-xxl.png) |
 | Trip · whole trip | no mockup | ![](03b-whole-trip-light.png) | [dark](03b-whole-trip-dark.png) | [XXL](03b-whole-trip-xxl.png) |
 | Item detail | ![](../review-1/04-item-detail.png) | ![](04-item-detail-light.png) | [dark](04-item-detail-dark.png) | [XXL](04-item-detail-xxl.png) |
 | Map | ![](../review-1/05-map.png) | ![](05-map-light.png) | [dark](05-map-dark.png) | [XXL](05-map-xxl.png) |
@@ -41,6 +42,7 @@ Review 2's follow-ups:
 Asked for during the review:
 
 - **Photos in the timeline.** A place, stay or journey with a photo shows it as a rounded square at the right of its card, in Trip and Today. At XXL it's a strip across the top of the card instead, so the title keeps the full width. Photos come from the copy saved on the phone, so they show offline.
+- **Where the clock changes.** Every time on the timeline is in its own place's zone, so on a travel day the times jump. A line on the rail now says where the clock changes and by how much. It sits after a flight that lands in another zone ("Now on Sydney time · clocks go forward 19 h"), or between two items in different zones. It compares the clocks at that moment, so daylight saving counts. Places that keep the same clock, like Sydney and Hobart, show nothing. The sample trip's travel day shows "back 1 h" after Denver → Los Angeles and "forward 19 h" after Los Angeles → Sydney.
 - **The trip's cover on Whole trip.** This is the cover chosen in AdventureLog, or else the first place with a photo, which is what AdventureLog's own trip list shows. The sample trip has only one tiny photo, so for these snapshots the gallery gives the lookout, the cruise, the holiday park and the trip plain drawn pictures (`scripts/gallery-photos.py`). The fixture itself is unchanged.
 
 Found while collecting these:

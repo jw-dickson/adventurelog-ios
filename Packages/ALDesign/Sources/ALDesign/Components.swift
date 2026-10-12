@@ -467,9 +467,12 @@ public struct ZoneShiftRow: View {
             label.padding(.bottom, ALSpace.space2)
         } else {
             HStack(alignment: .center, spacing: ALSpace.space2) {
-                TimeText(nil, alignment: .trailing, fitsTimes: fitsTimes)
-                    .frame(minWidth: timeWidth, alignment: .trailing)
-                    .accessibilityHidden(true)
+                // Measured the way TimelineRow measures its time column, so the rails line up.
+                TimeColumn(alignment: .trailing) {
+                    TimeText(nil, alignment: .trailing, fitsTimes: fitsTimes)
+                        .frame(minWidth: timeWidth, alignment: .trailing)
+                }
+                .accessibilityHidden(true)
                 Rectangle()
                     .fill(ALColor.hairline)
                     .frame(width: 2)
