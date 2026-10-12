@@ -119,6 +119,18 @@ final class ReminderScheduler {
         }
     }
 
+    /// Now: "You're 40 min behind", opening the replan sheet when tapped. Sign-out removes it with the reminders.
+    func notifyReplan(tripID: String, behindMinutes: Int, nextTitle: String) async {
+        let content = UNMutableNotificationContent()
+        content.title = "You're \(ItemSummary.durationText(minutes: behindMinutes)) behind"
+        content.body = "Replan the rest of today? Next: \(nextTitle)."
+        content.sound = .default
+        content.threadIdentifier = tripID
+        content.userInfo = [NotificationPresenter.replanKey: tripID]
+        let request = UNNotificationRequest(identifier: ReminderPlanner.prefix + "replan." + tripID, content: content, trigger: nil)
+        await serially { [self] in await add(request) }
+    }
+
     /// A one-off notification at the reminder's instant. The trigger is given in UTC, so it fires
     /// at the same moment whatever zone the phone moves to.
     static func request(for reminder: Reminder) -> UNNotificationRequest {
@@ -138,12 +150,26 @@ final class ReminderScheduler {
     }
 }
 
-/// Shows reminders as banners even while the app is open.
+/// Shows reminders as banners even while the app is open, and opens the replan sheet from its
+/// notification.
 final class NotificationPresenter: NSObject, UNUserNotificationCenterDelegate, Sendable {
     static let shared = NotificationPresenter()
+    static let replanKey = "replanTripID"
+    /// Posted with the trip id when the replan notification is tapped.
+    static let openReplan = Notification.Name("AdventureLog.openReplan")
+    /// The tapped trip, for when the app wasn't running to hear the post.
+    @MainActor static var pendingReplan: String?
 
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
         [.banner, .list, .sound]
+    }
+
+    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
+        guard let tripID = response.notification.request.content.userInfo[Self.replanKey] as? String else { return }
+        await MainActor.run {
+            Self.pendingReplan = tripID
+            NotificationCenter.default.post(name: Self.openReplan, object: nil, userInfo: [Self.replanKey: tripID])
+        }
     }
 }
 

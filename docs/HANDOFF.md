@@ -374,3 +374,27 @@ A build from Xcode registers as `sandbox`, and TestFlight builds as `production`
 
 ### Results
 
+## Handoff 10 · Stage 5a, the replan assistant (2026-10-11)
+
+**Branch:** `stage-5a-replan`. **Goal:** when you're running late, Today proposes a revised rest-of-today that keeps booked items, and applying it saves ordinary edits.
+
+### What changed
+
+- **Kit:** `AdventureLogKit/Replan`: the planner, the checker, sun times, the situation (from the plan, the log and the last position), the sheet's text, and how a proposal becomes edits. Golden scenarios in `ReplanTests`. See "How Stage 5 replans" in [PLAN.md](PLAN.md).
+- **Today:** a **Replan today** button (wand) in the toolbar, and a "You're 48 min behind" card while recording.
+- **Sheet:** the proposal per Design/review-1, 08, with "How late are you?" choices when the phone isn't recording.
+- **Notification:** while recording in the background, once per late stop and at most every 90 minutes; tapping it opens the sheet. It needs notification permission (turning on reminders asks for it).
+
+### 1. Simulator
+
+1. In the offline seed (18:00 on Mon 8 Mar), tap the wand on Today. Pick **45 min**: Sunset cruise moves 18:30 → 19:15. Apply, and Today's next card says "in 1 h 15 min".
+2. While `scripts/replay-drive.sh` runs on a recorded trip day (Handoff 5), open the sheet: it should say "From where you are now" and work out the delay from the replayed position. Once that's 30 minutes or more, Today shows the card.
+
+### 2. On a device (TestFlight)
+
+1. On a trip day with recording on, fall half an hour behind a planned place with the app in the background. One notification should arrive; tapping it should open the sheet on Today.
+2. Apply a proposal with the phone in flight mode, then go back online: the new times should reach AdventureLog's web page, and a place moved to tomorrow should show on that day.
+3. Check that a booked item (tagged booked) is listed first with a lock and keeps its time.
+
+### Results
+

@@ -46,6 +46,33 @@ final class OfflineEditingUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["today.next.title"].waitForExistence(timeout: 5))
     }
 
+    func testReplanningAfterRunningLate() throws {
+        let app = try OfflineBrowseUITests.launchOffline()
+        XCTAssertTrue(app.staticTexts["today.title"].waitForExistence(timeout: 15))
+
+        let replan = app.buttons["today.replan"]
+        XCTAssertTrue(replan.waitForExistence(timeout: 5))
+        replan.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        let headline = app.staticTexts["replan.headline"]
+        XCTAssertTrue(headline.waitForExistence(timeout: 5))
+        XCTAssertEqual(headline.label, "You're on time", "not recording, so nothing is known yet")
+        XCTAssertFalse(app.buttons["replan.apply"].isEnabled)
+
+        // 45 minutes late for the cruise (18:30): it moves to 19:15, since it ends after dark anyway.
+        app.buttons["replan.late.45"].tap()
+        XCTAssertEqual(headline.label, "You're 45 min behind")
+        XCTAssertTrue(app.descendants(matching: .any)["replan.line.Sunset cruise"].waitForExistence(timeout: 5))
+        let apply = app.buttons["replan.apply"]
+        XCTAssertTrue(apply.isEnabled)
+        apply.tap()
+
+        // Back on Today at 18:00: the cruise is now 1 h 15 min away, kept on the phone until the server is back.
+        XCTAssertTrue(headline.waitForNonExistence(timeout: 5))
+        let label = app.staticTexts["today.next.label"]
+        XCTAssertTrue(label.waitForExistence(timeout: 5))
+        XCTAssertTrue(label.label.contains("1 h 15 min"), label.label)
+    }
+
     func testTodayOffersRemindersOnceAndSettingsOpen() throws {
         let app = try OfflineBrowseUITests.launchOffline()
         XCTAssertTrue(app.staticTexts["today.title"].waitForExistence(timeout: 15))
