@@ -74,7 +74,7 @@ actor SeededTripPhotos: TripPhotosService {
     }
 
     func photos(tripID: String) async throws -> TripPhotos {
-        guard tripID == self.tripID else { throw APIError.notFound(ServerMessage(detail: "Not found.")) }
+        guard tripID == self.tripID else { throw APIError.notFound(ServerMessage(summary: "Not found.")) }
         return current
     }
 
