@@ -54,7 +54,7 @@ Found while collecting these:
 
 ## The checklist
 
-From [`../README.md`](../README.md). This is my pass through it; the sign-off is yours.
+From [`../README.md`](../README.md). This was my pass through it before the sign-off.
 
 - **Only design-system tokens and components.** Yes, apart from system controls: the date and time pickers, toggles, the segmented control, the keyboard and the tab bar. The tab bar is the system's: a bar on Today, Trip, Map and Log, and floating where iOS draws it that way.
 - **One primary action per screen.** Yes: Navigate on Today and item detail, Sign in, Apply changes. Editing sheets put Save or Add in the navigation bar.
@@ -65,12 +65,13 @@ From [`../README.md`](../README.md). This is my pass through it; the sign-off is
 - **VoiceOver labels on every control.** Every control has a label or text, and each timeline row reads as one element. The hidden sizing text in the time column is hidden from VoiceOver. A full VoiceOver pass on a phone is still to do.
 - **Reads as AdventureLog with the logo covered.** The colours, radii and type come from AdventureLog's own theme. With the mark on Sign in covered, the screen still reads as AdventureLog. The mark is the image that came in with Stage 0. It is the only raster artwork in the app, and next to the flat UI it looks dated, which is worth a look while signing off.
 
-## For you to decide
+## Signed off
 
-1. Sign off, or list what to change before the freeze.
-2. The car hire's return date under its time (kept, for the reason above), or a time only, as the mockups show for single-day items.
-3. "GMT+11" in the editor's zone header, or a lookup table for the short names of common zones.
-4. The mark on Sign in: keep it, or swap in a flat version.
+Signed off on 12 Oct 2026, with the defaults:
+
+1. The car hire keeps its return date under its time.
+2. The editor's zone header keeps "GMT+11".
+3. The mark on Sign in stays as it is.
 
 ## Getting new snapshots
 
