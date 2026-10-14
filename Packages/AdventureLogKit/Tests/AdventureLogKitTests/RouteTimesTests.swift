@@ -72,10 +72,10 @@ struct RouteTimesTests {
         let evening = RouteTimes.Leg(from: carPark, to: tourville, departure: at("2027-03-08T09:00:00Z"))
         #expect(routes.needsLookup(evening, now: at("2027-03-07T21:00:00Z")), "four hours later, other traffic")
 
-        #expect(!routes.prune(now: at("2027-03-21T20:00:00Z")))
-        #expect(routes.entries.count == 1)
-        #expect(routes.prune(now: at("2027-03-21T20:01:00Z")))
-        #expect(routes.entries.isEmpty)
+        let keptAll = !routes.prune(now: at("2027-03-21T20:00:00Z"))
+        #expect(keptAll && routes.entries.count == 1)
+        let dropped = routes.prune(now: at("2027-03-21T20:01:00Z"))
+        #expect(dropped && routes.entries.isEmpty)
     }
 
     @Test func theCacheSurvivesBeingSaved() throws {
