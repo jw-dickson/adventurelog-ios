@@ -255,12 +255,13 @@ public enum Replan {
         stop.isFlight ? 90 : 10
     }
 
-    /// Travel minutes between two places: none within 300 m, else the routed drive time when this
-    /// phone has looked it up, else Today's straight-line estimate.
+    /// Travel minutes between two places setting off at `departure`: none within 300 m, else the
+    /// routed drive time when this phone has looked it up for about then, else Today's
+    /// straight-line estimate.
     public static func travelMinutes(from a: ItemSummary.Coordinate?, to b: ItemSummary.Coordinate?,
-                                     routes: RouteTimes = RouteTimes()) -> Int {
+                                     departure: Date, routes: RouteTimes = RouteTimes()) -> Int {
         guard let a, let b, LeaveBy.kilometres(from: a, to: b) >= 0.3 else { return 0 }
-        return routes.travel(from: a, to: b).minutes
+        return routes.travel(from: a, to: b, departure: departure).minutes
     }
 
     /// Nothing flexible is planned to end after this in the day's zone.
@@ -286,7 +287,7 @@ public enum Replan {
     /// start you'd arrive, never negative.
     public static func delay(now: Date, position: ItemSummary.Coordinate?, target: Stop,
                              routes: RouteTimes = RouteTimes()) -> Int {
-        let arrive = now.addingTimeInterval(Double(travelMinutes(from: position, to: target.coordinate, routes: routes) * 60))
+        let arrive = now.addingTimeInterval(Double(travelMinutes(from: position, to: target.coordinate, departure: now, routes: routes) * 60))
         return max(0, Int((arrive.timeIntervalSince(target.start) / 60).rounded(.up)))
     }
 }

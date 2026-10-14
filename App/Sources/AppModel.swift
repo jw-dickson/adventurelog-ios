@@ -348,6 +348,11 @@ final class AppModel {
         registeredStartToken = nil
         Task { await connectCompanion() }
         await refreshTrips()
+        // Signing in while the app is in front gets no activation, so look drive times up now.
+        Task {
+            await updateRouteTimes()
+            await updateReminders()
+        }
     }
 
     /// Deletes the saved credentials, ends the session, then deletes the offline copies and any

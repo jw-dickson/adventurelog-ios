@@ -7,7 +7,9 @@ import Foundation
 /// it's planned to set off; anything not looked up yet falls back to `LeaveBy.estimatedMinutes`.
 ///
 /// Legs are keyed by their two ends, rounded to about 100 m, so a stop that moves a few metres
-/// keeps its time and two rows at the same place share one.
+/// keeps its time and two rows at the same place share one. Each answer is for one departure and
+/// is only used within `departureSlack` of it, so a morning drive's traffic never stands in for
+/// the same drive in the evening.
 public struct RouteTimes: Codable, Sendable, Hashable {
     public struct Key: Codable, Sendable, Hashable, Comparable {
         /// Thousandths of a degree.
@@ -61,37 +63,56 @@ public struct RouteTimes: Codable, Sendable, Hashable {
         }
     }
 
-    /// Kept in key order so the saved file is stable.
+    /// Kept in key and departure order so the saved file is stable.
     public private(set) var entries: [Entry]
 
     public init(entries: [Entry] = []) {
-        self.entries = entries.sorted { $0.key < $1.key }
+        self.entries = entries.sorted(by: Self.order)
+    }
+
+    static func order(_ a: Entry, _ b: Entry) -> Bool {
+        a.key != b.key ? a.key < b.key : a.departure < b.departure
     }
 
     /// An answer older than this is asked again.
     public static let refreshAfter: TimeInterval = 24 * 3600
-    /// Looked up for a departure further off than this from the planned one: asked again for the
-    /// new time, since traffic differs.
+    /// An answer counts for departures this close to the one it was looked up for; further off,
+    /// traffic differs and the drive is asked again.
     public static let departureSlack: TimeInterval = 3 * 3600
     /// Entries not refreshed for this long are dropped.
     public static let keepFor: TimeInterval = 14 * 24 * 3600
     /// Legs starting within this of now are looked up: today and tomorrow.
     public static let lookAhead: TimeInterval = 48 * 3600
 
-    public func entry(from a: ItemSummary.Coordinate, to b: ItemSummary.Coordinate) -> Entry? {
-        let key = Key(from: a, to: b)
-        return entries.first { $0.key == key }
+    /// The answer for this drive looked up for the departure nearest `departure`, within
+    /// `departureSlack`.
+    public func entry(from a: ItemSummary.Coordinate, to b: ItemSummary.Coordinate, departure: Date) -> Entry? {
+        index(of: Key(from: a, to: b), near: departure).map { entries[$0] }
     }
 
-    /// The routed minutes, when that leg has been looked up and has a road route.
-    public func minutes(from a: ItemSummary.Coordinate, to b: ItemSummary.Coordinate) -> Int? {
-        entry(from: a, to: b)?.minutes
+    func index(of key: Key, near departure: Date) -> Int? {
+        entries.indices
+            .filter { entries[$0].key == key && abs(entries[$0].departure.timeIntervalSince(departure)) <= Self.departureSlack }
+            .min { abs(entries[$0].departure.timeIntervalSince(departure)) < abs(entries[$1].departure.timeIntervalSince(departure)) }
     }
 
-    /// The time to plan with: routed when known, else the straight-line estimate.
-    public func travel(from a: ItemSummary.Coordinate, to b: ItemSummary.Coordinate) -> Travel {
-        if let routed = minutes(from: a, to: b) { return Travel(minutes: routed, isRouted: true) }
+    /// The routed minutes setting off at `departure`, when that drive has been looked up for
+    /// about then and has a road route.
+    public func minutes(from a: ItemSummary.Coordinate, to b: ItemSummary.Coordinate, departure: Date) -> Int? {
+        entry(from: a, to: b, departure: departure)?.minutes
+    }
+
+    /// The time to plan with when setting off at `departure`: routed when known, else the
+    /// straight-line estimate.
+    public func travel(from a: ItemSummary.Coordinate, to b: ItemSummary.Coordinate, departure: Date) -> Travel {
+        if let routed = minutes(from: a, to: b, departure: departure) { return Travel(minutes: routed, isRouted: true) }
         return Travel(minutes: LeaveBy.estimatedMinutes(from: a, to: b), isRouted: false)
+    }
+
+    /// The same for a drive to something starting at `start`: set off about the estimate before.
+    public func travel(from a: ItemSummary.Coordinate, to b: ItemSummary.Coordinate, arriving start: Date) -> Travel {
+        let estimate = LeaveBy.estimatedMinutes(from: a, to: b)
+        return travel(from: a, to: b, departure: start.addingTimeInterval(-Double(estimate * 60)))
     }
 
     public struct Travel: Sendable, Hashable {
@@ -111,37 +132,36 @@ public struct RouteTimes: Codable, Sendable, Hashable {
 
     /// Whether `leg` should be (re)looked up now.
     public func needsLookup(_ leg: Leg, now: Date) -> Bool {
-        guard let entry = entries.first(where: { $0.key == leg.key }) else { return true }
-        return now.timeIntervalSince(entry.fetched) >= Self.refreshAfter
-            || abs(entry.departure.timeIntervalSince(leg.departure)) > Self.departureSlack
+        guard let index = index(of: leg.key, near: leg.departure) else { return true }
+        return now.timeIntervalSince(entries[index].fetched) >= Self.refreshAfter
     }
 
-    /// Keeps an answer from Apple Maps; `seconds` is `nil` for no road route.
+    /// Keeps an answer from Apple Maps; `seconds` is `nil` for no road route. It replaces the
+    /// answer for about the same departure, and leaves ones for other times of day.
     public mutating func record(_ leg: Leg, seconds: TimeInterval?, at now: Date) {
         let minutes = seconds.map { max(1, Int(($0 / 60).rounded(.up))) }
         let entry = Entry(key: leg.key, minutes: minutes, fetched: now, departure: leg.departure)
-        if let index = entries.firstIndex(where: { $0.key == leg.key }) {
-            entries[index] = entry
-        } else {
-            entries.append(entry)
-            entries.sort { $0.key < $1.key }
-        }
+        if let index = index(of: leg.key, near: leg.departure) { entries.remove(at: index) }
+        entries.append(entry)
+        entries.sort(by: Self.order)
     }
 
     /// Drops answers not refreshed for `keepFor`.
-    public mutating func prune(now: Date) {
+    /// - Returns: Whether anything was dropped.
+    @discardableResult
+    public mutating func prune(now: Date) -> Bool {
+        let count = entries.count
         entries.removeAll { now.timeIntervalSince($0.fetched) > Self.keepFor }
+        return entries.count != count
     }
 
     /// The drives in `plan` worth looking up now: legs setting off from an hour ago to `lookAhead`
     /// out, soonest first, that `needsLookup`. Each leg runs from the last place before a timed
     /// stop (as reminders and Today measure it) to that stop, more than 300 m apart.
-    /// The same two ends twice in that time are looked up once, for the sooner drive.
     public func legsToLookUp(in plan: TripPlan, now: Date, skipped: Set<String> = []) -> [Leg] {
-        var seen: Set<Key> = []
-        return Self.legs(in: plan, skipped: skipped)
+        Self.legs(in: plan, skipped: skipped)
             .filter { $0.departure >= now.addingTimeInterval(-3600) && $0.departure <= now.addingTimeInterval(Self.lookAhead) }
-            .filter { needsLookup($0, now: now) && seen.insert($0.key).inserted }
+            .filter { needsLookup($0, now: now) }
     }
 
     /// Every drive between consecutive places in `plan`, soonest first.

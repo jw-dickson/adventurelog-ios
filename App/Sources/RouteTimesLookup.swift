@@ -71,6 +71,8 @@ extension AppModel {
     static let routeLookupGap: Duration = .milliseconds(400)
     /// After Apple Maps says to slow down.
     static let routeLookupBackoff: TimeInterval = 10 * 60
+    /// Failed lookups in a row that end a run.
+    static let routeFailuresBeforeStopping = 3
 
     /// Looks up drive times for the next two days' legs across every listed trip, soonest first,
     /// and keeps them for offline use. Skipped for the offline UI-test seed.
@@ -79,20 +81,26 @@ extension AppModel {
         let started = now
         if let paused = routeLookupsPausedUntil, started < paused { return }
         let listed = Set((ownedTrips + sharedTrips).map(\.id))
-        var seen: Set<RouteTimes.Key> = []
+        // Two trips sharing a drive at the same time ask once.
+        var seen: Set<RouteTimes.Leg> = []
         let legs = trips.filter { listed.contains($0.key) }
             .flatMap { id, trip in routeTimes.legsToLookUp(in: trip.plan, now: started, skipped: skipped[id] ?? []) }
             .sorted { $0.departure < $1.departure }
-            .filter { seen.insert($0.key).inserted }
+            .filter { seen.insert($0).inserted }
             .prefix(Self.routeLookupsPerRun)
-        routeTimes.prune(now: started)
-        guard !legs.isEmpty else { return }
+        let runSession = session
+        let pruned = routeTimes.prune(now: started)
+        guard !legs.isEmpty else {
+            // Dropping old answers is a change worth saving even when nothing needs looking up.
+            if pruned { saveDeviceState() }
+            return
+        }
 
         lookingUpRoutes = true
         defer { lookingUpRoutes = false }
-        let runSession = session
         let lookup = routeLookup
-        var changed = false
+        var changed = pruned
+        var failuresInARow = 0
         lookups: for (index, leg) in legs.enumerated() {
             if index > 0 { try? await Task.sleep(for: Self.routeLookupGap) }
             guard session == runSession, !Task.isCancelled else { return }
@@ -101,19 +109,20 @@ extension AppModel {
                 guard session == runSession else { return }
                 routeTimes.record(leg, seconds: seconds, at: now)
                 changed = true
+                failuresInARow = 0
             } catch RouteLookupError.throttled {
+                // An answer for an account signed out meanwhile says nothing about this one.
+                guard session == runSession else { return }
                 routeLookupsPausedUntil = now.addingTimeInterval(Self.routeLookupBackoff)
                 break lookups
             } catch {
-                // Offline or a one-off failure: the estimate stands, and the next run asks again.
-                break lookups
+                guard session == runSession else { return }
+                // One leg failing leaves the others to try; several in a row is most likely no
+                // connection, so the rest wait for the next run. The estimate stands meanwhile.
+                failuresInARow += 1
+                if failuresInARow >= Self.routeFailuresBeforeStopping { break lookups }
             }
         }
         if changed, session == runSession { saveDeviceState() }
-    }
-
-    /// The drive time Today shows for a leg: looked up when known, else the estimate.
-    func travel(from origin: ItemSummary.Coordinate, to destination: ItemSummary.Coordinate) -> RouteTimes.Travel {
-        routeTimes.travel(from: origin, to: destination)
     }
 }

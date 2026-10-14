@@ -76,7 +76,7 @@ public enum ReminderPlanner {
                 if settings.leaveBy, let destination = summary.coordinate,
                    let origin = origin(before: index, in: day.entries, summaries: summaries, skipped: skipped),
                    LeaveBy.kilometres(from: origin, to: destination) > sameplaceKilometres {
-                    let travel = routes.travel(from: origin, to: destination)
+                    let travel = routes.travel(from: origin, to: destination, arriving: start)
                     let buffer = isFlight ? 90 : summary.isBooked ? 10 : 5
                     let fire = LeaveBy.time(start: start, travelMinutes: travel.minutes, bufferMinutes: buffer)
                     if fire > now, fire <= end {

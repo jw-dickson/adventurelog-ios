@@ -71,7 +71,7 @@ extension Replan.Situation {
         let nested = next.start < first.end
         let from = nested ? (first.coordinate ?? position) : (first.exit ?? position)
         let free = nested ? max(now, first.start) : max(now, first.end)
-        let arrive = free.addingTimeInterval(Double(Replan.travelMinutes(from: from, to: next.coordinate, routes: routes) * 60))
+        let arrive = free.addingTimeInterval(Double(Replan.travelMinutes(from: from, to: next.coordinate, departure: free, routes: routes) * 60))
         return (max(0, Int((arrive.timeIntervalSince(next.start) / 60).rounded(.up))), from)
     }
 

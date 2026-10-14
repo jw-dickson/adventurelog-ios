@@ -294,7 +294,7 @@ private struct NextCard: View {
         // Live from Apple Maps when it answered; else what this phone looked up earlier (#42),
         // which works offline; else the straight-line estimate, marked "~".
         let travel = routedMinutes.map { RouteTimes.Travel(minutes: $0, isRouted: true) }
-            ?? model.travel(from: origin, to: destination)
+            ?? model.routeTimes.travel(from: origin, to: destination, arriving: start)
         let leave = LeaveBy.time(start: start, travelMinutes: travel.minutes)
         let drive = travel.driveText
         let time = Text(TripTime.shortTime(leave, in: summary.startZone)).bold()
