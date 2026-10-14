@@ -83,7 +83,6 @@ public enum Replan {
             self.firstStart = firstStart
             self.firstTitle = firstTitle
             self.zoneID = zone.identifier
-            self.routes = routes
         }
 
         public var zone: TimeZone { TimeZone(identifier: zoneID) ?? .gmt }
@@ -120,6 +119,7 @@ public enum Replan {
             self.longitude = position?.longitude
             self.nextDay = nextDay
             self.zoneID = zone.identifier
+            self.routes = routes
         }
 
         public var zone: TimeZone { TimeZone(identifier: zoneID) ?? .gmt }
