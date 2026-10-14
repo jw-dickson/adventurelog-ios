@@ -55,4 +55,5 @@ def test_health_says_whether_pushes_are_configured(tmp_path):
             "replan": False,
             "photos": False,
             "flightStatus": False,
+            "storage": "sqlite",
         }

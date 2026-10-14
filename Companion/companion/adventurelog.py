@@ -13,6 +13,10 @@ class AdventureLogError(Exception):
     """The server refused the key or couldn't be reached."""
 
 
+class AdventureLogRefused(AdventureLogError):
+    """The server answered 401 or 403: the key was deleted, or its user removed."""
+
+
 class AdventureLogNotFound(AdventureLogError):
     """The server has no such thing (or won't show it to this key)."""
 
@@ -36,7 +40,7 @@ class AdventureLog:
         except httpx.HTTPError as error:
             raise AdventureLogError(f"AdventureLog can't be reached: {error}") from error
         if response.status_code in (401, 403):
-            raise AdventureLogError("AdventureLog refused the API key.")
+            raise AdventureLogRefused("AdventureLog refused the API key.")
         if response.status_code == 404:
             raise AdventureLogNotFound(f"AdventureLog has nothing at {path}.")
         if response.status_code >= 400:

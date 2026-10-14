@@ -86,6 +86,17 @@ jobs:
   companion:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # The store tests run on SQLite and on this disposable Postgres (#20).
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: companion
+          POSTGRES_PASSWORD: companion
+          POSTGRES_DB: companion_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U companion" --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
       - uses: actions/checkout@v5
         with:
@@ -95,7 +106,7 @@ jobs:
           python-version: "3.13"
       - name: Install
         working-directory: Companion
-        run: pip install -e '.[test]' ruff==0.16.8
+        run: pip install -e '.[test,postgres]' ruff==0.16.8
       - name: Lint (ruff)
         working-directory: Companion
         run: |
@@ -103,7 +114,9 @@ jobs:
           ruff format --check --diff .
       - name: Companion tests
         working-directory: Companion
-        run: pytest -q
+        env:
+          COMPANION_TEST_DATABASE_URL: postgresql://companion:companion@localhost:5432/companion_test
+        run: pytest -q -rs
 
   # Secrets (gitleaks, default rules plus .gitleaks.toml) across the whole history, then the
   # maintainer's denylist (scripts/privacy-scan.py) over the tree, the pull request's commits,

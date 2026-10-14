@@ -14,7 +14,7 @@ import logging
 import os
 import time
 import uuid
-from datetime import date
+from datetime import UTC, date, datetime
 from typing import Literal
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Path
@@ -44,7 +44,8 @@ class Settings:
     def __init__(self, env: dict[str, str] | None = None):
         env = os.environ if env is None else env
         self.adventurelog_url = env.get("ADVENTURELOG_URL", "")
-        self.database = env.get("COMPANION_DB", "/data/companion.sqlite")
+        # Postgres when a URL is given (#20), else the SQLite file.
+        self.database = env.get("COMPANION_DATABASE_URL") or env.get("COMPANION_DB", "/data/companion.sqlite")
         self.poll_seconds = int(env.get("COMPANION_POLL_SECONDS", "300"))
         # Optional (Stage 5b): replan asks go to Claude with this key.
         self.anthropic_api_key = env.get("ANTHROPIC_API_KEY") or None
@@ -142,8 +143,20 @@ def create_app(
     # Replan asks per user in the last hour, so a stuck phone can't run up the Claude bill.
     asks: dict[str, list[float]] = {}
 
+    # Several companions can share one Postgres database; only the one holding the lease polls, and
+    # another takes over if it stops renewing. With SQLite there's one, and it always holds it.
+    holder = str(uuid.uuid4())
+
     async def poll_forever():
         while True:
+            try:
+                leading = store.take_lease("poller", holder, datetime.now(UTC), settings.poll_seconds * 3)
+            except Exception:
+                log.exception("couldn't reach the database")
+                leading = False
+            if not leading:
+                await asyncio.sleep(settings.poll_seconds)
+                continue
             try:
                 await tick(store, adventurelog, apns, flights=flights)
             except Exception:  # keep polling whatever one pass hits
@@ -163,6 +176,9 @@ def create_app(
         yield
         if task:
             task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await task
+        store.close()
 
     app = FastAPI(title="AdventureLog companion", lifespan=lifespan)
     app.state.store = store
@@ -199,6 +215,7 @@ def create_app(
             "replan": claude is not None,
             "photos": photo_settings is not None,
             "flightStatus": flights is not None,
+            "storage": store.kind,
         }
 
     @app.post("/v1/devices")
