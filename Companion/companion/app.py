@@ -118,7 +118,7 @@ class ActivityToken(BaseModel):
     push_token: str = Field(alias="pushToken")
 
 
-# How often a running pass renews the poller lease (#20). A pass can outlast the lease (many phones,
+# How often, at most, a running pass renews the poller lease (#20). A pass can outlast the lease (many phones,
 # a big photo day), so it's renewed throughout rather than only between passes.
 LEASE_RENEW_SECONDS = 60
 
@@ -126,18 +126,22 @@ LEASE_RENEW_SECONDS = 60
 async def run_while_leading(work, renew, every: float) -> bool:
     """Runs `work`, calling `renew` every `every` seconds meanwhile. When a renewal fails (another
     companion holds the lease, or the database can't be reached), `work` is cancelled at its next
-    await, so nothing more is started. Returns whether it finished."""
+    await, so nothing more is started. Returns whether it finished. If this is cancelled itself
+    (shutdown), `work` is cancelled and waited for first, so it never outlives the poller."""
     task = asyncio.ensure_future(work)
-    while True:
-        done, _ = await asyncio.wait({task}, timeout=every)
-        if done:
-            task.result()
-            return True
-        if not renew():
+    try:
+        while True:
+            done, _ = await asyncio.wait({task}, timeout=every)
+            if done:
+                task.result()
+                return True
+            if not renew():
+                return False
+    finally:
+        if not task.done():
             task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await task
-            return False
 
 
 def create_app(
@@ -169,6 +173,8 @@ def create_app(
     # another takes over if it stops renewing. With SQLite there's one, and it always holds it.
     holder = str(uuid.uuid4())
     lease_seconds = settings.poll_seconds * 3
+    # At least three renewals a lease, so a running pass never loses it between two of them.
+    renew_every = min(LEASE_RENEW_SECONDS, lease_seconds / 3)
 
     def renew() -> bool:
         try:
@@ -190,7 +196,7 @@ def create_app(
 
     async def poll_forever():
         while True:
-            if renew() and not await run_while_leading(one_pass(), renew, LEASE_RENEW_SECONDS):
+            if renew() and not await run_while_leading(one_pass(), renew, renew_every):
                 log.warning("another companion took over polling; this pass stopped")
             await asyncio.sleep(settings.poll_seconds)
 

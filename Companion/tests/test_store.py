@@ -251,3 +251,26 @@ def test_a_pass_stops_when_its_lease_is_lost():
         started.append(0)
 
     assert asyncio.run(run_while_leading(short_pass(), lambda: False, 1)) is True, "a pass that ends first is done"
+
+
+def test_shutting_down_stops_a_running_pass():
+    from companion.app import run_while_leading
+
+    stopped = []
+
+    async def long_pass():
+        try:
+            await asyncio.sleep(10)
+        finally:
+            stopped.append(True)
+
+    async def poller_then_shutdown():
+        poller = asyncio.ensure_future(run_while_leading(long_pass(), lambda: True, 5))
+        await asyncio.sleep(0.05)
+        poller.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await poller
+        # Checked here, before asyncio.run would cancel anything left over.
+        assert stopped == [True], "the pass was cancelled and waited for before the poller ended"
+
+    asyncio.run(poller_then_shutdown())
