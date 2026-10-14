@@ -96,7 +96,7 @@ volumes:
 | `COMPANION_REPLAN_ASKS_PER_HOUR` | Optional; asks allowed per person per hour, 20 by default. |
 | `COMPANION_DB` | The SQLite file, `/data/companion.sqlite` by default. It holds each phone's API key: keep the volume private. |
 | `COMPANION_DATABASE_URL` | Optional: `postgresql://user:password@host:5432/database`. When set, everything is kept in Postgres and `COMPANION_DB` is ignored. See [Storage](#storage-sqlite-or-postgres). |
-| `COMPANION_POLL_SECONDS` | How often it checks, 300 by default. |
+| `COMPANION_POLL_SECONDS` | How often it checks, 300 by default and at least 10. |
 | `IMMICH_URL`, `IMMICH_API_KEY` | Optional (Stage 6), with the three below. The Immich server holding the photos, and an API key with `asset.read`, `job.create`, `album.create`, `album.read`, `albumAsset.create` and `albumAsset.delete`. |
 | `PHOTO_PATHS` | Where the photo library is mounted: `immich-path=companion-path`, several separated by `;`. For example `/mnt/photos=/photos` when Immich sees the library at `/mnt/photos` and the companion has it mounted read-write at `/photos`. The companion writes only under these folders. |
 | `CAMERA_ZONE` | The zone the camera's clock is set to, such as `Europe/London`, for photos whose EXIF has no time zone. Leave the camera on home time while travelling. |
@@ -132,8 +132,9 @@ each sidecar written (which undo needs) and the flight-status provider's billed 
 over. Running the copy twice is harmless: rows already there are left alone.
 
 Several companions can share one database. Only one polls at a time: it holds a lease, renewed
-every pass, and another takes over within three poll intervals if it stops. Any of them can answer
-the phone.
+every minute while it works, and another takes over within three poll intervals if it stops. A
+pass that loses the lease (the database unreachable for that long) stops before its next step. Any
+of them can answer the phone.
 
 A phone whose key AdventureLog has refused at every pass for 24 hours (the key was deleted, or its
 user removed) is unregistered, rather than logged as refused forever. If the refusals came from a

@@ -223,3 +223,31 @@ def test_a_sqlite_file_can_be_copied_across(tmp_path, store_target):
     assert new.sidecars("user-alex", "trip-1", "a1")[0]["backup"] == "<old/>"
     assert new.flight_units("aeroapi", date(2027, 3, 8)) == (2, 2)
     new.close()
+
+
+def test_a_pass_stops_when_its_lease_is_lost():
+    """The lease is renewed while a pass runs, and a pass that loses it starts nothing more."""
+    from companion.app import run_while_leading
+
+    started: list[int] = []
+    answers = iter([True, True, False])
+    renewals: list[bool] = []
+
+    def renew() -> bool:
+        renewals.append(answer := next(answers))
+        return answer
+
+    async def long_pass():
+        for step in range(100):
+            started.append(step)
+            await asyncio.sleep(0.01)
+
+    assert asyncio.run(run_while_leading(long_pass(), renew, 0.03)) is False
+    assert renewals == [True, True, False]
+    assert len(started) < 100
+
+    async def short_pass():
+        started.clear()
+        started.append(0)
+
+    assert asyncio.run(run_while_leading(short_pass(), lambda: False, 1)) is True, "a pass that ends first is done"

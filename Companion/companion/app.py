@@ -46,7 +46,7 @@ class Settings:
         self.adventurelog_url = env.get("ADVENTURELOG_URL", "")
         # Postgres when a URL is given (#20), else the SQLite file.
         self.database = env.get("COMPANION_DATABASE_URL") or env.get("COMPANION_DB", "/data/companion.sqlite")
-        self.poll_seconds = int(env.get("COMPANION_POLL_SECONDS", "300"))
+        self.poll_seconds = max(10, int(env.get("COMPANION_POLL_SECONDS", "300")))
         # Optional (Stage 5b): replan asks go to Claude with this key.
         self.anthropic_api_key = env.get("ANTHROPIC_API_KEY") or None
         self.anthropic_model = env.get("ANTHROPIC_MODEL") or DEFAULT_MODEL
@@ -118,6 +118,28 @@ class ActivityToken(BaseModel):
     push_token: str = Field(alias="pushToken")
 
 
+# How often a running pass renews the poller lease (#20). A pass can outlast the lease (many phones,
+# a big photo day), so it's renewed throughout rather than only between passes.
+LEASE_RENEW_SECONDS = 60
+
+
+async def run_while_leading(work, renew, every: float) -> bool:
+    """Runs `work`, calling `renew` every `every` seconds meanwhile. When a renewal fails (another
+    companion holds the lease, or the database can't be reached), `work` is cancelled at its next
+    await, so nothing more is started. Returns whether it finished."""
+    task = asyncio.ensure_future(work)
+    while True:
+        done, _ = await asyncio.wait({task}, timeout=every)
+        if done:
+            task.result()
+            return True
+        if not renew():
+            task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await task
+            return False
+
+
 def create_app(
     settings: Settings | None = None,
     adventurelog: AdventureLog | None = None,
@@ -146,26 +168,30 @@ def create_app(
     # Several companions can share one Postgres database; only the one holding the lease polls, and
     # another takes over if it stops renewing. With SQLite there's one, and it always holds it.
     holder = str(uuid.uuid4())
+    lease_seconds = settings.poll_seconds * 3
+
+    def renew() -> bool:
+        try:
+            return store.take_lease("poller", holder, datetime.now(UTC), lease_seconds)
+        except Exception:
+            log.exception("couldn't reach the database")
+            return False
+
+    async def one_pass():
+        try:
+            await tick(store, adventurelog, apns, flights=flights)
+        except Exception:  # keep polling whatever one pass hits
+            log.exception("poll failed")
+        if photo_settings and immich:
+            try:
+                await photo_worker.run(store, adventurelog, immich, photo_settings)
+            except Exception:
+                log.exception("photo pass failed")
 
     async def poll_forever():
         while True:
-            try:
-                leading = store.take_lease("poller", holder, datetime.now(UTC), settings.poll_seconds * 3)
-            except Exception:
-                log.exception("couldn't reach the database")
-                leading = False
-            if not leading:
-                await asyncio.sleep(settings.poll_seconds)
-                continue
-            try:
-                await tick(store, adventurelog, apns, flights=flights)
-            except Exception:  # keep polling whatever one pass hits
-                log.exception("poll failed")
-            if photo_settings and immich:
-                try:
-                    await photo_worker.run(store, adventurelog, immich, photo_settings)
-                except Exception:
-                    log.exception("photo pass failed")
+            if renew() and not await run_while_leading(one_pass(), renew, LEASE_RENEW_SECONDS):
+                log.warning("another companion took over polling; this pass stopped")
             await asyncio.sleep(settings.poll_seconds)
 
     @contextlib.asynccontextmanager
