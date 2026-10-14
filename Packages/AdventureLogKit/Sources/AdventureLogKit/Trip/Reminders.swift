@@ -52,7 +52,7 @@ public enum ReminderPlanner {
     static let mergeWindow: TimeInterval = 10 * 60
 
     public static func reminders(for plan: TripPlan, now: Date, skipped: Set<String> = [],
-                                 settings: ReminderSettings = ReminderSettings(),
+                                 settings: ReminderSettings = ReminderSettings(), routes: RouteTimes = RouteTimes(),
                                  locale: Locale = .autoupdatingCurrent) -> [Reminder] {
         var reminders: [Reminder] = []
         let end = now.addingTimeInterval(window)
@@ -76,12 +76,15 @@ public enum ReminderPlanner {
                 if settings.leaveBy, let destination = summary.coordinate,
                    let origin = origin(before: index, in: day.entries, summaries: summaries, skipped: skipped),
                    LeaveBy.kilometres(from: origin, to: destination) > sameplaceKilometres {
-                    let travel = LeaveBy.estimatedMinutes(from: origin, to: destination)
+                    let travel = routes.travel(from: origin, to: destination, arriving: start)
                     let buffer = isFlight ? 90 : summary.isBooked ? 10 : 5
-                    let fire = LeaveBy.time(start: start, travelMinutes: travel, bufferMinutes: buffer)
+                    let fire = LeaveBy.time(start: start, travelMinutes: travel.minutes, bufferMinutes: buffer)
                     if fire > now, fire <= end {
                         let leaveText = TripTime.shortTime(fire, in: summary.startZone, locale: locale)
-                        var body = "About \(ItemSummary.durationText(minutes: travel)) away · "
+                        // A routed time says how long the drive is; the estimate says "about".
+                        var body = travel.isRouted
+                            ? "\(travel.driveText) · "
+                            : "About \(ItemSummary.durationText(minutes: travel.minutes)) away · "
                         body += isFlight ? "departs \(time), allowing time at the airport" : "starts \(time)"
                         leave = Reminder(id: id(.leaveBy, entry, fire), kind: .leaveBy, fireDate: fire,
                                          title: "Leave by \(leaveText) for \(summary.title)", body: body,

@@ -226,7 +226,7 @@ private struct NextCard: View {
     let next: TodayPlan.Entry
     @Environment(AppModel.self) private var model
     @Environment(\.openURL) private var openURL
-    /// A routed drive time from Apple Maps, when one could be fetched.
+    /// A routed drive time from Apple Maps for setting off now, when one could be fetched.
     @State private var routedMinutes: Int?
 
     var body: some View {
@@ -291,9 +291,12 @@ private struct NextCard: View {
         guard next.status == .upcoming, let start = summary.start, !summary.isAllDay,
               let origin, let destination = summary.coordinate
         else { return nil }
-        let minutes = routedMinutes ?? LeaveBy.estimatedMinutes(from: origin, to: destination)
-        let leave = LeaveBy.time(start: start, travelMinutes: minutes)
-        let drive = routedMinutes == nil ? "~\(ItemSummary.durationText(minutes: minutes)) drive" : "\(ItemSummary.durationText(minutes: minutes)) drive"
+        // Live from Apple Maps when it answered; else what this phone looked up earlier (#42),
+        // which works offline; else the straight-line estimate, marked "~".
+        let travel = routedMinutes.map { RouteTimes.Travel(minutes: $0, isRouted: true) }
+            ?? model.routeTimes.travel(from: origin, to: destination, arriving: start)
+        let leave = LeaveBy.time(start: start, travelMinutes: travel.minutes)
+        let drive = travel.driveText
         let time = Text(TripTime.shortTime(leave, in: summary.startZone)).bold()
         return Text("Leave by \(time) · \(drive)")
     }

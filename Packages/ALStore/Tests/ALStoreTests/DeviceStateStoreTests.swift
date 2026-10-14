@@ -18,6 +18,9 @@ struct DeviceStateStoreTests {
         #expect(state == DeviceStateStore.State())
         state.outbox.enqueue(.editNote(.init(noteID: "n", noteName: "Tips", baseContent: "", content: "Ferry at 9")), tripID: "t", at: .now)
         state.skipped["t"] = ["row-1"]
+        let leg = RouteTimes.Leg(from: ItemSummary.Coordinate(-42.12, 148.30)!, to: ItemSummary.Coordinate(-42.12, 148.34)!,
+                                 departure: .now)
+        state.routes.record(leg, seconds: 600, at: .now)
         try await store.save(state)
 
         let relaunched = DeviceStateStore(directory: directory)

@@ -101,9 +101,16 @@ public enum Replan {
         public var longitude: Double?
         public var nextDay: NextDay?
         public var zoneID: String
+        /// Drive times looked up on this phone (#42). Not sent with the situation: the companion
+        /// and Claude get the stops' times, which already allow for them.
+        public var routes = RouteTimes()
+
+        private enum CodingKeys: String, CodingKey {
+            case date, now, stops, delayMinutes, latitude, longitude, nextDay, zoneID
+        }
 
         public init(date: CalendarDate, now: Date, stops: [Stop], delayMinutes: Int, position: ItemSummary.Coordinate? = nil,
-                    nextDay: NextDay? = nil, zone: TimeZone) {
+                    nextDay: NextDay? = nil, zone: TimeZone, routes: RouteTimes = RouteTimes()) {
             self.date = date
             self.now = now
             self.stops = stops
@@ -112,6 +119,7 @@ public enum Replan {
             self.longitude = position?.longitude
             self.nextDay = nextDay
             self.zoneID = zone.identifier
+            self.routes = routes
         }
 
         public var zone: TimeZone { TimeZone(identifier: zoneID) ?? .gmt }
@@ -247,10 +255,13 @@ public enum Replan {
         stop.isFlight ? 90 : 10
     }
 
-    /// Travel minutes between two places: none within 300 m, else Today's straight-line estimate.
-    public static func travelMinutes(from a: ItemSummary.Coordinate?, to b: ItemSummary.Coordinate?) -> Int {
+    /// Travel minutes between two places setting off at `departure`: none within 300 m, else the
+    /// routed drive time when this phone has looked it up for about then, else Today's
+    /// straight-line estimate.
+    public static func travelMinutes(from a: ItemSummary.Coordinate?, to b: ItemSummary.Coordinate?,
+                                     departure: Date, routes: RouteTimes = RouteTimes()) -> Int {
         guard let a, let b, LeaveBy.kilometres(from: a, to: b) >= 0.3 else { return 0 }
-        return LeaveBy.estimatedMinutes(from: a, to: b)
+        return routes.travel(from: a, to: b, departure: departure).minutes
     }
 
     /// Nothing flexible is planned to end after this in the day's zone.
@@ -274,8 +285,9 @@ public enum Replan {
 
     /// How late you are for `target` if you set off from `position` now: minutes after its planned
     /// start you'd arrive, never negative.
-    public static func delay(now: Date, position: ItemSummary.Coordinate?, target: Stop) -> Int {
-        let arrive = now.addingTimeInterval(Double(travelMinutes(from: position, to: target.coordinate) * 60))
+    public static func delay(now: Date, position: ItemSummary.Coordinate?, target: Stop,
+                             routes: RouteTimes = RouteTimes()) -> Int {
+        let arrive = now.addingTimeInterval(Double(travelMinutes(from: position, to: target.coordinate, departure: now, routes: routes) * 60))
         return max(0, Int((arrive.timeIntervalSince(target.start) / 60).rounded(.up)))
     }
 }

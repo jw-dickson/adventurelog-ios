@@ -19,7 +19,8 @@ extension Replan.Situation {
     /// - Without one, the delay is `reportedDelay` (what the person says), or none.
     /// - Returns: `nil` when today isn't a day of the trip or nothing timed is left.
     public static func current(plan: TripPlan, today: CalendarDate, now: Date, skipped: Set<String> = [],
-                               log: DayLog? = nil, lastPoint: TrackPoint? = nil, reportedDelay: Int? = nil) -> Replan.Situation? {
+                               log: DayLog? = nil, lastPoint: TrackPoint? = nil, reportedDelay: Int? = nil,
+                               routes: RouteTimes = RouteTimes()) -> Replan.Situation? {
         guard let todayPlan = TodayPlan(plan: plan, today: today, now: now, skipped: skipped) else { return nil }
         let visited = Set((log?.rows ?? []).compactMap { row -> String? in
             switch row.status {
@@ -47,29 +48,30 @@ extension Replan.Situation {
             if let at = first.coordinate, LeaveBy.kilometres(from: position, to: at) * 1000 <= atStopMetres,
                now >= first.start.addingTimeInterval(-15 * 60) {
                 stops.removeFirst()
-                let after = afterStop(first, next: stops.first, now: now, position: position)
+                let after = afterStop(first, next: stops.first, now: now, position: position, routes: routes)
                 delay = after.delay
                 startingPoint = after.startingPoint
             } else {
-                delay = Replan.delay(now: now, position: position, target: first)
+                delay = Replan.delay(now: now, position: position, target: first, routes: routes)
             }
         }
         guard !stops.isEmpty else { return nil }
         return Replan.Situation(date: today, now: now, stops: stops, delayMinutes: delay,
                                 position: reportedDelay == nil ? startingPoint : nil,
-                                nextDay: nextDay(after: today, in: plan), zone: plan.timeZone)
+                                nextDay: nextDay(after: today, in: plan), zone: plan.timeZone, routes: routes)
     }
 
     /// You're at `first`: how late you'll be for `next`, and where you'll set off from. You're free
     /// when `first` ends (or now, if you've stayed on), wherever it ends. A booked tour with rows
     /// inside it is different: those rows follow from its start, there.
     public static func afterStop(_ first: Replan.Stop, next: Replan.Stop?, now: Date,
-                                 position: ItemSummary.Coordinate) -> (delay: Int, startingPoint: ItemSummary.Coordinate) {
+                                 position: ItemSummary.Coordinate,
+                                 routes: RouteTimes = RouteTimes()) -> (delay: Int, startingPoint: ItemSummary.Coordinate) {
         guard let next else { return (0, first.exit ?? position) }
         let nested = next.start < first.end
         let from = nested ? (first.coordinate ?? position) : (first.exit ?? position)
         let free = nested ? max(now, first.start) : max(now, first.end)
-        let arrive = free.addingTimeInterval(Double(Replan.travelMinutes(from: from, to: next.coordinate) * 60))
+        let arrive = free.addingTimeInterval(Double(Replan.travelMinutes(from: from, to: next.coordinate, departure: free, routes: routes) * 60))
         return (max(0, Int((arrive.timeIntervalSince(next.start) / 60).rounded(.up))), from)
     }
 
