@@ -131,11 +131,11 @@ public enum ReplanPlanner {
         guard let first = slots.first?.stop else { return [] }
         var violations: [Violation] = []
         var at = situation.position ?? first.coordinate
-        var free = first.start.addingTimeInterval(Double(delay * 60 - Replan.travelMinutes(from: at, to: first.coordinate) * 60))
+        var free = first.start.addingTimeInterval(Double(delay * 60 - Replan.travelMinutes(from: at, to: first.coordinate, routes: situation.routes) * 60))
         if fromNow { free = max(free, situation.now) }
         for index in slots.indices where slots[index].isActive {
             let stop = slots[index].stop
-            let arrive = free.addingTimeInterval(Double(Replan.travelMinutes(from: at, to: stop.coordinate) * 60))
+            let arrive = free.addingTimeInterval(Double(Replan.travelMinutes(from: at, to: stop.coordinate, routes: situation.routes) * 60))
             if stop.isFlexible {
                 let start = max(stop.start, arrive)
                 let end = start.addingTimeInterval(Double(slots[index].minutes * 60))

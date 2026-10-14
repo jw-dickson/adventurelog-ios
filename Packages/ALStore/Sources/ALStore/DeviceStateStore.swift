@@ -3,7 +3,8 @@
 import AdventureLogKit
 import Foundation
 
-/// What only this phone knows: edits not yet on the server, and the rows skipped on Today.
+/// What only this phone knows: edits not yet on the server, the rows skipped on Today, and the
+/// drive times it looked up.
 ///
 /// Kept apart from the trip snapshots, which are always exactly what the server sent, so a
 /// refresh can never overwrite an unsent edit. One small JSON file, written after every change.
@@ -15,16 +16,20 @@ public actor DeviceStateStore {
         /// Trips whose route the person agreed to log, and trips they said no to.
         public var trackingAllowed: Set<String>
         public var trackingDeclined: Set<String>
+        /// Drive times from Apple Maps, for every trip (#42).
+        public var routes: RouteTimes
 
         public init(outbox: Outbox = Outbox(), skipped: [String: Set<String>] = [:],
-                    trackingAllowed: Set<String> = [], trackingDeclined: Set<String> = []) {
+                    trackingAllowed: Set<String> = [], trackingDeclined: Set<String> = [],
+                    routes: RouteTimes = RouteTimes()) {
             self.outbox = outbox
             self.skipped = skipped
             self.trackingAllowed = trackingAllowed
             self.trackingDeclined = trackingDeclined
+            self.routes = routes
         }
 
-        private enum CodingKeys: String, CodingKey { case outbox, skipped, trackingAllowed, trackingDeclined }
+        private enum CodingKeys: String, CodingKey { case outbox, skipped, trackingAllowed, trackingDeclined, routes }
 
         /// Fields added later decode as empty, so an update never loses unsent edits.
         public init(from decoder: any Decoder) throws {
@@ -33,6 +38,8 @@ public actor DeviceStateStore {
             skipped = try container.decodeIfPresent([String: Set<String>].self, forKey: .skipped) ?? [:]
             trackingAllowed = try container.decodeIfPresent(Set<String>.self, forKey: .trackingAllowed) ?? []
             trackingDeclined = try container.decodeIfPresent(Set<String>.self, forKey: .trackingDeclined) ?? []
+            // Only a cache: one that can't be read starts empty rather than losing the rest.
+            routes = (try? container.decodeIfPresent(RouteTimes.self, forKey: .routes)) ?? RouteTimes()
         }
     }
 

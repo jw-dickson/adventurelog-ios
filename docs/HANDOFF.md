@@ -91,7 +91,7 @@ Open items from this handoff: the outline's time column wraps long 12-hour times
 
 ### What changed
 
-- **Today tab** (first tab, Design/review-1 02 and 10). It shows the day header, a Next card with the leave-by time and Navigate / Notes / Skip, then Later today and Earlier. The leave-by time counts from the previous stop. It uses Apple Maps' drive time when it can, and a straight-line estimate offline and in UI tests. Skip stays on the phone.
+- **Today tab** (first tab, Design/review-1 02 and 10). It shows the day header, a Next card with the leave-by time and Navigate / Notes / Skip, then Later today and Earlier. The leave-by time counts from the previous stop. It uses Apple Maps' drive time when it can (live, else the one looked up earlier, #42), and a straight-line estimate offline before any lookup and in UI tests. Skip stays on the phone.
 - **Edits:**
   - checklist items tick on tap in item detail;
   - notes have Edit;
@@ -202,7 +202,7 @@ Append under "Results":
 
 1. Turn reminders on. In AdventureLog, add a timed place today, an hour from now, after another place with a position. Pull to refresh.
    - A heads-up should arrive 15 minutes before it starts.
-   - A leave-by should arrive at the time in its own text ("Leave by …"). That time comes from `ReminderPlanner` (straight-line estimate plus a buffer), so it can be a few minutes earlier than the leave-by on Today, which uses Apple Maps' drive time and no buffer.
+   - A leave-by should arrive at the time in its own text ("Leave by …"). That time comes from `ReminderPlanner` (the drive time by road when looked up, else the straight-line estimate, plus a buffer), so it can be a few minutes earlier than the leave-by on Today, which uses Apple Maps' drive time and no buffer.
 2. Change the phone's time zone in Settings. The pending reminders should still fire at the same moments.
 3. Leave the app in the background overnight, then open Settings › General › Background App Refresh and confirm AdventureLog is on. The next day's reminders should arrive without opening the app.
 
@@ -490,5 +490,27 @@ Only after 2 passes: point `PHOTO_PATHS` at the library and turn the trip on.
 3. The activity should start by push. If the flight has a gate or a delay, the note shows it within 15 minutes.
 4. Open the app: a delay should stay, not jump back to the scheduled time.
 5. After it leaves, the activity should end within 5 minutes.
+
+### Results
+
+## Handoff 15 · Drive times by road (#42) (2026-10-13)
+
+**Branch:** `routed-drive-times`. **Goal:** leave-by reminders, Today and replan use real drive times, offline too. No navigation.
+
+### What changed
+
+- **Kit:** `RouteTimes` (a cache of drive times keyed by each leg's two ends, the legs worth looking up, and the routed-or-estimate `Travel`). `ReminderPlanner.reminders`, `Replan.travelMinutes`, `Replan.delay` and `Replan.Situation.current` take it. The situation keeps it but doesn't encode it.
+- **Phone:** `updateRouteTimes()` looks up the next two days' legs with `MKDirections.calculateETA` when the app comes to the front, in the background refresh and when the connection comes back, and saves them with the device state. Today falls back to the saved time before the estimate.
+
+### 1. Simulator
+
+1. Kit tests (`RouteTimesTests`) use made-up times. UI tests run on the offline seed, which never looks anything up, so their estimates don't change.
+
+### 2. On a phone (TestFlight)
+
+1. Open a trip with drives today or tomorrow while online, then close the app.
+2. Turn on Airplane Mode and open it again: Today's leave-by should read "N min drive" with no "~".
+3. A leave-by reminder should read "N min drive · starts …" rather than "About …".
+4. A leg across water with no road should keep "~" and "About".
 
 ### Results

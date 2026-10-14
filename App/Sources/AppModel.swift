@@ -53,6 +53,13 @@ final class AppModel {
     private(set) var outbox = Outbox()
     /// Itinerary rows skipped on Today, by trip. Kept on this phone only.
     private(set) var skipped: [String: Set<String>] = [:]
+    /// Drive times looked up with Apple Maps for the plan's legs (#42). Kept on this phone only.
+    var routeTimes = RouteTimes()
+    /// A lookup run is under way, so another doesn't start beside it.
+    @ObservationIgnored var lookingUpRoutes = false
+    /// Apple Maps said to slow down: no lookups before this.
+    @ObservationIgnored var routeLookupsPausedUntil: Date?
+    @ObservationIgnored var routeLookup: any RouteLookup = MapKitRouteLookup()
     /// An edit is being sent right now.
     private(set) var isSyncing = false
     /// Sending stopped for a reason the person has to fix (the API key stopped working).
@@ -80,8 +87,8 @@ final class AppModel {
     private var pendingWrites: Task<Void, Never>?
     /// Bumped on every sign-in and sign-out. Work that started in an earlier session is dropped,
     /// so it can't put the previous account's trips back on screen.
-    private var session = 0
-    private var deviceStateLoaded = false
+    private(set) var session = 0
+    private(set) var deviceStateLoaded = false
     private var sendTask: Task<Void, Never>?
     private var retryTask: Task<Void, Never>?
     private var pathMonitor: NWPathMonitor?
@@ -399,6 +406,8 @@ final class AppModel {
         tracker.stop()
         trackingAllowed = []
         trackingDeclined = []
+        routeTimes = RouteTimes()
+        routeLookupsPausedUntil = nil
         trackPoints = [:]
         placeEvents = [:]
         retryTask?.cancel()
@@ -665,7 +674,7 @@ final class AppModel {
         let log = recording ? dayLog(tripID: tripID, date: today) : nil
         let last = recording ? (tracker.buffered.last ?? trackPoints[tripID]?.last) : nil
         return .current(plan: plan, today: today, now: now, skipped: skipped[tripID] ?? [], log: log,
-                        lastPoint: last, reportedDelay: reportedDelay)
+                        lastPoint: last, reportedDelay: reportedDelay, routes: routeTimes)
     }
 
     func tripDays(_ tripID: String) -> Set<CalendarDate> {
@@ -998,7 +1007,8 @@ final class AppModel {
         let listed = Set((ownedTrips + sharedTrips).map(\.id))
         var all: [Reminder] = []
         for (id, trip) in trips where listed.contains(id) {
-            all += ReminderPlanner.reminders(for: trip.plan, now: now, skipped: skipped[id] ?? [], settings: reminderSettings)
+            all += ReminderPlanner.reminders(for: trip.plan, now: now, skipped: skipped[id] ?? [], settings: reminderSettings,
+                                             routes: routeTimes)
         }
         all.sort { ($0.fireDate, $0.id) < ($1.fireDate, $1.id) }
         // A current trip whose plan isn't loaded (no list yet, or no saved copy) keeps whatever is
@@ -1016,6 +1026,7 @@ final class AppModel {
         Self.scheduleBackgroundRefresh()
         guard credentials != nil else { return }
         await loadTrips()
+        await updateRouteTimes()
         await updateReminders()
         await updateLiveActivities()
     }
@@ -1350,6 +1361,10 @@ final class AppModel {
         if lastError != nil {
             Task { await refreshOpenTrip() }
         }
+        Task {
+            await updateRouteTimes()
+            await updateReminders()
+        }
     }
 
     /// The app came to the front.
@@ -1362,6 +1377,7 @@ final class AppModel {
         Task {
             await refreshOpenTrip()
             await refreshReminderPermission()
+            await updateRouteTimes()
             await updateReminders()
             await updateLiveActivities()
         }
@@ -1382,12 +1398,14 @@ final class AppModel {
         skipped = state.skipped
         trackingAllowed = state.trackingAllowed
         trackingDeclined = state.trackingDeclined
+        routeTimes = state.routes
         for id in savedTrips.keys { show(id) }
     }
 
-    private func saveDeviceState() {
+    func saveDeviceState() {
         let state = DeviceStateStore.State(outbox: outbox, skipped: skipped,
-                                           trackingAllowed: trackingAllowed, trackingDeclined: trackingDeclined)
+                                           trackingAllowed: trackingAllowed, trackingDeclined: trackingDeclined,
+                                           routes: routeTimes)
         let store = deviceState
         queueWrite { try? await store.save(state) }
     }
