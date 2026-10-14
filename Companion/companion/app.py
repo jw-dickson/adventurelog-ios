@@ -14,7 +14,7 @@ import logging
 import os
 import time
 import uuid
-from datetime import date
+from datetime import UTC, date, datetime
 from typing import Literal
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Path
@@ -44,8 +44,9 @@ class Settings:
     def __init__(self, env: dict[str, str] | None = None):
         env = os.environ if env is None else env
         self.adventurelog_url = env.get("ADVENTURELOG_URL", "")
-        self.database = env.get("COMPANION_DB", "/data/companion.sqlite")
-        self.poll_seconds = int(env.get("COMPANION_POLL_SECONDS", "300"))
+        # Postgres when a URL is given (#20), else the SQLite file.
+        self.database = env.get("COMPANION_DATABASE_URL") or env.get("COMPANION_DB", "/data/companion.sqlite")
+        self.poll_seconds = max(10, int(env.get("COMPANION_POLL_SECONDS", "300")))
         # Optional (Stage 5b): replan asks go to Claude with this key.
         self.anthropic_api_key = env.get("ANTHROPIC_API_KEY") or None
         self.anthropic_model = env.get("ANTHROPIC_MODEL") or DEFAULT_MODEL
@@ -117,6 +118,32 @@ class ActivityToken(BaseModel):
     push_token: str = Field(alias="pushToken")
 
 
+# How often, at most, a running pass renews the poller lease (#20). A pass can outlast the lease (many phones,
+# a big photo day), so it's renewed throughout rather than only between passes.
+LEASE_RENEW_SECONDS = 60
+
+
+async def run_while_leading(work, renew, every: float) -> bool:
+    """Runs `work`, calling `renew` every `every` seconds meanwhile. When a renewal fails (another
+    companion holds the lease, or the database can't be reached), `work` is cancelled at its next
+    await, so nothing more is started. Returns whether it finished. If this is cancelled itself
+    (shutdown), `work` is cancelled and waited for first, so it never outlives the poller."""
+    task = asyncio.ensure_future(work)
+    try:
+        while True:
+            done, _ = await asyncio.wait({task}, timeout=every)
+            if done:
+                task.result()
+                return True
+            if not renew():
+                return False
+    finally:
+        if not task.done():
+            task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await task
+
+
 def create_app(
     settings: Settings | None = None,
     adventurelog: AdventureLog | None = None,
@@ -142,17 +169,35 @@ def create_app(
     # Replan asks per user in the last hour, so a stuck phone can't run up the Claude bill.
     asks: dict[str, list[float]] = {}
 
+    # Several companions can share one Postgres database; only the one holding the lease polls, and
+    # another takes over if it stops renewing. With SQLite there's one, and it always holds it.
+    holder = str(uuid.uuid4())
+    lease_seconds = settings.poll_seconds * 3
+    # At least three renewals a lease, so a running pass never loses it between two of them.
+    renew_every = min(LEASE_RENEW_SECONDS, lease_seconds / 3)
+
+    def renew() -> bool:
+        try:
+            return store.take_lease("poller", holder, datetime.now(UTC), lease_seconds)
+        except Exception:
+            log.exception("couldn't reach the database")
+            return False
+
+    async def one_pass():
+        try:
+            await tick(store, adventurelog, apns, flights=flights)
+        except Exception:  # keep polling whatever one pass hits
+            log.exception("poll failed")
+        if photo_settings and immich:
+            try:
+                await photo_worker.run(store, adventurelog, immich, photo_settings)
+            except Exception:
+                log.exception("photo pass failed")
+
     async def poll_forever():
         while True:
-            try:
-                await tick(store, adventurelog, apns, flights=flights)
-            except Exception:  # keep polling whatever one pass hits
-                log.exception("poll failed")
-            if photo_settings and immich:
-                try:
-                    await photo_worker.run(store, adventurelog, immich, photo_settings)
-                except Exception:
-                    log.exception("photo pass failed")
+            if renew() and not await run_while_leading(one_pass(), renew, renew_every):
+                log.warning("another companion took over polling; this pass stopped")
             await asyncio.sleep(settings.poll_seconds)
 
     @contextlib.asynccontextmanager
@@ -163,6 +208,9 @@ def create_app(
         yield
         if task:
             task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await task
+        store.close()
 
     app = FastAPI(title="AdventureLog companion", lifespan=lifespan)
     app.state.store = store
@@ -199,6 +247,7 @@ def create_app(
             "replan": claude is not None,
             "photos": photo_settings is not None,
             "flightStatus": flights is not None,
+            "storage": store.kind,
         }
 
     @app.post("/v1/devices")

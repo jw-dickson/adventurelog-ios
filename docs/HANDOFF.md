@@ -514,3 +514,26 @@ Only after 2 passes: point `PHOTO_PATHS` at the library and turn the trip on.
 4. A leg across water with no road should keep "~" and "About".
 
 ### Results
+
+## Handoff 16 · Companion on Postgres (#20) (2026-10-13)
+
+**Branch:** `companion-postgres`. **Goal:** the companion can keep its data in Postgres, so it no longer has to be pinned to one host with a local volume.
+
+### What changed
+
+- **Companion:** `COMPANION_DATABASE_URL` picks Postgres; without it, SQLite at `COMPANION_DB` as before. The same tables and SQL serve both. The store is safe across threads now (a lock for SQLite, a small pool for Postgres). Several companions can share one database: a lease decides which one polls. A phone whose key has been refused for 24 hours is unregistered. `python -m companion.migrate` copies an existing SQLite file across. The image includes the driver. See "Storage" in `Companion/README.md`.
+- **CI:** the companion job runs the store tests on SQLite and on a Postgres service.
+
+### 1. Moving a running companion
+
+1. Create the database and its user, as in the README.
+2. Stop the companion, then run `python -m companion.migrate` from the new image against its volume. Each table's row count is printed.
+3. Set `COMPANION_DATABASE_URL`, drop the volume pin, and start it. `/healthz` should say `"storage": "postgres"`.
+
+### 2. On a phone
+
+1. Open the app: Reminders should still show the companion as connected, with no new sign-in.
+2. A Live Activity should still start by push for a flight or booked tour about three hours out.
+3. With two replicas running, only one should log poll passes. Stop that one, and the other should take over within about 15 minutes.
+
+### Results

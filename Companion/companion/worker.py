@@ -16,7 +16,7 @@ from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from . import planner
-from .adventurelog import AdventureLog, AdventureLogError
+from .adventurelog import AdventureLog, AdventureLogError, AdventureLogRefused
 from .apns import APNs, TokenGone
 from .flight_status import Flight, FlightStatusService, alert_for, apply, normalize_number
 from .store import Device, Store
@@ -39,6 +39,10 @@ def start_alert(plan: planner.Plan) -> dict:
 
 # A delayed flight's status is still looked at this long after its planned departure.
 DELAY_HORIZON = timedelta(hours=12)
+# A phone whose key AdventureLog has refused at every poll for this long is unregistered (#20): the
+# key was deleted or its user removed. If it was only a server misconfiguration, the phone
+# registers again the next time the app opens.
+REFUSED_FOR = timedelta(hours=24)
 
 
 async def tick(
@@ -94,9 +98,20 @@ async def _tick_device(
 ) -> None:
     try:
         trips = await adventurelog.current_trips(device.api_key, now.date())
+    except AdventureLogRefused as error:
+        since, first = store.key_refused(device.id, now)
+        if now - since >= REFUSED_FOR:
+            log.warning("device %s: AdventureLog has refused its key since %s; unregistered it", device.id, since)
+            store.unregister(device.id)
+        elif first:
+            log.warning("device %s: %s", device.id, error)
+        else:
+            log.debug("device %s: %s (since %s)", device.id, error, since)
+        return
     except AdventureLogError as error:
         log.warning("device %s: %s", device.id, error)
         return
+    store.key_accepted(device.id)
     adjust = await flight_adjuster(trips, now, flights)
     plans = [p for trip in trips if (p := planner.current(trip, now, adjust))]
     plan = min(plans, key=lambda p: p.end) if plans else None

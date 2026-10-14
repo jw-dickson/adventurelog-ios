@@ -13,6 +13,8 @@ dependencies = [
 
 [project.optional-dependencies]
 test = ["pytest>=8"]
+# Postgres storage (#20), with COMPANION_DATABASE_URL. The Docker image includes it.
+postgres = ["psycopg[binary,pool]>=3.2"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
